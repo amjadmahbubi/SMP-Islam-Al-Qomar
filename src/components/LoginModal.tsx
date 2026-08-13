@@ -19,22 +19,34 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 }) => {
   const [selectedRole, setSelectedRole] = useState<'admin' | 'guru' | 'public'>('admin');
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>(teachers[1]?.id || teachers[0]?.id || 'T002');
-  const [password, setPassword] = useState('123456');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
 
   if (!isOpen) return null;
 
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!password.trim()) {
+      setLoginError('Silakan masukkan kata sandi Anda');
+      return;
+    }
+    setLoginError('');
     onLogin({
       role: 'admin',
       name: 'Administrator DAPODIK',
       email: 'admin@alqomar.sch.id'
     });
+    setPassword('');
     onClose();
   };
 
   const handleTeacherLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!password.trim()) {
+      setLoginError('Silakan masukkan kata sandi Anda');
+      return;
+    }
+    setLoginError('');
     const teacher = teachers.find(t => t.id === selectedTeacherId) || teachers[0];
     onLogin({
       role: 'guru',
@@ -42,6 +54,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       email: teacher.email,
       teacherId: teacher.id
     });
+    setPassword('');
     onClose();
   };
 
@@ -123,6 +136,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </button>
           </div>
 
+          {loginError && (
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-400/40 rounded-xl text-xs text-red-200 font-semibold flex items-center justify-between">
+              <span>{loginError}</span>
+              <button onClick={() => setLoginError('')} className="text-red-300 font-bold">×</button>
+            </div>
+          )}
+
           {/* ADMIN FORM */}
           {selectedRole === 'admin' && (
             <form onSubmit={handleAdminLogin} className="space-y-4">
@@ -152,9 +172,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <input
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 pl-9 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-500"
-                    placeholder="Masukkan sandi..."
+                    autoComplete="current-password"
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (loginError) setLoginError('');
+                    }}
+                    className="w-full px-3 py-2 pl-9 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-400"
+                    placeholder="Masukkan kata sandi..."
                   />
                   <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                 </div>
@@ -204,8 +228,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   <input
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 pl-9 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-500"
+                    autoComplete="current-password"
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (loginError) setLoginError('');
+                    }}
+                    className="w-full px-3 py-2 pl-9 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none placeholder:text-slate-400"
+                    placeholder="Masukkan kata sandi..."
                   />
                   <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
                 </div>

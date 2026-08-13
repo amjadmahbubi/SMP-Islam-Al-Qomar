@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Teacher } from '../../types';
 import { exportToCSV } from '../../services/storage';
-import { GraduationCap, Plus, Search, Download, Edit3, Trash2, X, Check, Filter } from 'lucide-react';
+import { GraduationCap, Plus, Search, Download, Edit3, Trash2, X, Check, Filter, Key, ShieldCheck, Lock, AlertCircle } from 'lucide-react';
 
 interface DataGuruViewProps {
   teachers: Teacher[];
@@ -29,6 +29,11 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
   const [statusFilter, setStatusFilter] = useState('Semua');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+
+  // Reset Password State
+  const [resetTeacher, setResetTeacher] = useState<Teacher | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetSuccessMessage, setResetSuccessMessage] = useState('');
 
   const [form, setForm] = useState<Partial<Teacher>>({
     nuptk: '',
@@ -246,6 +251,17 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
                   <td className="p-3.5 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button
+                        onClick={() => {
+                          setResetTeacher(teacher);
+                          setNewPassword('');
+                          setResetSuccessMessage('');
+                        }}
+                        className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Atur Ulang Kata Sandi (Reset Password)"
+                      >
+                        <Key className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => handleOpenEdit(teacher)}
                         className="p-1.5 text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-colors"
                         title="Edit Data"
@@ -419,6 +435,119 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
               </div>
 
             </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* Modal Reset Password */}
+      {resetTeacher && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 space-y-4 text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-amber-100 text-amber-800 rounded-xl">
+                  <Key className="w-5 h-5 text-amber-700" />
+                </div>
+                <div>
+                  <h3 className="font-bold font-serif text-base text-slate-900">
+                    Atur Ulang Kata Sandi Akun
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Administrator DAPODIK Security Panel
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setResetTeacher(null)}
+                className="text-slate-400 hover:text-slate-600 font-bold p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-1.5">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Nama Guru:</span>
+                <span className="font-bold text-slate-900">{resetTeacher.nama}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Email Akun:</span>
+                <span className="font-mono text-slate-800">{resetTeacher.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Mapel / Jabatan:</span>
+                <span className="font-semibold text-emerald-800">{resetTeacher.mapelUtama}</span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed">
+              <div className="font-bold flex items-center gap-1.5 text-blue-950 mb-1">
+                <ShieldCheck className="w-4 h-4 text-blue-700 shrink-0" />
+                <span>Prinsip Keamanan Sandi</span>
+              </div>
+              <p>
+                Sesuai standar keamanan data, kata sandi lama <strong>tidak dapat dilihat secara mentah (plain-text)</strong> demi melindungi privasi guru. Admin hanya dapat memasukkan kata sandi sementara baru jika guru lupa sandinya.
+              </p>
+            </div>
+
+            {resetSuccessMessage ? (
+              <div className="p-3 bg-emerald-100 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-900 flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-700 shrink-0" />
+                <span>{resetSuccessMessage}</span>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newPassword.trim()) return;
+                  setResetSuccessMessage(`Kata sandi baru untuk ${resetTeacher.nama} berhasil diperbarui! Silakan beritahukan sandi sementara ini kepada beliau.`);
+                  setTimeout(() => {
+                    setResetTeacher(null);
+                    setResetSuccessMessage('');
+                  }, 2500);
+                }}
+                className="space-y-3"
+              >
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Masukkan Kata Sandi Baru (Sementara)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Minimal 6 karakter..."
+                      className="w-full px-3 py-2 pl-9 bg-white border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setResetTeacher(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+                  >
+                    Batal
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5"
+                  >
+                    <Key className="w-4 h-4" />
+                    <span>Simpan Kata Sandi Baru</span>
+                  </button>
+                </div>
+              </form>
+            )}
 
           </div>
         </div>
