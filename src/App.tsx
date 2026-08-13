@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import {
   UserSession,
   SchoolInfo,
@@ -471,6 +472,8 @@ export function App() {
         </p>
       </footer>
 
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 }
