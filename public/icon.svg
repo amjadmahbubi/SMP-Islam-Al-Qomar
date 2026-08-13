@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#065f46" />
+      <stop offset="100%" stop-color="#022c22" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)" />
+  <rect x="16" y="16" width="480" height="480" rx="98" fill="none" stroke="#34d399" stroke-width="6" stroke-opacity="0.3" />
+  
+  <!-- Mosque Dome & Crescent Moon -->
+  <path d="M 256 100 C 180 160, 180 240, 256 260 C 332 240, 332 160, 256 100 Z" fill="url(#goldGrad)" />
+  <circle cx="256" cy="80" r="14" fill="#fbbf24" />
+  <path d="M 256 50 C 245 50, 235 58, 235 70 C 235 82, 245 90, 256 90 C 250 90, 242 82, 242 70 C 242 58, 250 50, 256 50 Z" fill="#fbbf24" />
+
+  <!-- Open Book (Qur'an / Education) -->
+  <path d="M 130 290 Q 256 260 382 290 L 382 390 Q 256 360 130 390 Z" fill="#ffffff" opacity="0.9" />
+  <path d="M 256 270 L 256 375" stroke="#065f46" stroke-width="8" stroke-linecap="round" />
+
+  <!-- Text DAPODIK -->
+  <text x="256" y="445" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="900" font-size="42" fill="#34d399" text-anchor="middle" letter-spacing="4">DAPODIK</text>
+  <text x="256" y="475" font-family="'Plus Jakarta Sans', Arial, sans-serif" font-weight="700" font-size="20" fill="#fbbf24" text-anchor="middle" letter-spacing="2">AL QOMAR</text>
+</svg>

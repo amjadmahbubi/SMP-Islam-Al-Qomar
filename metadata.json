@@ -1,0 +1,6 @@
+{
+  "name": "DAPODIK SMP Islam Al Qomar",
+  "description": "Sistem Informasi Data Pokok Pendidikan SMP Islam Al Qomar dengan portal publik, kelola data sekolah, guru, siswa, sarpras, administrasi guru, absensi, input nilai, rapor digital, dan integrasi Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
