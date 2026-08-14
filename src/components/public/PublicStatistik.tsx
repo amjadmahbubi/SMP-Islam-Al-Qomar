@@ -255,7 +255,7 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
           <div>
             <span className="font-bold text-amber-300 block mb-1">Website Resmi</span>
             <p className="text-slate-200">{schoolInfo.website}</p>
-            <p className="text-emerald-400 mt-1 font-mono">DAPODIK ONLINE v2024</p>
+            <p className="text-emerald-400 mt-1 font-mono font-semibold">DAPODIK ONLINE v2026.a</p>
           </div>
         </div>
       </div>

@@ -197,13 +197,6 @@ export function App() {
     setActiveTab('laporan-rapor');
   };
 
-  const handleResetData = () => {
-    if (window.confirm('Apakah Anda yakin ingin mengembalikan seluruh data ke default awal?')) {
-      StorageService.resetAllToDefault();
-      window.location.reload();
-    }
-  };
-
   // Tab selector handler
   const handleSelectTab = (tab: string) => {
     if (tab === 'wa-gateway') {
@@ -226,7 +219,6 @@ export function App() {
         onLogout={handleLogout}
         activeTab={activeTab}
         setActiveTab={handleSelectTab}
-        onResetData={handleResetData}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         isSidebarOpen={isSidebarOpen}
         theme={theme}

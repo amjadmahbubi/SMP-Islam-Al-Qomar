@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserSession, SchoolInfo } from '../types';
-import { School, LogIn, LogOut, ShieldCheck, UserCheck, Eye, RefreshCw, FileSpreadsheet, Menu, X, Sun, Moon } from 'lucide-react';
+import { School, LogIn, LogOut, ShieldCheck, UserCheck, Eye, FileSpreadsheet, Menu, X, Sun, Moon } from 'lucide-react';
 
 interface HeaderProps {
   schoolInfo: SchoolInfo;
@@ -9,7 +9,6 @@ interface HeaderProps {
   onLogout: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  onResetData: () => void;
   onToggleSidebar: () => void;
   isSidebarOpen: boolean;
   theme: 'dark' | 'light';
@@ -23,7 +22,6 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   activeTab,
   setActiveTab,
-  onResetData,
   onToggleSidebar,
   isSidebarOpen,
   theme,
@@ -142,15 +140,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="hidden sm:inline">Keluar</span>
               </button>
             )}
-
-            {/* Demo Reset Data */}
-            <button
-              onClick={onResetData}
-              className="p-2 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl transition-all border border-transparent hover:border-white/10"
-              title="Reset Sample Data"
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
           </div>
 
         </div>
