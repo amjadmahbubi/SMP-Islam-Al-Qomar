@@ -185,22 +185,31 @@ function doGet(e) {
     var list = [];
     for (var i = 1; i < rows.length; i++) {
       var r = rows[i];
-      if (r[0] || r[1]) {
+      if (r[0] || r[2]) {
         list.push({
           id: String(r[0] || "PPDB" + i),
-          namaLengkap: String(r[1] || ""),
-          nisn: String(r[2] || ""),
-          jenisKelamin: String(r[3] || "L").toUpperCase().indexOf("P") !== -1 ? "P" : "L",
-          tempatLahir: String(r[4] || "Banyuwangi"),
-          tanggalLahir: String(r[5] || "2012-01-01"),
-          asalSekolah: String(r[6] || "SD/MI"),
-          namaOrangTua: String(r[7] || ""),
-          noHpOrtu: String(r[8] || ""),
-          alamat: String(r[9] || ""),
-          pilihanKelas: String(r[10] || "Tahfidz Al-Qur'an"),
-          tanggalDaftar: String(r[11] || new Date().toISOString().split("T")[0]),
-          status: String(r[12] || "Menunggu Verifikasi"),
-          catatan: String(r[13] || "")
+          tahunAjaran: String(r[1] || "2024/2025"),
+          namaLengkap: String(r[2] || ""),
+          nisn: String(r[3] || ""),
+          jenisKelamin: String(r[4] || "L").toUpperCase().indexOf("P") !== -1 ? "P" : "L",
+          tempatLahir: String(r[5] || "Banyuwangi"),
+          tanggalLahir: String(r[6] || "2012-01-01"),
+          asalSekolah: String(r[7] || "SD/MI"),
+          pilihanKelas: String(r[8] || "Tahfidz Al-Qur'an"),
+          namaAyah: String(r[9] || ""),
+          pekerjaanAyah: String(r[10] || ""),
+          noHpAyah: String(r[11] || ""),
+          pendapatanAyah: String(r[12] || ""),
+          namaIbu: String(r[13] || ""),
+          pekerjaanIbu: String(r[14] || ""),
+          noHpIbu: String(r[15] || ""),
+          pendapatanIbu: String(r[16] || ""),
+          namaOrangTua: String(r[9] || r[13] || r[17] || "Orang Tua"),
+          noHpOrtu: String(r[11] || r[15] || ""),
+          alamat: String(r[17] || ""),
+          tanggalDaftar: String(r[18] || new Date().toISOString().split("T")[0]),
+          status: String(r[19] || "Menunggu Verifikasi"),
+          catatan: String(r[20] || "")
         });
       }
     }
@@ -230,16 +239,26 @@ function doPost(e) {
     var payload = data.payload || {};
     
     function updateTab(tabName, headers, rows) {
-      var sheet = ss.getSheetByName(tabName) || ss.insertSheet(tabName);
-      sheet.clear();
-      if (headers && headers.length > 0) {
-        sheet.appendRow(headers);
-        sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#d1fae5");
-      }
-      if (rows && rows.length > 0) {
-        rows.forEach(function(row) {
-          sheet.appendRow(row);
-        });
+      try {
+        var sheet = ss.getSheetByName(tabName) || ss.insertSheet(tabName);
+        sheet.clear();
+        var allData = [];
+        if (headers && headers.length > 0) {
+          allData.push(headers);
+        }
+        if (rows && rows.length > 0) {
+          for (var k = 0; k < rows.length; k++) {
+            allData.push(rows[k]);
+          }
+        }
+        if (allData.length > 0) {
+          var numRows = allData.length;
+          var numCols = allData[0].length;
+          sheet.getRange(1, 1, numRows, numCols).setValues(allData);
+          sheet.getRange(1, 1, 1, numCols).setFontWeight("bold").setBackground("#d1fae5");
+        }
+      } catch (errTab) {
+        // Safe fallback
       }
     }
 
@@ -298,9 +317,53 @@ function doPost(e) {
 
     if (payload.ppdbRegistrations && Array.isArray(payload.ppdbRegistrations)) {
       var ppdbRows = payload.ppdbRegistrations.map(function(p) {
-        return [p.id, p.namaLengkap, p.nisn || "-", p.jenisKelamin, p.tempatLahir, p.tanggalLahir, p.asalSekolah, p.namaOrangTua, p.noHpOrtu, p.alamat, p.pilihanKelas, p.tanggalDaftar, p.status, p.catatan || ""];
+        return [
+          p.id,
+          p.tahunAjaran || "2024/2025",
+          p.namaLengkap,
+          p.nisn || "-",
+          p.jenisKelamin,
+          p.tempatLahir,
+          p.tanggalLahir,
+          p.asalSekolah,
+          p.pilihanKelas,
+          p.namaAyah || p.namaOrangTua || "-",
+          p.pekerjaanAyah || "-",
+          p.noHpAyah || p.noHpOrtu || "-",
+          p.pendapatanAyah || "-",
+          p.namaIbu || "-",
+          p.pekerjaanIbu || "-",
+          p.noHpIbu || "-",
+          p.pendapatanIbu || "-",
+          p.alamat,
+          p.tanggalDaftar,
+          p.status,
+          p.catatan || ""
+        ];
       });
-      updateTab("Data_PPDB", ["No. PPDB", "Nama Lengkap Calon Siswa", "NISN", "Gender", "Tempat Lahir", "Tanggal Lahir", "Asal Sekolah (SD/MI)", "Nama Orang Tua", "No HP Ortu", "Alamat", "Pilihan Program", "Tanggal Daftar", "Status Seleksi", "Catatan Panitia"], ppdbRows);
+      updateTab("Data_PPDB", [
+        "No. PPDB",
+        "Tahun Ajaran",
+        "Nama Lengkap Siswa",
+        "NISN",
+        "Gender",
+        "Tempat Lahir",
+        "Tanggal Lahir",
+        "Asal SD/MI",
+        "Program Pilihan",
+        "Nama Ayah",
+        "Pekerjaan Ayah",
+        "No HP/WA Ayah",
+        "Penghasilan Ayah",
+        "Nama Ibu",
+        "Pekerjaan Ibu",
+        "No HP/WA Ibu",
+        "Penghasilan Ibu",
+        "Alamat Domisili",
+        "Tanggal Daftar",
+        "Status Seleksi",
+        "Catatan Panitia"
+      ], ppdbRows);
     }
 
     var logSheet = ss.getSheetByName("Log_Dapodik") || ss.insertSheet("Log_Dapodik");
@@ -742,6 +805,63 @@ function doPost(e) {
             </div>
           </div>
 
+        </div>
+      </div>
+
+      {/* Troubleshooting & Solusi Sinkronisasi Google Sheets */}
+      <div className="bg-gradient-to-br from-amber-950/40 via-slate-900/80 to-slate-900/90 rounded-2xl p-6 border border-amber-400/30 shadow-xl space-y-4 text-slate-200">
+        <div className="flex items-center gap-2.5 text-amber-300">
+          <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+          <h3 className="text-base font-bold font-serif">
+            Solusi &amp; Penjelasan Teknis Integrasi Google Sheets
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          {/* Box 1: Mengapa Hanya Muncul Tab Log */}
+          <div className="bg-slate-950/80 p-4 rounded-xl border border-white/10 space-y-2">
+            <h4 className="font-bold text-amber-300 flex items-center gap-1.5">
+              <span>⚠️ 1. Mengapa Hanya Muncul Riwayat Log (Tab Data Lain Belum Muncul)?</span>
+            </h4>
+            <p className="text-slate-300 leading-relaxed">
+              <strong>Penyebab:</strong> Di Google Apps Script, ketika kode baru ditempelkan, URL Web App yang sudah aktif <strong>tetap menjalankan versi kode lama</strong> sebelum Anda membuat <em>"Versi Baru" (New Version)</em> pada menu deployment.
+            </p>
+            <div className="bg-emerald-950/50 p-3 rounded-lg border border-emerald-500/30 space-y-1.5 text-emerald-200">
+              <p className="font-bold text-emerald-300">Langkah Solusi Cepat (2 Menit):</p>
+              <ol className="list-decimal list-inside space-y-1 text-[11px] leading-relaxed text-slate-200">
+                <li>Klik tombol <strong>Salin Skrip Baru</strong> di bawah.</li>
+                <li>Buka Google Sheets &gt; <strong>Ekstensi &gt; Apps Script</strong> &gt; Hapus semua kode lama lalu Paste skrip baru ini.</li>
+                <li>Klik <strong>Deploy (Terapkan)</strong> di pojok kanan atas &gt; pilih <strong>Manage Deployments (Kelola Penerapan)</strong>.</li>
+                <li>Klik tombol <strong>Edit (Ikon Pensil)</strong> &gt; Pada baris <em>Version</em>, pilih <strong>New version (Versi Baru)</strong>.</li>
+                <li>Pastikan <em>Who has access</em> adalah <strong>Anyone (Siapa Saja)</strong> &gt; Klik <strong>Deploy</strong>.</li>
+                <li>Kembali ke sini dan klik tombol <strong>Kirim Ke Sheets (Push)</strong>. Seketika seluruh 7 tab data akan terisi lengkap!</li>
+              </ol>
+            </div>
+          </div>
+
+          {/* Box 2: Apakah URL Web App Berganti */}
+          <div className="bg-slate-950/80 p-4 rounded-xl border border-white/10 space-y-2">
+            <h4 className="font-bold text-emerald-300 flex items-center gap-1.5">
+              <span>🔗 2. Apakah URL Web App Harus Berganti Setiap Ada Pembaruan Data?</span>
+            </h4>
+            <p className="text-slate-300 leading-relaxed">
+              <strong>Jawabannya: TIDAK PERLU.</strong> URL Web App Google Apps Script berfungsi sebagai <em>endpoint API permanen</em>.
+            </p>
+            <ul className="space-y-2 text-[11px] text-slate-300 leading-relaxed">
+              <li className="flex items-start gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                <span>URL Web App cukup Anda salin dan simpan <strong>1 kali saja</strong> di kotak Endpoint di atas.</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                <span>Setiap kali ada siswa baru, perubahan jadwal, mutasi guru, atau nilai rapor baru di web, Anda cukup klik <strong>"Kirim Ke Sheets"</strong>. Data di Google Sheets akan otomatis ter-update pada spreadsheet yang sama menggunakan URL tersebut.</span>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                <span>Anda hanya perlu memperbarui URL jika membuat project Apps Script yang benar-benar baru di file Spreadsheet lain.</span>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
 

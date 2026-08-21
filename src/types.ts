@@ -212,18 +212,77 @@ export interface StudentAchievement {
   deskripsi: string;
 }
 
+export interface PpdbProgramUnggulan {
+  id: string;
+  nama: string;
+  kategori: string;
+  deskripsi: string;
+  target?: string;
+  icon?: 'quran' | 'book' | 'star' | 'trophy' | 'building' | 'globe';
+}
+
+export interface PpdbGelombang {
+  id: string;
+  nama: string;
+  tanggalMulai: string;
+  tanggalSelesai: string;
+  beasiswaInfo: string;
+  status: 'Dibuka' | 'Segera' | 'Ditutup';
+}
+
+export interface PpdbContactPerson {
+  nama: string;
+  jabatan: string;
+  noHp: string;
+  jamLayanan: string;
+  keteranganTambahan?: string;
+}
+
+export interface PpdbSettings {
+  tahunAjaran?: string; // Optional custom override, otherwise syncs with SchoolInfo.tahunAjaran
+  gelombangList: PpdbGelombang[];
+  programList: PpdbProgramUnggulan[];
+  contactList: PpdbContactPerson[];
+  syaratPendaftaran?: string[];
+}
+
 export interface PpdbRegistration {
   id: string; // e.g. PPDB-2025-001
+  tahunAjaran?: string;
   namaLengkap: string;
   nisn?: string;
   jenisKelamin: 'L' | 'P';
   tempatLahir: string;
   tanggalLahir: string;
   asalSekolah: string; // SD/MI Asal
+
+  // Data Ayah Kandung
+  namaAyah?: string;
+  pekerjaanAyah?: string;
+  noHpAyah?: string;
+  pendapatanAyah?: string;
+  alamatAyah?: string;
+
+  // Data Ibu Kandung
+  namaIbu?: string;
+  pekerjaanIbu?: string;
+  noHpIbu?: string;
+  pendapatanIbu?: string;
+  alamatIbu?: string;
+
+  // Data Wali (Opsional)
+  namaWali?: string;
+  pekerjaanWali?: string;
+  noHpWali?: string;
+  pendapatanWali?: string;
+  hubunganWali?: string;
+
+  // Legacy / General contact & address
   namaOrangTua: string;
   noHpOrtu: string;
   alamat: string;
-  pilihanKelas: 'Tahfidz Al-Qur\'an' | 'Bilingual / Bahasa' | 'Reguler & Sains';
+
+  pilihanKelas: string;
   tanggalDaftar: string;
   status: 'Menunggu Verifikasi' | 'Lulus Berkas' | 'Diterima' | 'Ditolak';
   catatan?: string;

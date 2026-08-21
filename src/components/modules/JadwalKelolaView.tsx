@@ -1,31 +1,33 @@
 import React, { useState } from 'react';
 import { ScheduleItem, Teacher, Student } from '../../types';
-import { Clock, Plus, Edit3, Trash2, X, Save, Sparkles, BookOpen, Layers, Check } from 'lucide-react';
+import { Clock, Plus, Edit3, Trash2, X, Save, Sparkles, BookOpen, Layers, Check, Settings } from 'lucide-react';
 import { DEFAULT_MAPEL_LIST, COMMON_SCHEDULE_ACTIVITIES, getAllClasses } from '../../data/constants';
+import { KelolaKelasModal } from './KelolaKelasModal';
 
 interface JadwalKelolaViewProps {
   schedules: ScheduleItem[];
   teachers: Teacher[];
   students?: Student[];
   onSaveSchedules: (schedules: ScheduleItem[]) => void;
+  onSaveStudents?: (students: Student[]) => void;
+  onSaveTeachers?: (teachers: Teacher[]) => void;
 }
 
 export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
   schedules,
   teachers,
   students = [],
-  onSaveSchedules
+  onSaveSchedules,
+  onSaveStudents = () => {},
+  onSaveTeachers = () => {}
 }) => {
   const dynamicClasses = getAllClasses(students, schedules, teachers);
 
   const [selectedClass, setSelectedClass] = useState<string>(dynamicClasses[0] || '7A');
   const [selectedDay, setSelectedDay] = useState<string>('Senin');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isClassManagerOpen, setIsClassManagerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
-
-  // Custom Class Quick Creator
-  const [isAddingNewClass, setIsAddingNewClass] = useState(false);
-  const [newClassName, setNewClassName] = useState('');
 
   // Form State
   const [form, setForm] = useState<Partial<ScheduleItem>>({
@@ -149,16 +151,6 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
     setIsModalOpen(false);
   };
 
-  const handleAddNewClassQuick = (e: React.FormEvent) => {
-    e.preventDefault();
-    const formatted = newClassName.trim();
-    if (!formatted) return;
-
-    setSelectedClass(formatted);
-    setNewClassName('');
-    setIsAddingNewClass(false);
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
@@ -177,61 +169,37 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition-colors self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Tambah Slot Jadwal</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsClassManagerOpen(true)}
+            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-emerald-500/30 transition-colors shadow-sm"
+            title="Kelola, tambah, ganti nama, atau hapus kelas"
+          >
+            <Layers className="w-4 h-4 text-emerald-400" />
+            <span>Kelola Rombel / Kelas</span>
+          </button>
+
+          <button
+            onClick={handleOpenAdd}
+            className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Slot Jadwal</span>
+          </button>
+        </div>
       </div>
 
       {/* Class & Day Selector */}
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
         
-        {/* Dynamic Class Selector with Custom Class creation */}
+        {/* Dynamic Class Selector */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-emerald-700" />
               <span>Pilih Rombongan Belajar (Kelas):</span>
             </span>
-            <button
-              onClick={() => setIsAddingNewClass(!isAddingNewClass)}
-              className="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Buat Kelas Baru</span>
-            </button>
           </div>
-
-          {/* Quick Add Class Form */}
-          {isAddingNewClass && (
-            <form onSubmit={handleAddNewClassQuick} className="mb-3 p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl flex flex-wrap items-center gap-2 animate-in fade-in">
-              <span className="text-xs font-bold text-emerald-950">Nama Kelas Kustom:</span>
-              <input
-                type="text"
-                value={newClassName}
-                onChange={(e) => setNewClassName(e.target.value)}
-                placeholder="Contoh: 7C, 8-Tahfidz, 9-Bilingual, VII Putra..."
-                className="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-600 flex-1 min-w-[200px]"
-                autoFocus
-              />
-              <button
-                type="submit"
-                className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold shadow"
-              >
-                Tambahkan Kelas
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsAddingNewClass(false)}
-                className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-bold"
-              >
-                Batal
-              </button>
-            </form>
-          )}
 
           <div className="flex flex-wrap items-center gap-2">
             {dynamicClasses.map(c => (
@@ -622,6 +590,18 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Kelola Kelas Modal */}
+      <KelolaKelasModal
+        isOpen={isClassManagerOpen}
+        onClose={() => setIsClassManagerOpen(false)}
+        students={students}
+        schedules={schedules}
+        teachers={teachers}
+        onUpdateStudents={onSaveStudents}
+        onUpdateSchedules={onSaveSchedules}
+        onUpdateTeachers={onSaveTeachers}
+      />
 
     </div>
   );

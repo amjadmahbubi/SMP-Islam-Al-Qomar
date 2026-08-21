@@ -1,19 +1,32 @@
 import React, { useState } from 'react';
-import { Student } from '../../types';
+import { Student, ScheduleItem, Teacher } from '../../types';
 import { exportToCSV } from '../../services/storage';
-import { Users, Plus, Search, Download, Edit3, Trash2, X, Filter, Layers } from 'lucide-react';
+import { Users, Plus, Search, Download, Edit3, Trash2, X, Filter, Layers, Settings } from 'lucide-react';
 import { getAllClasses } from '../../data/constants';
+import { KelolaKelasModal } from './KelolaKelasModal';
 
 interface DataSiswaViewProps {
   students: Student[];
   onSaveStudents: (students: Student[]) => void;
+  schedules?: ScheduleItem[];
+  onSaveSchedules?: (schedules: ScheduleItem[]) => void;
+  teachers?: Teacher[];
+  onSaveTeachers?: (teachers: Teacher[]) => void;
 }
 
-export const DataSiswaView: React.FC<DataSiswaViewProps> = ({ students, onSaveStudents }) => {
+export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
+  students,
+  onSaveStudents,
+  schedules = [],
+  onSaveSchedules = () => {},
+  teachers = [],
+  onSaveTeachers = () => {}
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('Semua');
   const [statusFilter, setStatusFilter] = useState('Aktif');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isClassModalOpen, setIsClassModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
   const [isCustomClass, setIsCustomClass] = useState(false);
@@ -153,7 +166,16 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({ students, onSaveSt
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setIsClassModalOpen(true)}
+            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-emerald-500/30 transition-colors shadow-sm"
+            title="Kelola, tambah, ganti nama, atau hapus kelas"
+          >
+            <Layers className="w-4 h-4 text-emerald-400" />
+            <span>Kelola Rombel / Kelas</span>
+          </button>
+
           <button
             onClick={handleExportCSV}
             className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 transition-colors"
@@ -486,6 +508,18 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({ students, onSaveSt
           </div>
         </div>
       )}
+
+      {/* Kelola Kelas Modal */}
+      <KelolaKelasModal
+        isOpen={isClassModalOpen}
+        onClose={() => setIsClassModalOpen(false)}
+        students={students}
+        schedules={schedules}
+        teachers={teachers}
+        onUpdateStudents={onSaveStudents}
+        onUpdateSchedules={onSaveSchedules}
+        onUpdateTeachers={onSaveTeachers}
+      />
 
     </div>
   );

@@ -13,7 +13,8 @@ import {
   SubjectGradeRecord,
   StudentAchievement,
   PpdbRegistration,
-  GalleryItem
+  GalleryItem,
+  PpdbSettings
 } from './types';
 import { StorageService } from './services/storage';
 
@@ -89,12 +90,18 @@ export function App() {
   const [grades, setGrades] = useState<SubjectGradeRecord[]>(StorageService.getGrades());
   const [achievements, setAchievements] = useState<StudentAchievement[]>(StorageService.getAchievements());
   const [ppdbRegistrations, setPpdbRegistrations] = useState<PpdbRegistration[]>(StorageService.getPpdbRegistrations());
+  const [ppdbSettings, setPpdbSettings] = useState<PpdbSettings>(StorageService.getPpdbSettings());
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(StorageService.getGalleryItems());
 
   // Save Handlers
   const handleSaveSchoolInfo = (info: SchoolInfo) => {
     setSchoolInfo(info);
     StorageService.setSchoolInfo(info);
+  };
+
+  const handleSavePpdbSettings = (updated: PpdbSettings) => {
+    setPpdbSettings(updated);
+    StorageService.savePpdbSettings(updated);
   };
 
   const handleSavePpdbRegistrations = (updated: PpdbRegistration[]) => {
@@ -274,6 +281,8 @@ export function App() {
               session={session}
               onSaveRegistrations={handleSavePpdbRegistrations}
               onAddStudentFromPpdb={handleAddStudentFromPpdb}
+              settings={ppdbSettings}
+              onSaveSettings={handleSavePpdbSettings}
             />
           )}
 
@@ -344,6 +353,10 @@ export function App() {
             <DataSiswaView
               students={students}
               onSaveStudents={handleSaveStudents}
+              schedules={schedules}
+              onSaveSchedules={handleSaveSchedules}
+              teachers={teachers}
+              onSaveTeachers={handleSaveTeachers}
             />
           )}
 
@@ -358,7 +371,10 @@ export function App() {
             <JadwalKelolaView
               schedules={schedules}
               teachers={teachers}
+              students={students}
               onSaveSchedules={handleSaveSchedules}
+              onSaveStudents={handleSaveStudents}
+              onSaveTeachers={handleSaveTeachers}
             />
           )}
 

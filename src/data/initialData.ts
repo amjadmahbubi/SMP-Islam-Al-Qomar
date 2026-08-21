@@ -12,6 +12,7 @@ import {
   GoogleSheetsConfig,
   StudentAchievement,
   PpdbRegistration,
+  PpdbSettings,
   GalleryItem,
   GradeLockRecord,
   AuditLog
@@ -816,15 +817,98 @@ export const initialAchievements: StudentAchievement[] = [
   }
 ];
 
+export const initialPpdbSettings: PpdbSettings = {
+  tahunAjaran: '', // Otomatis sync dengan Profil Sekolah jika kosong
+  gelombangList: [
+    {
+      id: 'GEL-1',
+      nama: 'Gelombang 1 (Inden & Beasiswa)',
+      tanggalMulai: '1 Nopember',
+      tanggalSelesai: '28 Februari',
+      beasiswaInfo: 'Beasiswa Potongan Infaq Rp 1.500.000 + Prioritas Asrama & Kelas Pilihan',
+      status: 'Dibuka'
+    },
+    {
+      id: 'GEL-2',
+      nama: 'Gelombang 2 (Reguler)',
+      tanggalMulai: '1 Maret',
+      tanggalSelesai: '30 Juni',
+      beasiswaInfo: 'Potongan Khusus Prestasi Tahfidz & Juara OSN/O2SN',
+      status: 'Segera'
+    }
+  ],
+  programList: [
+    {
+      id: 'Tahfidz Al-Qur\'an',
+      nama: 'Program Tahfidz Unggulan',
+      kategori: 'Tahfidz Al-Qur\'an',
+      deskripsi: 'Target Hafalan 3-5 Juz & Sanad Matan Al-Jazariyah',
+      target: '3-5 Juz',
+      icon: 'quran'
+    },
+    {
+      id: 'Bilingual / Bahasa',
+      nama: 'Kelas Bilingual & Sains',
+      kategori: 'Bilingual / Bahasa',
+      deskripsi: 'Penguasaan Bahasa Arab, Bahasa Inggris Aktif, & Dasar Coding/Robotika',
+      target: 'TOEFL Junior & Arabic Active',
+      icon: 'globe'
+    },
+    {
+      id: 'Reguler & Sains',
+      nama: 'Kelas Reguler & Sains Modern',
+      kategori: 'Reguler & Sains',
+      deskripsi: 'Kurikulum Merdeka Unggul, Lab IPA Praktikum, Komputer Digital & Pembinaan Olimpiade',
+      target: 'Juara OSN & Akademik',
+      icon: 'star'
+    }
+  ],
+  contactList: [
+    {
+      nama: 'Ustadz Faisal Rahman',
+      jabatan: 'Humas PPDB & Informasi',
+      noHp: '0812-3456-7807',
+      jamLayanan: '07.30 - 15.00 WIB (Senin - Sabtu)',
+      keteranganTambahan: 'Layanan konsultasi program, infaq, dan asrama santri'
+    },
+    {
+      nama: 'Ustadzah Siti Fatimah, S.Pd.',
+      jabatan: 'Sekretariat Pendaftaran & Verifikasi Berkas',
+      noHp: '0813-9876-5432',
+      jamLayanan: '08.00 - 14.00 WIB',
+      keteranganTambahan: 'Konfirmasi upload berkas & jadwal tes pemetaan'
+    }
+  ],
+  syaratPendaftaran: [
+    'Mengisi Formulir Pendaftaran Online PPDB',
+    'Fotokopi Akta Kelahiran & Kartu Keluarga (2 lembar)',
+    'Fotokopi Ijazah / Surat Keterangan Lulus (SKL) SD/MI',
+    'Fotokopi Rapor SD/MI Kelas 4 - 6 semester ganjil',
+    'Pas foto berwarna terbaru ukuran 3x4 (3 lembar)',
+    'Sertifikat kejuaraan / piagam prestasi / tahfidz (jika ada)'
+  ]
+};
+
 export const initialPpdbRegistrations: PpdbRegistration[] = [
   {
     id: 'PPDB-2025-001',
+    tahunAjaran: '2024/2025',
     namaLengkap: 'Ibrahim Hafizh Ar-Rasyid',
     nisn: '0112348901',
     jenisKelamin: 'L',
     tempatLahir: 'Banyuwangi',
     tanggalLahir: '2012-05-14',
     asalSekolah: 'SD Islam Terpadu Al-Uswah Banyuwangi',
+    namaAyah: 'Drs. Rahmat Hidayat',
+    pekerjaanAyah: 'PNS / Guru',
+    noHpAyah: '081234567890',
+    pendapatanAyah: 'Rp 5.000.000 - Rp 10.000.000',
+    alamatAyah: 'Jl. Giri Indah No. 24, Banyuwangi',
+    namaIbu: 'Hj. Nurul Aini, S.Pd.',
+    pekerjaanIbu: 'Guru / Dosen',
+    noHpIbu: '081234567899',
+    pendapatanIbu: 'Rp 3.000.000 - Rp 5.000.000',
+    alamatIbu: 'Jl. Giri Indah No. 24, Banyuwangi',
     namaOrangTua: 'Drs. Rahmat Hidayat',
     noHpOrtu: '081234567890',
     alamat: 'Jl. Giri Indah No. 24, Banyuwangi',
@@ -835,12 +919,23 @@ export const initialPpdbRegistrations: PpdbRegistration[] = [
   },
   {
     id: 'PPDB-2025-002',
+    tahunAjaran: '2024/2025',
     namaLengkap: 'Siti Maryam Az-Zahra',
     nisn: '0112348902',
     jenisKelamin: 'P',
     tempatLahir: 'Sidoarjo',
     tanggalLahir: '2012-08-20',
     asalSekolah: 'MI Negeri 1 Sidoarjo',
+    namaAyah: 'Ahmad Syarifuddin, S.T.',
+    pekerjaanAyah: 'Karyawan Swasta',
+    noHpAyah: '081398765432',
+    pendapatanAyah: 'Rp 5.000.000 - Rp 10.000.000',
+    alamatAyah: 'Perum Taman Pinang Indah Blok C-12, Sidoarjo',
+    namaIbu: 'Khadijah Indrawati',
+    pekerjaanIbu: 'Ibu Rumah Tangga',
+    noHpIbu: '081398765433',
+    pendapatanIbu: 'Tidak Berpenghasilan',
+    alamatIbu: 'Perum Taman Pinang Indah Blok C-12, Sidoarjo',
     namaOrangTua: 'Ahmad Syarifuddin, S.T.',
     noHpOrtu: '081398765432',
     alamat: 'Perum Taman Pinang Indah Blok C-12, Sidoarjo',
@@ -851,12 +946,23 @@ export const initialPpdbRegistrations: PpdbRegistration[] = [
   },
   {
     id: 'PPDB-2025-003',
+    tahunAjaran: '2024/2025',
     namaLengkap: 'Muhammad Farhan Al-Mubarak',
     nisn: '0112348903',
     jenisKelamin: 'L',
     tempatLahir: 'Gresik',
     tanggalLahir: '2012-03-10',
     asalSekolah: 'SD Muhammadiyah 1 Giri Gresik',
+    namaAyah: 'H. Bambang Kurniawan',
+    pekerjaanAyah: 'Wiraswasta / Pengusaha',
+    noHpAyah: '085712345678',
+    pendapatanAyah: '> Rp 10.000.000',
+    alamatAyah: 'Jl. Veteran No. 88, Gresik',
+    namaIbu: 'Hj. Aminah Wardani',
+    pekerjaanIbu: 'Wiraswasta',
+    noHpIbu: '085712345679',
+    pendapatanIbu: 'Rp 3.000.000 - Rp 5.000.000',
+    alamatIbu: 'Jl. Veteran No. 88, Gresik',
     namaOrangTua: 'H. Bambang Kurniawan',
     noHpOrtu: '085712345678',
     alamat: 'Jl. Veteran No. 88, Gresik',

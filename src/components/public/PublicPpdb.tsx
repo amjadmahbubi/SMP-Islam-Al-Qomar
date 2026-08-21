@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PpdbRegistration, SchoolInfo, UserSession, Student } from '../../types';
+import { PpdbRegistration, SchoolInfo, UserSession, Student, PpdbSettings } from '../../types';
 import {
   UserPlus,
   CheckCircle,
@@ -22,10 +22,18 @@ import {
   Filter,
   Trash2,
   ShieldAlert,
-  MessageSquare
+  MessageSquare,
+  Settings,
+  Printer,
+  Users,
+  Award,
+  Globe,
+  Home,
+  CheckCircle2
 } from 'lucide-react';
-import { exportToCSV } from '../../services/storage';
+import { exportToCSV, StorageService } from '../../services/storage';
 import { WAService } from '../../services/whatsappService';
+import { PpdbSettingsModal } from './PpdbSettingsModal';
 
 interface PublicPpdbProps {
   registrations: PpdbRegistration[];
@@ -33,31 +41,122 @@ interface PublicPpdbProps {
   session: UserSession;
   onSaveRegistrations: (data: PpdbRegistration[]) => void;
   onAddStudentFromPpdb?: (newStudent: Omit<Student, 'id' | 'nis'>) => void;
+  settings?: PpdbSettings;
+  onSaveSettings?: (settings: PpdbSettings) => void;
 }
+
+const PEKERJAAN_OPTIONS = [
+  'PNS / TNI / POLRI',
+  'Karyawan Swasta',
+  'Wiraswasta / Pengusaha',
+  'Pedagang / Bisnis',
+  'Petani / Peternak / Nelayan',
+  'Guru / Dosen / Tenaga Pendidik',
+  'Tenaga Medis / Dokter / Bidan / Perawat',
+  'Buruh / Pekerja Lepas',
+  'Ibu Rumah Tangga',
+  'Pensiunan',
+  'Lainnya'
+];
+
+const PENDAPATAN_OPTIONS = [
+  '< Rp 1.000.000',
+  'Rp 1.000.000 - Rp 3.000.000',
+  'Rp 3.000.000 - Rp 5.000.000',
+  'Rp 5.000.000 - Rp 10.000.000',
+  '> Rp 10.000.000',
+  'Tidak Berpenghasilan'
+];
 
 export const PublicPpdb: React.FC<PublicPpdbProps> = ({
   registrations,
   schoolInfo,
   session,
   onSaveRegistrations,
-  onAddStudentFromPpdb
+  onAddStudentFromPpdb,
+  settings: propSettings,
+  onSaveSettings: propOnSaveSettings
 }) => {
+  // Local or propagated settings
+  const [settings, setSettings] = useState<PpdbSettings>(
+    () => propSettings || StorageService.getPpdbSettings()
+  );
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  const handleUpdateSettings = (newSettings: PpdbSettings) => {
+    setSettings(newSettings);
+    if (propOnSaveSettings) {
+      propOnSaveSettings(newSettings);
+    } else {
+      StorageService.savePpdbSettings(newSettings);
+    }
+  };
+
   const [activeSubTab, setActiveSubTab] = useState<'form' | 'cek' | 'admin'>(
     session.role === 'admin' || session.role === 'guru' ? 'admin' : 'form'
   );
 
-  // Form State
+  // Active School Year (Sync with Profil Sekolah)
+  const currentTahunAjaran = settings.tahunAjaran?.trim() || schoolInfo.tahunAjaran || '2024/2025';
+  const taStartYear = currentTahunAjaran.match(/\d{4}/)?.[0] || new Date().getFullYear().toString();
+
+  // Active Gelombang from Settings
+  const activeGelombang =
+    settings.gelombangList.find(g => g.status === 'Dibuka') ||
+    settings.gelombangList[0] || {
+      id: 'GEL-1',
+      nama: 'Gelombang 1 (Inden)',
+      tanggalMulai: '1 Nopember',
+      tanggalSelesai: '28 Februari',
+      beasiswaInfo: 'Beasiswa Potongan Infaq Rp 1.500.000',
+      status: 'Dibuka'
+    };
+
+  // Active Contact Person from Settings
+  const primaryContact = settings.contactList[0] || {
+    nama: 'Ustadz Faisal Rahman',
+    jabatan: 'Humas PPDB',
+    noHp: '0812-3456-7807',
+    jamLayanan: '07.30 - 15.00 WIB (Senin - Sabtu)',
+    keteranganTambahan: 'Layanan informasi program & infaq'
+  };
+
+  // Form State with complete father and mother details
   const [formData, setFormData] = useState({
+    // Calon Siswa
     namaLengkap: '',
     nisn: '',
     jenisKelamin: 'L' as 'L' | 'P',
     tempatLahir: '',
     tanggalLahir: '',
     asalSekolah: '',
-    namaOrangTua: '',
-    noHpOrtu: '',
-    alamat: '',
-    pilihanKelas: 'Tahfidz Al-Qur\'an' as 'Tahfidz Al-Qur\'an' | 'Bilingual / Bahasa' | 'Reguler & Sains'
+    pilihanKelas: settings.programList[0]?.kategori || 'Tahfidz Al-Qur\'an',
+
+    // Ayah
+    namaAyah: '',
+    pekerjaanAyah: 'Wiraswasta / Pengusaha',
+    noHpAyah: '',
+    pendapatanAyah: 'Rp 3.000.000 - Rp 5.000.000',
+    alamatAyah: '',
+
+    // Ibu
+    namaIbu: '',
+    pekerjaanIbu: 'Ibu Rumah Tangga',
+    noHpIbu: '',
+    pendapatanIbu: 'Tidak Berpenghasilan',
+    alamatIbu: '',
+
+    // Wali (Opsional)
+    hasWali: false,
+    namaWali: '',
+    hubunganWali: 'Kakek / Nenek',
+    pekerjaanWali: 'Pensiunan',
+    noHpWali: '',
+    pendapatanWali: '< Rp 1.000.000',
+
+    // Domisili Siswa
+    alamat: ''
   });
 
   const [submittedReceipt, setSubmittedReceipt] = useState<PpdbRegistration | null>(null);
@@ -68,14 +167,33 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
 
   // Admin Filter & Note Edit State
   const [adminStatusFilter, setAdminStatusFilter] = useState<string>('Semua');
+  const [adminProgramFilter, setAdminProgramFilter] = useState<string>('Semua');
   const [adminSearch, setAdminSearch] = useState('');
   const [selectedRegForAction, setSelectedRegForAction] = useState<PpdbRegistration | null>(null);
   const [editNote, setEditNote] = useState('');
 
   // Handle Form Change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  // Copy address to father/mother
+  const handleSyncAddress = (target: 'ayah' | 'ibu') => {
+    if (!formData.alamat) {
+      alert('Isi alamat domisili calon siswa terlebih dahulu.');
+      return;
+    }
+    if (target === 'ayah') {
+      setFormData(prev => ({ ...prev, alamatAyah: prev.alamat }));
+    } else {
+      setFormData(prev => ({ ...prev, alamatIbu: prev.alamat }));
+    }
   };
 
   // Submit PPDB Form
@@ -83,24 +201,52 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
     e.preventDefault();
 
     const count = registrations.length + 1;
-    const newId = `PPDB-2025-${String(count).padStart(3, '0')}`;
+    const newId = `PPDB-${taStartYear}-${String(count).padStart(3, '0')}`;
     const today = new Date().toISOString().split('T')[0];
+
+    const mainParentName = formData.namaAyah || formData.namaIbu || formData.namaWali || 'Orang Tua';
+    const mainParentPhone = formData.noHpAyah || formData.noHpIbu || formData.noHpWali || '';
 
     const newRegistration: PpdbRegistration = {
       id: newId,
-      namaLengkap: formData.namaLengkap,
-      nisn: formData.nisn || undefined,
+      tahunAjaran: currentTahunAjaran,
+      namaLengkap: formData.namaLengkap.trim(),
+      nisn: formData.nisn?.trim() || undefined,
       jenisKelamin: formData.jenisKelamin,
-      tempatLahir: formData.tempatLahir,
+      tempatLahir: formData.tempatLahir.trim(),
       tanggalLahir: formData.tanggalLahir,
-      asalSekolah: formData.asalSekolah,
-      namaOrangTua: formData.namaOrangTua,
-      noHpOrtu: formData.noHpOrtu,
-      alamat: formData.alamat,
+      asalSekolah: formData.asalSekolah.trim(),
+
+      // Ayah
+      namaAyah: formData.namaAyah.trim(),
+      pekerjaanAyah: formData.pekerjaanAyah,
+      noHpAyah: formData.noHpAyah.trim(),
+      pendapatanAyah: formData.pendapatanAyah,
+      alamatAyah: formData.alamatAyah.trim() || formData.alamat.trim(),
+
+      // Ibu
+      namaIbu: formData.namaIbu.trim(),
+      pekerjaanIbu: formData.pekerjaanIbu,
+      noHpIbu: formData.noHpIbu.trim(),
+      pendapatanIbu: formData.pendapatanIbu,
+      alamatIbu: formData.alamatIbu.trim() || formData.alamat.trim(),
+
+      // Wali (if filled)
+      namaWali: formData.hasWali ? formData.namaWali.trim() : undefined,
+      hubunganWali: formData.hasWali ? formData.hubunganWali : undefined,
+      pekerjaanWali: formData.hasWali ? formData.pekerjaanWali : undefined,
+      noHpWali: formData.hasWali ? formData.noHpWali.trim() : undefined,
+      pendapatanWali: formData.hasWali ? formData.pendapatanWali : undefined,
+
+      // Summary fallback
+      namaOrangTua: mainParentName,
+      noHpOrtu: mainParentPhone,
+      alamat: formData.alamat.trim(),
+
       pilihanKelas: formData.pilihanKelas,
       tanggalDaftar: today,
       status: 'Menunggu Verifikasi',
-      catatan: 'Formulir berhasil terdaftar di sistem. Silakan konfirmasi berkas melalui Panitia PPDB.'
+      catatan: 'Formulir berhasil terdaftar di sistem PPDB online. Silakan konfirmasi berkas ke Panitia PPDB.'
     };
 
     const updated = [newRegistration, ...registrations];
@@ -115,10 +261,24 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
       tempatLahir: '',
       tanggalLahir: '',
       asalSekolah: '',
-      namaOrangTua: '',
-      noHpOrtu: '',
-      alamat: '',
-      pilihanKelas: 'Tahfidz Al-Qur\'an'
+      pilihanKelas: settings.programList[0]?.kategori || 'Tahfidz Al-Qur\'an',
+      namaAyah: '',
+      pekerjaanAyah: 'Wiraswasta / Pengusaha',
+      noHpAyah: '',
+      pendapatanAyah: 'Rp 3.000.000 - Rp 5.000.000',
+      alamatAyah: '',
+      namaIbu: '',
+      pekerjaanIbu: 'Ibu Rumah Tangga',
+      noHpIbu: '',
+      pendapatanIbu: 'Tidak Berpenghasilan',
+      alamatIbu: '',
+      hasWali: false,
+      namaWali: '',
+      hubunganWali: 'Kakek / Nenek',
+      pekerjaanWali: 'Pensiunan',
+      noHpWali: '',
+      pendapatanWali: '< Rp 1.000.000',
+      alamat: ''
     });
   };
 
@@ -135,7 +295,12 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
       r =>
         r.id.toLowerCase().includes(q) ||
         r.namaLengkap.toLowerCase().includes(q) ||
-        r.noHpOrtu.includes(q) ||
+        (r.namaAyah && r.namaAyah.toLowerCase().includes(q)) ||
+        (r.namaIbu && r.namaIbu.toLowerCase().includes(q)) ||
+        (r.namaOrangTua && r.namaOrangTua.toLowerCase().includes(q)) ||
+        (r.noHpAyah && r.noHpAyah.includes(q)) ||
+        (r.noHpIbu && r.noHpIbu.includes(q)) ||
+        (r.noHpOrtu && r.noHpOrtu.includes(q)) ||
         (r.nisn && r.nisn.includes(q))
     );
 
@@ -178,6 +343,11 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
     if (!onAddStudentFromPpdb) return;
 
     if (window.confirm(`Konfirmasi masukkan ${reg.namaLengkap} ke Data Siswa Master (Kelas 7)?`)) {
+      const parentSummary = reg.namaAyah
+        ? `${reg.namaAyah} (Ayah) & ${reg.namaIbu || 'Ibu'}`
+        : reg.namaOrangTua;
+      const phoneSummary = reg.noHpAyah || reg.noHpIbu || reg.noHpOrtu;
+
       onAddStudentFromPpdb({
         nisn: reg.nisn || `009${Math.floor(1000000 + Math.random() * 9000000)}`,
         nama: reg.namaLengkap,
@@ -185,25 +355,60 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
         kelas: '7A',
         tempatLahir: reg.tempatLahir,
         tanggalLahir: reg.tanggalLahir,
-        namaOrangTua: reg.namaOrangTua,
-        noHpOrangTua: reg.noHpOrtu,
+        namaOrangTua: parentSummary,
+        noHpOrangTua: phoneSummary,
         alamat: reg.alamat,
         status: 'Aktif'
       });
 
-      handleUpdateStatus(reg.id, 'Diterima', 'Siswa telah resmi terdaftar di Data Siswa Master Kelas 7A.');
+      handleUpdateStatus(reg.id, 'Diterima', 'Siswa telah resmi dimasukkan ke Master Data Siswa Kelas 7A.');
       alert(`${reg.namaLengkap} berhasil dimasukkan ke Master Data Siswa!`);
     }
+  };
+
+  // Export Comprehensive PPDB CSV
+  const handleExportPpdbCSV = () => {
+    const exportRows = registrations.map(r => ({
+      'No. Pendaftaran': r.id,
+      'Tahun Ajaran': r.tahunAjaran || currentTahunAjaran,
+      'Nama Lengkap Siswa': r.namaLengkap,
+      'NISN': r.nisn || '-',
+      'Jenis Kelamin': r.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan',
+      'Tempat Lahir': r.tempatLahir,
+      'Tanggal Lahir': r.tanggalLahir,
+      'Asal SD/MI': r.asalSekolah,
+      'Program Pilihan': r.pilihanKelas,
+      'Nama Ayah': r.namaAyah || r.namaOrangTua || '-',
+      'Pekerjaan Ayah': r.pekerjaanAyah || '-',
+      'No HP/WA Ayah': r.noHpAyah || r.noHpOrtu || '-',
+      'Penghasilan Ayah': r.pendapatanAyah || '-',
+      'Nama Ibu': r.namaIbu || '-',
+      'Pekerjaan Ibu': r.pekerjaanIbu || '-',
+      'No HP/WA Ibu': r.noHpIbu || '-',
+      'Penghasilan Ibu': r.pendapatanIbu || '-',
+      'Nama Wali': r.namaWali || '-',
+      'Hubungan Wali': r.hubunganWali || '-',
+      'No HP Wali': r.noHpWali || '-',
+      'Alamat Lengkap': r.alamat,
+      'Tanggal Daftar': r.tanggalDaftar,
+      'Status Seleksi': r.status,
+      'Catatan Panitia': r.catatan || ''
+    }));
+
+    exportToCSV(`Data_Pendaftar_PPDB_TA_${currentTahunAjaran.replace('/', '-')}.csv`, exportRows);
   };
 
   // Admin filtered list
   const adminFilteredList = registrations.filter(r => {
     const matchesStatus = adminStatusFilter === 'Semua' || r.status === adminStatusFilter;
+    const matchesProgram = adminProgramFilter === 'Semua' || r.pilihanKelas === adminProgramFilter;
     const matchesSearch =
       r.namaLengkap.toLowerCase().includes(adminSearch.toLowerCase()) ||
       r.id.toLowerCase().includes(adminSearch.toLowerCase()) ||
+      (r.namaAyah && r.namaAyah.toLowerCase().includes(adminSearch.toLowerCase())) ||
+      (r.namaIbu && r.namaIbu.toLowerCase().includes(adminSearch.toLowerCase())) ||
       r.asalSekolah.toLowerCase().includes(adminSearch.toLowerCase());
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesProgram && matchesSearch;
   });
 
   const getStatusBadge = (status: PpdbRegistration['status']) => {
@@ -239,6 +444,22 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
     }
   };
 
+  // Helper for program icon
+  const renderProgramIcon = (iconName?: string) => {
+    switch (iconName) {
+      case 'globe':
+        return <Globe className="w-4 h-4 text-blue-400" />;
+      case 'star':
+        return <Sparkles className="w-4 h-4 text-amber-400" />;
+      case 'trophy':
+        return <Award className="w-4 h-4 text-emerald-400" />;
+      case 'building':
+        return <Building className="w-4 h-4 text-purple-400" />;
+      default:
+        return <BookOpen className="w-4 h-4 text-emerald-400" />;
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
@@ -250,10 +471,24 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
         
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
-              <span>Penerimaan Peserta Didik Baru (PPDB) TA 2025/2026</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
+                <span>Penerimaan Peserta Didik Baru (PPDB) TA {currentTahunAjaran}</span>
+              </div>
+
+              {(session.role === 'admin' || session.role === 'guru') && (
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 text-xs font-bold border border-amber-400/40 transition-colors shadow"
+                >
+                  <Settings className="w-3.5 h-3.5 text-amber-400" />
+                  <span>⚙️ Kelola Info PPDB</span>
+                </button>
+              )}
             </div>
+
             <h1 className="text-2xl md:text-3xl font-extrabold font-serif text-white tracking-tight">
               Pendaftaran Siswa Baru {schoolInfo.nama}
             </h1>
@@ -262,89 +497,88 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
             </p>
           </div>
 
-          <div className="bg-slate-950/80 p-4 rounded-2xl border border-white/10 shrink-0 text-center sm:text-right space-y-1">
-            <div className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">Gelombang 1 (Inden)</div>
-            <div className="text-sm font-extrabold text-white font-serif">1 Nopember - 28 Februari</div>
-            <div className="text-[10px] text-emerald-400 font-semibold">Beasiswa Potongan Infaq Rp 1.500.000</div>
+          {/* Gelombang Active Card */}
+          <div className="bg-slate-950/80 p-4 rounded-2xl border border-white/10 shrink-0 text-center sm:text-right space-y-1 shadow-lg">
+            <div className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+              {activeGelombang.nama}
+            </div>
+            <div className="text-sm font-extrabold text-white font-serif">
+              {activeGelombang.tanggalMulai} - {activeGelombang.tanggalSelesai}
+            </div>
+            {activeGelombang.beasiswaInfo && (
+              <div className="text-[11px] text-emerald-400 font-semibold">
+                🎁 {activeGelombang.beasiswaInfo}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Feature Badges */}
+        {/* Feature Badges from Program List */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-white/10">
-          <div className="flex items-center gap-3 bg-slate-950/50 p-3 rounded-xl border border-white/5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold shrink-0 overflow-hidden">
-              {schoolInfo.logoUrl ? (
-                <img src={schoolInfo.logoUrl} alt={schoolInfo.nama} className="w-full h-full object-cover" />
-              ) : (
-                "☪"
-              )}
+          {settings.programList.slice(0, 3).map((prog, idx) => (
+            <div key={prog.id || idx} className="flex items-center gap-3 bg-slate-950/50 p-3 rounded-xl border border-white/5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold shrink-0">
+                {renderProgramIcon(prog.icon)}
+              </div>
+              <div className="overflow-hidden">
+                <h4 className="text-xs font-bold text-white truncate">{prog.nama}</h4>
+                <p className="text-[11px] text-slate-400 truncate">{prog.deskripsi}</p>
+              </div>
             </div>
-            <div>
-              <h4 className="text-xs font-bold text-white">Program Tahfidz Unggulan</h4>
-              <p className="text-[11px] text-slate-400">Target Hafalan 3-5 Juz & Sanad</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 bg-slate-950/50 p-3 rounded-xl border border-white/5">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center font-bold shrink-0">
-              <BookOpen className="w-4 h-4 text-blue-400" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-white">Kelas Bilingual & Sains</h4>
-              <p className="text-[11px] text-slate-400">Bahasa Arab, Inggris, & Coding</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 bg-slate-950/50 p-3 rounded-xl border border-white/5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold shrink-0">
-              <GraduationCap className="w-4 h-4 text-amber-400" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-white">Gedung & Lab Modern</h4>
-              <p className="text-[11px] text-slate-400">AC, Smart TV, Lab Komp & IPA</p>
-            </div>
-          </div>
+          ))}
         </div>
 
       </div>
 
       {/* Navigation Sub-Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-3">
-        <button
-          onClick={() => setActiveSubTab('form')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            activeSubTab === 'form'
-              ? 'bg-emerald-500 text-slate-950 shadow-lg border border-emerald-400'
-              : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>Formulir Pendaftaran Online</span>
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setActiveSubTab('form')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+              activeSubTab === 'form'
+                ? 'bg-emerald-500 text-slate-950 shadow-lg border border-emerald-400'
+                : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Formulir Pendaftaran Online</span>
+          </button>
 
-        <button
-          onClick={() => setActiveSubTab('cek')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-            activeSubTab === 'cek'
-              ? 'bg-emerald-500 text-slate-950 shadow-lg border border-emerald-400'
-              : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800'
-          }`}
-        >
-          <Search className="w-4 h-4" />
-          <span>Cek Status Pendaftaran</span>
-        </button>
+          <button
+            onClick={() => setActiveSubTab('cek')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+              activeSubTab === 'cek'
+                ? 'bg-emerald-500 text-slate-950 shadow-lg border border-emerald-400'
+                : 'bg-slate-900/60 text-slate-300 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <Search className="w-4 h-4" />
+            <span>Cek Status Pendaftaran</span>
+          </button>
+
+          {(session.role === 'admin' || session.role === 'guru') && (
+            <button
+              onClick={() => setActiveSubTab('admin')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                activeSubTab === 'admin'
+                  ? 'bg-amber-400 text-slate-950 shadow-lg border border-amber-300'
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-400/30 hover:bg-amber-500/30'
+              }`}
+            >
+              <ShieldAlert className="w-4 h-4" />
+              <span>Panel Admin PPDB ({registrations.length})</span>
+            </button>
+          )}
+        </div>
 
         {(session.role === 'admin' || session.role === 'guru') && (
           <button
-            onClick={() => setActiveSubTab('admin')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
-              activeSubTab === 'admin'
-                ? 'bg-amber-400 text-slate-950 shadow-lg border border-amber-300'
-                : 'bg-amber-500/20 text-amber-300 border border-amber-400/30 hover:bg-amber-500/30'
-            }`}
+            onClick={() => setIsSettingsOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-white/10 shadow transition-colors"
           >
-            <ShieldAlert className="w-4 h-4" />
-            <span>Panel Admin PPDB ({registrations.length})</span>
+            <Settings className="w-4 h-4 text-emerald-400" />
+            <span>Pengaturan PPDB</span>
           </button>
         )}
       </div>
@@ -358,58 +592,60 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
             <div className="border-b border-white/10 pb-3 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-bold font-serif text-white">
-                  Formulir Pendaftaran Murid Baru
+                  Formulir Pendaftaran Calon Siswa Baru
                 </h3>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  Isi data calon murid secara benar dan teliti sesuai ijazah/akta kelahiran
+                  Isi data calon murid dan data orang tua secara lengkap & valid sesuai dokumen resmi
                 </p>
               </div>
               <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-400/30">
-                TA 2025/2026
+                TA {currentTahunAjaran}
               </span>
             </div>
 
-            <form onSubmit={handleSubmitForm} className="space-y-4">
+            <form onSubmit={handleSubmitForm} className="space-y-6">
               
-              {/* Program Pilihan Kelas */}
+              {/* Program Pilihan Kelas (Dynamic from settings) */}
               <div>
-                <label className="block text-xs font-bold text-emerald-300 mb-1.5">
+                <label className="block text-xs font-bold text-emerald-300 mb-2">
                   Pilihan Program / Kelas Unggulan *
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {[
-                    { id: 'Tahfidz Al-Qur\'an', desc: 'Fokus Hafalan Qur\'an & Bahasa Arab' },
-                    { id: 'Bilingual / Bahasa', desc: 'Penguasaan B. Inggris & B. Arab' },
-                    { id: 'Reguler & Sains', desc: 'Kurikulum Merdeka & Sains Terpadu' }
-                  ].map(prog => (
+                  {settings.programList.map(prog => (
                     <label
-                      key={prog.id}
+                      key={prog.id || prog.kategori}
                       className={`cursor-pointer p-3 rounded-xl border text-left transition-all ${
-                        formData.pilihanKelas === prog.id
-                          ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-md'
+                        formData.pilihanKelas === prog.kategori
+                          ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-md ring-1 ring-emerald-400/50'
                           : 'bg-slate-950/50 border-white/10 text-slate-300 hover:border-white/30'
                       }`}
                     >
                       <input
                         type="radio"
                         name="pilihanKelas"
-                        value={prog.id}
-                        checked={formData.pilihanKelas === prog.id}
+                        value={prog.kategori}
+                        checked={formData.pilihanKelas === prog.kategori}
                         onChange={handleInputChange}
                         className="hidden"
                       />
-                      <span className="text-xs font-bold block text-emerald-300">{prog.id}</span>
-                      <span className="text-[10px] text-slate-400 block mt-0.5">{prog.desc}</span>
+                      <span className="text-xs font-bold block text-emerald-300">{prog.nama}</span>
+                      <span className="text-[10px] text-slate-400 block mt-0.5 leading-snug">{prog.deskripsi}</span>
+                      {prog.target && (
+                        <span className="text-[10px] text-amber-300 font-semibold block mt-1">🎯 {prog.target}</span>
+                      )}
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* Data Calon Siswa */}
+              {/* SECTION 1: Data Calon Siswa */}
               <div className="space-y-4 pt-2">
-                <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider border-b border-white/5 pb-1">
-                  1. Data Diri Calon Siswa
-                </h4>
+                <div className="flex items-center gap-2 border-b border-white/10 pb-1.5">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold flex items-center justify-center text-xs">1</div>
+                  <h4 className="text-xs font-bold uppercase text-slate-300 tracking-wider">
+                    Data Diri Calon Siswa
+                  </h4>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
@@ -420,7 +656,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                       value={formData.namaLengkap}
                       onChange={handleInputChange}
                       required
-                      placeholder="Sesuai Akta Birth / Ijazah SD"
+                      placeholder="Sesuai Akta Kelahiran / Ijazah SD"
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -458,7 +694,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                       value={formData.tempatLahir}
                       onChange={handleInputChange}
                       required
-                      placeholder="Kota Lahir"
+                      placeholder="Kota Lahir (contoh: Banyuwangi)"
                       className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -483,61 +719,281 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                       value={formData.asalSekolah}
                       onChange={handleInputChange}
                       required
-                      placeholder="Contoh: SD Islam Terpadu Al-Uswah / SDN Gayungan 1"
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Data Orang Tua */}
-              <div className="space-y-4 pt-2">
-                <h4 className="text-xs font-bold uppercase text-slate-400 tracking-wider border-b border-white/5 pb-1">
-                  2. Data Orang Tua / Wali & Kontak
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Nama Orang Tua / Wali *</label>
-                    <input
-                      type="text"
-                      name="namaOrangTua"
-                      value={formData.namaOrangTua}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="Nama Ayah / Ibu"
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Nomor WhatsApp / HP *</label>
-                    <input
-                      type="tel"
-                      name="noHpOrtu"
-                      value={formData.noHpOrtu}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="Contoh: 081234567890"
+                      placeholder="Contoh: SD Islam Terpadu Al-Uswah / SDN 1 Giri"
                       className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Alamat Lengkap *</label>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Alamat Domisili Tempat Tinggal Siswa *</label>
                     <textarea
                       name="alamat"
                       value={formData.alamat}
                       onChange={handleInputChange}
                       required
                       rows={2}
-                      placeholder="Jalan, RT/RW, Kelurahan, Kecamatan, Kota"
+                      placeholder="Jalan, Dusun, RT/RW, Desa/Kelurahan, Kecamatan, Kota/Kabupaten"
                       className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
                 </div>
               </div>
 
+              {/* SECTION 2: Data Ayah Kandung */}
+              <div className="space-y-4 pt-2 bg-slate-950/40 p-4 rounded-2xl border border-white/5">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-300 font-bold flex items-center justify-center text-xs">2</div>
+                    <h4 className="text-xs font-bold uppercase text-blue-300 tracking-wider">
+                      Data Ayah Kandung
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSyncAddress('ayah')}
+                    className="text-[11px] text-blue-300 hover:text-white underline font-medium"
+                  >
+                    Salin Alamat Siswa
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Nama Lengkap Ayah *</label>
+                    <input
+                      type="text"
+                      name="namaAyah"
+                      value={formData.namaAyah}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Nama Lengkap Ayah Kandung beserta Gelar"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Pekerjaan Ayah *</label>
+                    <select
+                      name="pekerjaanAyah"
+                      value={formData.pekerjaanAyah}
+                      onChange={handleInputChange}
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    >
+                      {PEKERJAAN_OPTIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Nomor WhatsApp / HP Ayah *</label>
+                    <input
+                      type="tel"
+                      name="noHpAyah"
+                      value={formData.noHpAyah}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Contoh: 081234567890"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Penghasilan Per Bulan Ayah *</label>
+                    <select
+                      name="pendapatanAyah"
+                      value={formData.pendapatanAyah}
+                      onChange={handleInputChange}
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    >
+                      {PENDAPATAN_OPTIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Alamat Ayah</label>
+                    <input
+                      type="text"
+                      name="alamatAyah"
+                      value={formData.alamatAyah}
+                      onChange={handleInputChange}
+                      placeholder="Kosongkan jika sama dengan alamat siswa"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: Data Ibu Kandung */}
+              <div className="space-y-4 pt-2 bg-slate-950/40 p-4 rounded-2xl border border-white/5">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-pink-500/20 text-pink-300 font-bold flex items-center justify-center text-xs">3</div>
+                    <h4 className="text-xs font-bold uppercase text-pink-300 tracking-wider">
+                      Data Ibu Kandung
+                    </h4>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSyncAddress('ibu')}
+                    className="text-[11px] text-pink-300 hover:text-white underline font-medium"
+                  >
+                    Salin Alamat Siswa
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Nama Lengkap Ibu *</label>
+                    <input
+                      type="text"
+                      name="namaIbu"
+                      value={formData.namaIbu}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Nama Lengkap Ibu Kandung beserta Gelar"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Pekerjaan Ibu *</label>
+                    <select
+                      name="pekerjaanIbu"
+                      value={formData.pekerjaanIbu}
+                      onChange={handleInputChange}
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    >
+                      {PEKERJAAN_OPTIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Nomor WhatsApp / HP Ibu *</label>
+                    <input
+                      type="tel"
+                      name="noHpIbu"
+                      value={formData.noHpIbu}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Contoh: 081234567899"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Penghasilan Per Bulan Ibu *</label>
+                    <select
+                      name="pendapatanIbu"
+                      value={formData.pendapatanIbu}
+                      onChange={handleInputChange}
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    >
+                      {PENDAPATAN_OPTIONS.map(opt => (
+                        <option key={opt} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">Alamat Ibu</label>
+                    <input
+                      type="text"
+                      name="alamatIbu"
+                      value={formData.alamatIbu}
+                      onChange={handleInputChange}
+                      placeholder="Kosongkan jika sama dengan alamat siswa"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 4: Data Wali (Opsional Toggle) */}
+              <div className="space-y-4 pt-2 bg-slate-950/40 p-4 rounded-2xl border border-white/5">
+                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 font-bold flex items-center justify-center text-xs">4</div>
+                    <h4 className="text-xs font-bold uppercase text-amber-300 tracking-wider">
+                      Data Wali Santri (Opsional)
+                    </h4>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      name="hasWali"
+                      checked={formData.hasWali}
+                      onChange={handleInputChange}
+                      className="rounded border-slate-400 text-emerald-500 focus:ring-emerald-400"
+                    />
+                    <span>Santri Tinggal Bersama Wali</span>
+                  </label>
+                </div>
+
+                {formData.hasWali && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">Nama Lengkap Wali</label>
+                      <input
+                        type="text"
+                        name="namaWali"
+                        value={formData.namaWali}
+                        onChange={handleInputChange}
+                        placeholder="Nama Wali Murid"
+                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">Hubungan Hubungan Wali</label>
+                      <select
+                        name="hubunganWali"
+                        value={formData.hubunganWali}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      >
+                        <option value="Kakek / Nenek">Kakek / Nenek</option>
+                        <option value="Paman / Bibi">Paman / Bibi</option>
+                        <option value="Kakak Kandung">Kakak Kandung</option>
+                        <option value="Wali Asuh / Lembaga Yayasan">Wali Asuh / Lembaga Yayasan</option>
+                        <option value="Lainnya">Lainnya</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">Nomor WhatsApp / HP Wali</label>
+                      <input
+                        type="tel"
+                        name="noHpWali"
+                        value={formData.noHpWali}
+                        onChange={handleInputChange}
+                        placeholder="Contoh: 081234567890"
+                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">Pekerjaan Wali</label>
+                      <select
+                        name="pekerjaanWali"
+                        value={formData.pekerjaanWali}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      >
+                        {PEKERJAAN_OPTIONS.map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Submit Button */}
               <div className="pt-4 border-t border-white/10 flex justify-end">
                 <button
                   type="submit"
@@ -556,8 +1012,9 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
             
             {/* Alur Pendaftaran */}
             <div className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-5 border border-white/10 shadow-xl space-y-4">
-              <h3 className="text-sm font-bold font-serif text-white border-b border-white/10 pb-2">
-                Alur Pendaftaran PPDB
+              <h3 className="text-sm font-bold font-serif text-white border-b border-white/10 pb-2 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-emerald-400" />
+                <span>Alur Pendaftaran PPDB</span>
               </h3>
 
               <div className="space-y-3 text-xs">
@@ -567,7 +1024,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                   </div>
                   <div>
                     <h5 className="font-bold text-white">Isi Formulir Online</h5>
-                    <p className="text-slate-400 text-[11px]">Lengkapi data diri calon santri dan kontak orang tua pada form online ini.</p>
+                    <p className="text-slate-400 text-[11px]">Lengkapi data calon siswa dan kedua orang tua (Ayah & Ibu) secara online.</p>
                   </div>
                 </div>
 
@@ -576,8 +1033,8 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                     2
                   </div>
                   <div>
-                    <h5 className="font-bold text-white">Dapatkan Nomor PPDB</h5>
-                    <p className="text-slate-400 text-[11px]">Simpan Nomor Pendaftaran (contoh: PPDB-2025-001) sebagai bukti resmi.</p>
+                    <h5 className="font-bold text-white">Dapatkan Nomor Registrasi</h5>
+                    <p className="text-slate-400 text-[11px]">Simpan Bukti Pendaftaran resmi (misal: PPDB-{taStartYear}-001).</p>
                   </div>
                 </div>
 
@@ -587,7 +1044,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                   </div>
                   <div>
                     <h5 className="font-bold text-white">Tes Pemetaan & Wawancara</h5>
-                    <p className="text-slate-400 text-[11px]">Tes membaca Al-Qur'an, potensi akademik, dan wawancara komitmen wali murid.</p>
+                    <p className="text-slate-400 text-[11px]">Tes membaca Al-Qur'an, potensi akademik, dan komitmen orang tua.</p>
                   </div>
                 </div>
 
@@ -597,25 +1054,57 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                   </div>
                   <div>
                     <h5 className="font-bold text-white">Pengumuman & Daftar Ulang</h5>
-                    <p className="text-slate-400 text-[11px]">Cek status kelulusan di menu "Cek Status Pendaftaran" dan lakukan daftar ulang.</p>
+                    <p className="text-slate-400 text-[11px]">Cek status kelulusan di menu "Cek Status" dan lakukan daftar ulang santri.</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Kontak Panitia PPDB */}
+            {/* Syarat Pendaftaran */}
+            {settings.syaratPendaftaran && settings.syaratPendaftaran.length > 0 && (
+              <div className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-5 border border-white/10 shadow-xl space-y-3">
+                <h3 className="text-sm font-bold font-serif text-white border-b border-white/10 pb-2 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-amber-400" />
+                  <span>Persyaratan Dokumen</span>
+                </h3>
+                <ul className="space-y-2 text-xs text-slate-300">
+                  {settings.syaratPendaftaran.map((syarat, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold shrink-0">✓</span>
+                      <span>{syarat}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Kontak Panitia PPDB (Dynamic from settings) */}
             <div className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-5 border border-emerald-500/30 shadow-xl space-y-3">
-              <h3 className="text-sm font-bold font-serif text-white flex items-center gap-2">
-                <PhoneCall className="w-4 h-4 text-emerald-400" />
-                <span>Layanan Informasi Panitia PPDB</span>
-              </h3>
-              <p className="text-xs text-slate-300">
-                Membutuhkan informasi lebih lanjut mengenai rincian biaya infaq, beasiswa, atau asrama?
-              </p>
-              <div className="bg-slate-950 p-3 rounded-xl border border-white/10 text-xs space-y-1">
-                <p className="text-slate-200"><strong>Ustadz Faisal Rahman (Humas PPDB):</strong></p>
-                <p className="text-emerald-400 font-mono font-bold">0812-3456-7807 (WhatsApp/Telp)</p>
-                <p className="text-slate-400 text-[11px]">Jam Kerja: 07.30 - 15.00 WIB (Senin - Sabtu)</p>
+              <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <h3 className="text-sm font-bold font-serif text-white flex items-center gap-2">
+                  <PhoneCall className="w-4 h-4 text-emerald-400" />
+                  <span>Narahubung Panitia PPDB</span>
+                </h3>
+              </div>
+              
+              <div className="space-y-3">
+                {settings.contactList.map((c, i) => (
+                  <div key={i} className="bg-slate-950 p-3 rounded-xl border border-white/10 text-xs space-y-1">
+                    <p className="text-slate-200"><strong>{c.nama} ({c.jabatan}):</strong></p>
+                    <a
+                      href={`https://wa.me/${c.noHp.replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=Assalamu'alaikum%20Panitia%20PPDB%20${encodeURIComponent(schoolInfo.nama)},%20saya%20ingin%20bertanya%20informasi%20pendaftaran.`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-emerald-400 hover:text-emerald-300 font-mono font-bold block"
+                    >
+                      📞 {c.noHp} (WhatsApp)
+                    </a>
+                    <p className="text-slate-400 text-[11px]">⏰ {c.jamLayanan}</p>
+                    {c.keteranganTambahan && (
+                      <p className="text-slate-300 text-[10px] italic">{c.keteranganTambahan}</p>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -629,10 +1118,10 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
         <div className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-6 border border-white/10 shadow-xl space-y-6">
           <div className="max-w-xl mx-auto text-center space-y-2">
             <h3 className="text-xl font-bold font-serif text-white">
-              Cek Status Hasil Seleksi PPDB
+              Cek Status Hasil Seleksi PPDB TA {currentTahunAjaran}
             </h3>
             <p className="text-xs text-slate-300">
-              Masukkan Nomor Pendaftaran (misal: PPDB-2025-001), Nama Calon Siswa, atau Nomor WhatsApp Orang Tua
+              Masukkan Nomor Pendaftaran (misal: PPDB-{taStartYear}-001), Nama Calon Siswa, atau Nomor WhatsApp Orang Tua
             </p>
 
             <form onSubmit={handleSearchStatus} className="flex items-center gap-2 mt-4">
@@ -640,7 +1129,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari No Pendaftaran / Nama / No HP..."
+                placeholder="Cari No Pendaftaran / Nama Siswa / No HP..."
                 className="flex-1 px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               />
               <button
@@ -681,9 +1170,10 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
 
                       <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
                         <div><strong>Program:</strong> {r.pilihanKelas}</div>
-                        <div><strong>Wali:</strong> {r.namaOrangTua}</div>
                         <div><strong>Tgl Daftar:</strong> {r.tanggalDaftar}</div>
-                        <div><strong>Kontak:</strong> {r.noHpOrtu}</div>
+                        <div><strong>Ayah:</strong> {r.namaAyah || r.namaOrangTua}</div>
+                        <div><strong>Ibu:</strong> {r.namaIbu || '-'}</div>
+                        <div className="col-span-2"><strong>Kontak:</strong> {r.noHpAyah || r.noHpIbu || r.noHpOrtu}</div>
                       </div>
 
                       {r.catatan && (
@@ -709,7 +1199,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="glass backdrop-blur-xl bg-slate-900/60 p-4 rounded-2xl border border-white/10">
               <span className="text-2xl font-black text-white font-serif">{registrations.length}</span>
-              <span className="block text-xs text-slate-400 mt-1 font-semibold">Total Pendaftar PPDB</span>
+              <span className="block text-xs text-slate-400 mt-1 font-semibold">Total Pendaftar (TA {currentTahunAjaran})</span>
             </div>
             <div className="glass backdrop-blur-xl bg-slate-900/60 p-4 rounded-2xl border border-emerald-500/30">
               <span className="text-2xl font-black text-emerald-300 font-serif">
@@ -733,13 +1223,13 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
 
           {/* Admin Table Controls */}
           <div className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-5 border border-white/10 shadow-xl space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3 flex-1">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3 flex-1">
                 <input
                   type="text"
                   value={adminSearch}
                   onChange={(e) => setAdminSearch(e.target.value)}
-                  placeholder="Cari nama, No PPDB, atau sekolah asal..."
+                  placeholder="Cari nama siswa, orang tua, no PPDB, asal SD..."
                   className="px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 w-full sm:w-64"
                 />
 
@@ -754,15 +1244,36 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                   <option value="Diterima">Diterima</option>
                   <option value="Ditolak">Ditolak</option>
                 </select>
+
+                <select
+                  value={adminProgramFilter}
+                  onChange={(e) => setAdminProgramFilter(e.target.value)}
+                  className="px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="Semua">Semua Program</option>
+                  {settings.programList.map(prog => (
+                    <option key={prog.id} value={prog.kategori}>{prog.nama}</option>
+                  ))}
+                </select>
               </div>
 
-              <button
-                onClick={() => exportToCSV('Data_Pendaftar_PPDB_AlQomar.csv', registrations)}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl shadow flex items-center gap-2 shrink-0 border border-emerald-300/50"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export CSV Data PPDB</span>
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl shadow flex items-center gap-1.5 border border-white/10"
+                >
+                  <Settings className="w-4 h-4 text-emerald-400" />
+                  <span>Pengaturan Info PPDB</span>
+                </button>
+
+                <button
+                  onClick={handleExportPpdbCSV}
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl shadow flex items-center gap-2 border border-emerald-300/50"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Export CSV Lengkap</span>
+                </button>
+              </div>
             </div>
 
             {/* Table */}
@@ -775,22 +1286,30 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                     <th className="p-3">L/P</th>
                     <th className="p-3">Asal SD/MI</th>
                     <th className="p-3">Program</th>
-                    <th className="p-3">Orang Tua / HP</th>
+                    <th className="p-3">Data Orang Tua (Ayah & Ibu)</th>
                     <th className="p-3">Status</th>
-                    <th className="p-3 text-right">Aksi Status</th>
+                    <th className="p-3 text-right">Aksi & Verifikasi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {adminFilteredList.map(reg => (
                     <tr key={reg.id} className="hover:bg-white/5 transition-colors text-slate-200">
                       <td className="p-3 font-mono font-bold text-emerald-400">{reg.id}</td>
-                      <td className="p-3 font-bold text-white">{reg.namaLengkap}</td>
+                      <td className="p-3">
+                        <div className="font-bold text-white">{reg.namaLengkap}</div>
+                        {reg.nisn && <div className="text-[10px] font-mono text-slate-400">NISN: {reg.nisn}</div>}
+                      </td>
                       <td className="p-3">{reg.jenisKelamin}</td>
                       <td className="p-3 text-slate-300">{reg.asalSekolah}</td>
                       <td className="p-3 font-semibold text-emerald-300">{reg.pilihanKelas}</td>
                       <td className="p-3">
-                        <div>{reg.namaOrangTua}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{reg.noHpOrtu}</div>
+                        <div>👨 <strong>{reg.namaAyah || reg.namaOrangTua}</strong> {reg.pekerjaanAyah ? `(${reg.pekerjaanAyah})` : ''}</div>
+                        {reg.namaIbu && (
+                          <div className="text-[11px] text-pink-300 mt-0.5">👩 {reg.namaIbu} {reg.pekerjaanIbu ? `(${reg.pekerjaanIbu})` : ''}</div>
+                        )}
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          📞 {reg.noHpAyah || reg.noHpIbu || reg.noHpOrtu}
+                        </div>
                       </td>
                       <td className="p-3">{getStatusBadge(reg.status)}</td>
                       <td className="p-3 text-right">
@@ -799,7 +1318,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                             setSelectedRegForAction(reg);
                             setEditNote(reg.catatan || '');
                           }}
-                          className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg border border-white/10 font-bold text-[11px]"
+                          className="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-white/10 font-bold text-[11px]"
                         >
                           Kelola & Verifikasi
                         </button>
@@ -816,8 +1335,8 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
 
       {/* MODAL 1: BUKTI FORMULIR SUBMITTED RECEIPT */}
       {submittedReceipt && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white text-slate-900 rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-300 space-y-6">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+          <div className="bg-white text-slate-900 rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-300 space-y-6 my-auto">
             
             <div className="text-center space-y-2">
               <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto text-2xl font-black">
@@ -827,34 +1346,45 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                 Pendaftaran PPDB Berhasil!
               </h3>
               <p className="text-xs text-slate-600">
-                Simpan bukti pendaftaran berikut untuk pengecekan status dan verifikasi fisik berkas.
+                Tahun Ajaran <span className="font-bold text-slate-900">{submittedReceipt.tahunAjaran || currentTahunAjaran}</span> • Simpan bukti pendaftaran ini untuk tes & verifikasi berkas.
               </p>
             </div>
 
             {/* Printable Receipt Box */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-300 text-xs space-y-2">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-300 text-xs space-y-2.5" id="printable-ppdb-receipt">
               <div className="flex items-center justify-between border-b pb-2">
-                <span className="font-bold text-slate-500 uppercase">Nomor Pendaftaran</span>
+                <span className="font-bold text-slate-500 uppercase text-[11px]">Nomor Pendaftaran</span>
                 <span className="font-mono font-black text-emerald-700 text-base">{submittedReceipt.id}</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <div><strong>Nama Siswa:</strong> {submittedReceipt.namaLengkap}</div>
-                <div><strong>Jenis Kelamin:</strong> {submittedReceipt.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</div>
-                <div><strong>Asal Sekolah:</strong> {submittedReceipt.asalSekolah}</div>
-                <div><strong>Program:</strong> {submittedReceipt.pilihanKelas}</div>
-                <div><strong>Orang Tua:</strong> {submittedReceipt.namaOrangTua}</div>
-                <div><strong>No. HP/WA:</strong> {submittedReceipt.noHpOrtu}</div>
+              <div className="space-y-1.5 pt-1">
+                <div><strong>Nama Calon Siswa:</strong> {submittedReceipt.namaLengkap}</div>
+                <div><strong>Jenis Kelamin:</strong> {submittedReceipt.jenisKelamin === 'L' ? 'Laki-laki (Putra)' : 'Perempuan (Putri)'}</div>
+                <div><strong>Asal SD/MI:</strong> {submittedReceipt.asalSekolah}</div>
+                <div><strong>Program Pilihan:</strong> <span className="text-emerald-700 font-bold">{submittedReceipt.pilihanKelas}</span></div>
+                
+                <div className="border-t pt-1.5 mt-1">
+                  <div><strong>Nama Ayah:</strong> {submittedReceipt.namaAyah || submittedReceipt.namaOrangTua} ({submittedReceipt.pekerjaanAyah || '-'})</div>
+                  <div><strong>No. HP/WA Ayah:</strong> {submittedReceipt.noHpAyah || submittedReceipt.noHpOrtu}</div>
+                  {submittedReceipt.namaIbu && (
+                    <div className="mt-1"><strong>Nama Ibu:</strong> {submittedReceipt.namaIbu} ({submittedReceipt.pekerjaanIbu || '-'})</div>
+                  )}
+                  {submittedReceipt.noHpIbu && (
+                    <div><strong>No. HP/WA Ibu:</strong> {submittedReceipt.noHpIbu}</div>
+                  )}
+                </div>
+
+                <div><strong>Alamat Domisili:</strong> {submittedReceipt.alamat}</div>
               </div>
 
               <div className="border-t pt-2 mt-2 text-[11px] text-slate-500 text-center font-mono">
-                SMP Islam Al Qomar • Pendaftaran Tanggal {submittedReceipt.tanggalDaftar}
+                {schoolInfo.nama} • Terdaftar pada {submittedReceipt.tanggalDaftar}
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <a
-                href={`https://wa.me/6281234567807?text=Assalamu'alaikum%20Panitia%20PPDB%20SMP%20Islam%20Al%20Qomar,%20saya%20sudah%20mendaftar%20online%20dengan%20No%20Pendaftaran:%20${submittedReceipt.id}%20atas%20nama%20${encodeURIComponent(submittedReceipt.namaLengkap)}`}
+                href={`https://wa.me/${primaryContact.noHp.replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=Assalamu'alaikum%20Panitia%20PPDB%20${encodeURIComponent(schoolInfo.nama)},%20saya%20sudah%20mendaftar%20online%20dengan%20No%20Pendaftaran:%20${submittedReceipt.id}%20atas%20nama%20${encodeURIComponent(submittedReceipt.namaLengkap)}`}
                 target="_blank"
                 rel="noreferrer"
                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-3 rounded-xl text-center shadow flex items-center justify-center gap-2"
@@ -875,15 +1405,16 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
         </div>
       )}
 
-      {/* MODAL 2: ADMIN KELOLA REGISTRASI */}
+      {/* MODAL 2: ADMIN KELOLA & VERIFIKASI REGISTRASI */}
       {selectedRegForAction && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
-          <div className="glass backdrop-blur-xl bg-slate-900 border border-white/10 rounded-3xl p-6 max-w-lg w-full text-white shadow-2xl space-y-6">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+          <div className="glass backdrop-blur-xl bg-slate-900 border border-white/10 rounded-3xl p-6 max-w-2xl w-full text-white shadow-2xl space-y-6 my-auto">
             
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div>
                 <span className="text-xs font-mono font-bold text-emerald-400">{selectedRegForAction.id}</span>
                 <h3 className="text-base font-bold font-serif text-white">{selectedRegForAction.namaLengkap}</h3>
+                <p className="text-xs text-slate-400">Tahun Ajaran: {selectedRegForAction.tahunAjaran || currentTahunAjaran}</p>
               </div>
               <button
                 onClick={() => setSelectedRegForAction(null)}
@@ -893,114 +1424,190 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
               </button>
             </div>
 
-            {/* Quick Details */}
-            <div className="bg-slate-950/80 p-3.5 rounded-xl border border-white/10 text-xs space-y-1">
-              <p><strong>Asal Sekolah:</strong> {selectedRegForAction.asalSekolah}</p>
-              <p><strong>Program Pilihan:</strong> {selectedRegForAction.pilihanKelas}</p>
-              <p><strong>Orang Tua:</strong> {selectedRegForAction.namaOrangTua} ({selectedRegForAction.noHpOrtu})</p>
-              <p><strong>Alamat:</strong> {selectedRegForAction.alamat}</p>
-            </div>
-
-            {/* Change Status Buttons */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-2">Ubah Status Kelulusan PPDB:</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleUpdateStatus(selectedRegForAction.id, 'Lulus Berkas', editNote)}
-                  className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-bold text-xs py-2 px-3 rounded-xl border border-blue-400/30"
-                >
-                  ✓ Set Lulus Berkas
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateStatus(selectedRegForAction.id, 'Diterima', editNote)}
-                  className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs py-2 px-3 rounded-xl border border-emerald-400/30"
-                >
-                  ★ Set Diterima
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateStatus(selectedRegForAction.id, 'Menunggu Verifikasi', editNote)}
-                  className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs py-2 px-3 rounded-xl border border-amber-400/30"
-                >
-                  ⏳ Set Menunggu
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleUpdateStatus(selectedRegForAction.id, 'Ditolak', editNote)}
-                  className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs py-2 px-3 rounded-xl border border-rose-400/30"
-                >
-                  ✕ Set Ditolak
-                </button>
+            {/* Comprehensive Detail Grid */}
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              
+              {/* Data Calon Siswa */}
+              <div className="bg-slate-950/80 p-3.5 rounded-xl border border-white/10 text-xs space-y-1.5">
+                <h5 className="font-bold text-emerald-300 border-b border-white/5 pb-1">Data Calon Siswa</h5>
+                <div className="grid grid-cols-2 gap-2 text-slate-300">
+                  <div><strong>NISN:</strong> {selectedRegForAction.nisn || '-'}</div>
+                  <div><strong>Gender:</strong> {selectedRegForAction.jenisKelamin === 'L' ? 'Laki-laki' : 'Perempuan'}</div>
+                  <div><strong>TTL:</strong> {selectedRegForAction.tempatLahir}, {selectedRegForAction.tanggalLahir}</div>
+                  <div><strong>Asal SD/MI:</strong> {selectedRegForAction.asalSekolah}</div>
+                  <div className="col-span-2"><strong>Program Pilihan:</strong> <span className="text-emerald-300 font-bold">{selectedRegForAction.pilihanKelas}</span></div>
+                </div>
               </div>
-            </div>
 
-            {/* Note Input */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Catatan Panitia PPDB:</label>
-              <textarea
-                value={editNote}
-                onChange={(e) => setEditNote(e.target.value)}
-                rows={2}
-                placeholder="Catatan untuk pendaftar..."
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500"
-              />
-              <div className="flex items-center justify-between mt-1">
-                <button
-                  type="button"
-                  onClick={() => handleUpdateStatus(selectedRegForAction.id, selectedRegForAction.status, editNote)}
-                  className="text-xs text-emerald-400 font-bold hover:underline"
-                >
-                  Simpan Catatan
-                </button>
+              {/* Data Ayah & Ibu */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-slate-950/80 p-3.5 rounded-xl border border-white/10 text-xs space-y-1">
+                  <h5 className="font-bold text-blue-300 border-b border-white/5 pb-1">👨 Data Ayah Kandung</h5>
+                  <p><strong>Nama:</strong> {selectedRegForAction.namaAyah || selectedRegForAction.namaOrangTua || '-'}</p>
+                  <p><strong>Pekerjaan:</strong> {selectedRegForAction.pekerjaanAyah || '-'}</p>
+                  <p><strong>No. HP/WA:</strong> {selectedRegForAction.noHpAyah || selectedRegForAction.noHpOrtu || '-'}</p>
+                  <p><strong>Penghasilan:</strong> {selectedRegForAction.pendapatanAyah || '-'}</p>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const msg = WAService.createPpdbStatusUpdateMessage({
-                      namaLengkap: selectedRegForAction.namaLengkap,
-                      idPendaftaran: selectedRegForAction.id,
-                      status: selectedRegForAction.status,
-                      catatan: editNote || selectedRegForAction.catatan,
-                      schoolName: schoolInfo.nama
-                    });
-                    WAService.sendWA(selectedRegForAction.noHpOrtu, msg, selectedRegForAction.namaOrangTua, 'PPDB_STATUS');
-                  }}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] px-3 py-1.5 rounded-lg flex items-center gap-1 shadow transition-colors"
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Kirim WA Notifikasi Status ke Ortu</span>
-                </button>
+                <div className="bg-slate-950/80 p-3.5 rounded-xl border border-white/10 text-xs space-y-1">
+                  <h5 className="font-bold text-pink-300 border-b border-white/5 pb-1">👩 Data Ibu Kandung</h5>
+                  <p><strong>Nama:</strong> {selectedRegForAction.namaIbu || '-'}</p>
+                  <p><strong>Pekerjaan:</strong> {selectedRegForAction.pekerjaanIbu || '-'}</p>
+                  <p><strong>No. HP/WA:</strong> {selectedRegForAction.noHpIbu || '-'}</p>
+                  <p><strong>Penghasilan:</strong> {selectedRegForAction.pendapatanIbu || '-'}</p>
+                </div>
               </div>
+
+              {/* Data Wali (if any) & Alamat */}
+              <div className="bg-slate-950/80 p-3.5 rounded-xl border border-white/10 text-xs space-y-1">
+                {selectedRegForAction.namaWali && (
+                  <div className="pb-1 border-b border-white/5 mb-1">
+                    <strong>Data Wali:</strong> {selectedRegForAction.namaWali} ({selectedRegForAction.hubunganWali || 'Wali'}) • {selectedRegForAction.noHpWali || '-'}
+                  </div>
+                )}
+                <p><strong>Alamat Domisili:</strong> {selectedRegForAction.alamat}</p>
+              </div>
+
+              {/* Status Update Buttons */}
+              <div className="pt-2">
+                <label className="block text-xs font-bold text-slate-300 mb-2">Ubah Status Kelulusan PPDB:</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(selectedRegForAction.id, 'Lulus Berkas', editNote)}
+                    className="bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 font-bold text-xs py-2 px-2.5 rounded-xl border border-blue-400/30"
+                  >
+                    ✓ Lulus Berkas
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(selectedRegForAction.id, 'Diterima', editNote)}
+                    className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-bold text-xs py-2 px-2.5 rounded-xl border border-emerald-400/30"
+                  >
+                    ★ Diterima
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(selectedRegForAction.id, 'Menunggu Verifikasi', editNote)}
+                    className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-bold text-xs py-2 px-2.5 rounded-xl border border-amber-400/30"
+                  >
+                    ⏳ Menunggu
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(selectedRegForAction.id, 'Ditolak', editNote)}
+                    className="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-bold text-xs py-2 px-2.5 rounded-xl border border-rose-400/30"
+                  >
+                    ✕ Ditolak
+                  </button>
+                </div>
+              </div>
+
+              {/* Note Input */}
+              <div className="pt-2">
+                <label className="block text-xs font-bold text-slate-300 mb-1">Catatan Panitia PPDB:</label>
+                <textarea
+                  value={editNote}
+                  onChange={(e) => setEditNote(e.target.value)}
+                  rows={2}
+                  placeholder="Catatan untuk pendaftar..."
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                />
+                
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleUpdateStatus(selectedRegForAction.id, selectedRegForAction.status, editNote)}
+                    className="text-xs text-emerald-400 font-bold hover:underline"
+                  >
+                    Simpan Catatan
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {/* Kirim WA ke Ayah */}
+                    {(selectedRegForAction.noHpAyah || selectedRegForAction.noHpOrtu) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const phone = selectedRegForAction.noHpAyah || selectedRegForAction.noHpOrtu;
+                          const name = selectedRegForAction.namaAyah || selectedRegForAction.namaOrangTua;
+                          const msg = WAService.createPpdbStatusUpdateMessage({
+                            namaLengkap: selectedRegForAction.namaLengkap,
+                            idPendaftaran: selectedRegForAction.id,
+                            status: selectedRegForAction.status,
+                            catatan: editNote || selectedRegForAction.catatan,
+                            schoolName: schoolInfo.nama
+                          });
+                          WAService.sendWA(phone, msg, name, 'PPDB_STATUS');
+                        }}
+                        className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-[11px] px-3 py-1.5 rounded-lg flex items-center gap-1 shadow"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Kirim WA ke Ayah</span>
+                      </button>
+                    )}
+
+                    {/* Kirim WA ke Ibu */}
+                    {selectedRegForAction.noHpIbu && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const msg = WAService.createPpdbStatusUpdateMessage({
+                            namaLengkap: selectedRegForAction.namaLengkap,
+                            idPendaftaran: selectedRegForAction.id,
+                            status: selectedRegForAction.status,
+                            catatan: editNote || selectedRegForAction.catatan,
+                            schoolName: schoolInfo.nama
+                          });
+                          WAService.sendWA(selectedRegForAction.noHpIbu!, msg, selectedRegForAction.namaIbu, 'PPDB_STATUS');
+                        }}
+                        className="bg-pink-500 hover:bg-pink-400 text-white font-bold text-[11px] px-3 py-1.5 rounded-lg flex items-center gap-1 shadow"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                        <span>Kirim WA ke Ibu</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
             </div>
 
-            {/* Import to Master Data Siswa */}
-            {onAddStudentFromPpdb && (
-              <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+            {/* Import to Master Data Siswa & Delete */}
+            <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+              {onAddStudentFromPpdb && (
                 <button
                   type="button"
                   onClick={() => handleConvertToStudent(selectedRegForAction)}
                   className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl shadow flex items-center gap-1.5"
                 >
                   <UserCheck className="w-4 h-4" />
-                  <span>Masukkan ke Data Siswa Master</span>
+                  <span>Masukkan ke Data Siswa Master (Kelas 7)</span>
                 </button>
+              )}
 
-                <button
-                  type="button"
-                  onClick={() => handleDeleteRegistration(selectedRegForAction.id)}
-                  className="text-rose-400 hover:text-rose-300 font-bold text-xs flex items-center gap-1"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Hapus</span>
-                </button>
-              </div>
-            )}
+              <button
+                type="button"
+                onClick={() => handleDeleteRegistration(selectedRegForAction.id)}
+                className="text-rose-400 hover:text-rose-300 font-bold text-xs flex items-center gap-1"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Hapus Data</span>
+              </button>
+            </div>
 
           </div>
         </div>
       )}
+
+      {/* MODAL 3: PENGATURAN PPDB MODAL */}
+      <PpdbSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onSaveSettings={handleUpdateSettings}
+        tahunAjaranSekolah={currentTahunAjaran}
+      />
 
     </div>
   );

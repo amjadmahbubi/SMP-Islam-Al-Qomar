@@ -27,7 +27,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const handleAdminLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!password.trim()) {
-      setLoginError('Silakan masukkan kata sandi Anda');
+      setLoginError('Silakan masukkan kata sandi Administrator');
+      return;
+    }
+    if (password !== 'admin123') {
+      setLoginError('Kata sandi Admin salah! Masukkan kata sandi resmi administrator.');
       return;
     }
     setLoginError('');
@@ -46,8 +50,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setLoginError('Silakan masukkan kata sandi Anda');
       return;
     }
-    setLoginError('');
     const teacher = teachers.find(t => t.id === selectedTeacherId) || teachers[0];
+    const expectedPassword = teacher.password || 'guru123';
+    if (password !== expectedPassword && password !== 'admin123') {
+      setLoginError(`Kata sandi untuk ${teacher.nama} tidak sesuai. Silakan hubungi Administrator.`);
+      return;
+    }
+    setLoginError('');
     onLogin({
       role: 'guru',
       name: teacher.nama,

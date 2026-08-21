@@ -27,11 +27,12 @@ import {
   initialSheetsConfig,
   initialAchievements,
   initialPpdbRegistrations,
+  initialPpdbSettings,
   initialGalleryItems,
   initialGradeLocks,
   initialAuditLogs
 } from '../data/initialData';
-import { StudentAchievement, PpdbRegistration, GalleryItem, GradeLockRecord, AuditLog } from '../types';
+import { StudentAchievement, PpdbRegistration, PpdbSettings, GalleryItem, GradeLockRecord, AuditLog } from '../types';
 
 const KEYS = {
   SESSION: 'alqomar_session',
@@ -49,9 +50,11 @@ const KEYS = {
   ACHIEVEMENTS: 'alqomar_achievements',
   THEME: 'alqomar_theme',
   PPDB: 'alqomar_ppdb_registrations',
+  PPDB_SETTINGS: 'alqomar_ppdb_settings',
   GALLERY: 'alqomar_gallery_items',
   GRADE_LOCKS: 'alqomar_grade_locks',
-  AUDIT_LOGS: 'alqomar_audit_logs'
+  AUDIT_LOGS: 'alqomar_audit_logs',
+  CLASSES: 'alqomar_classes'
 };
 
 const defaultSession: UserSession = {
@@ -150,6 +153,11 @@ export const StorageService = {
   getPpdbRegistrations: (): PpdbRegistration[] => getStored(KEYS.PPDB, initialPpdbRegistrations),
   savePpdbRegistrations: (data: PpdbRegistration[]): void => setStored(KEYS.PPDB, data),
 
+  // PPDB Settings (Gelombang, Program Unggulan, Contact Persons)
+  getPpdbSettings: (): PpdbSettings => getStored(KEYS.PPDB_SETTINGS, initialPpdbSettings),
+  savePpdbSettings: (data: PpdbSettings): void => setStored(KEYS.PPDB_SETTINGS, data),
+  setPpdbSettings: (data: PpdbSettings): void => setStored(KEYS.PPDB_SETTINGS, data),
+
   // Gallery Items
   getGalleryItems: (): GalleryItem[] => getStored(KEYS.GALLERY, initialGalleryItems),
   saveGalleryItems: (data: GalleryItem[]): void => setStored(KEYS.GALLERY, data),
@@ -173,6 +181,11 @@ export const StorageService = {
     setStored(KEYS.AUDIT_LOGS, [newEntry, ...existing]);
   },
 
+  // Custom & Active Classes
+  getClasses: (): string[] => getStored(KEYS.CLASSES, ['7A', '7B', '8A', '8B', '9A', '9B']),
+  saveClasses: (data: string[]): void => setStored(KEYS.CLASSES, data),
+  setClasses: (data: string[]): void => setStored(KEYS.CLASSES, data),
+
   // Reset to initial sample data
   resetAllToDefault: (): void => {
     localStorage.removeItem(KEYS.SESSION);
@@ -192,6 +205,7 @@ export const StorageService = {
     localStorage.removeItem(KEYS.GALLERY);
     localStorage.removeItem(KEYS.GRADE_LOCKS);
     localStorage.removeItem(KEYS.AUDIT_LOGS);
+    localStorage.removeItem(KEYS.CLASSES);
   }
 };
 
