@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
-import { ScheduleItem } from '../../types';
+import { ScheduleItem, Teacher, Student } from '../../types';
 import { Clock, Filter, Search, Printer, CalendarDays } from 'lucide-react';
+import { getAllClasses, COMMON_SCHEDULE_ACTIVITIES } from '../../data/constants';
 
 interface PublicJadwalProps {
   schedules: ScheduleItem[];
+  teachers?: Teacher[];
+  students?: Student[];
 }
 
-export const PublicJadwal: React.FC<PublicJadwalProps> = ({ schedules }) => {
-  const [selectedClass, setSelectedClass] = useState<string>('7A');
+export const PublicJadwal: React.FC<PublicJadwalProps> = ({
+  schedules,
+  teachers = [],
+  students = []
+}) => {
+  const dynamicClasses = getAllClasses(students, schedules, teachers);
+  const [selectedClass, setSelectedClass] = useState<string>(dynamicClasses[0] || '7A');
   const [selectedDay, setSelectedDay] = useState<string>('Senin');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-  const classes = ['7A', '7B', '8A', '8B', '9A', '9B'];
 
   const filteredSchedules = schedules.filter(item => {
     const matchClass = item.kelas === selectedClass;
@@ -42,7 +49,7 @@ export const PublicJadwal: React.FC<PublicJadwalProps> = ({ schedules }) => {
             Jadwal Pembelajaran Kelas {selectedClass} — Hari {selectedDay}
           </h2>
           <p className="text-xs text-slate-300 mt-1">
-            Jadwal kegiatan belajar mengajar, tahfidz Al-Qur'an, dan pembiasaan islami harian
+            Jadwal kegiatan belajar mengajar, tahfidz Al-Qur'an, muatan lokal (Bahasa Jawa, Imla'), dan pembiasaan islami
           </p>
         </div>
 
@@ -64,7 +71,7 @@ export const PublicJadwal: React.FC<PublicJadwalProps> = ({ schedules }) => {
             Pilih Rombongan Belajar (Kelas)
           </label>
           <div className="flex flex-wrap gap-2">
-            {classes.map((cls) => (
+            {dynamicClasses.map((cls) => (
               <button
                 key={cls}
                 onClick={() => setSelectedClass(cls)}
@@ -117,35 +124,50 @@ export const PublicJadwal: React.FC<PublicJadwalProps> = ({ schedules }) => {
       {/* Schedule Grid List */}
       {filteredSchedules.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSchedules.map((sch) => (
-            <div
-              key={sch.id}
-              className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-5 border border-white/10 shadow-xl hover:border-emerald-400/30 transition-all relative overflow-hidden flex flex-col justify-between"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="bg-emerald-500/20 text-emerald-300 text-xs font-bold px-2.5 py-1 rounded-lg border border-emerald-400/30">
-                  Jam Ke-{sch.jamKe}
-                </span>
-                <span className="text-xs font-mono text-slate-300 font-semibold bg-slate-950/60 px-2 py-0.5 rounded border border-white/5">
-                  {sch.waktu}
-                </span>
-              </div>
+          {filteredSchedules.map((sch) => {
+            const isActivity = COMMON_SCHEDULE_ACTIVITIES.includes(sch.mapel);
+            return (
+              <div
+                key={sch.id}
+                className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-5 border border-white/10 shadow-xl hover:border-emerald-400/30 transition-all relative overflow-hidden flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="bg-emerald-500/20 text-emerald-300 text-xs font-bold px-2.5 py-1 rounded-lg border border-emerald-400/30">
+                    Jam Ke-{sch.jamKe}
+                  </span>
+                  <span className="text-xs font-mono text-slate-300 font-semibold bg-slate-950/60 px-2 py-0.5 rounded border border-white/5">
+                    {sch.waktu}
+                  </span>
+                </div>
 
-              <div>
-                <h3 className="font-bold text-base text-white font-serif leading-snug">
-                  {sch.mapel}
-                </h3>
-                <p className="text-xs text-emerald-300 font-medium mt-1">
-                  👨‍🏫 {sch.guruNama}
-                </p>
-              </div>
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-bold text-base text-white font-serif leading-snug">
+                      {sch.mapel}
+                    </h3>
+                    {isActivity && (
+                      <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold rounded border border-amber-400/30 shrink-0">
+                        Kegiatan
+                      </span>
+                    )}
+                    {(sch.mapel === 'Bahasa Jawa' || sch.mapel === "Imla'") && (
+                      <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[10px] font-bold rounded border border-emerald-400/30 shrink-0">
+                        Mulok
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-emerald-300 font-medium mt-1.5">
+                    👨‍🏫 {sch.guruNama}
+                  </p>
+                </div>
 
-              <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
-                <span>Ruangan: <strong className="text-slate-200">{sch.ruang}</strong></span>
-                <span className="text-emerald-400 font-semibold">SMP Islam Al Qomar</span>
+                <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-slate-400">
+                  <span>Ruangan: <strong className="text-slate-200">{sch.ruang}</strong></span>
+                  <span className="text-emerald-400 font-semibold">SMP Islam Al Qomar</span>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-10 border border-white/10 shadow-xl text-center space-y-3">

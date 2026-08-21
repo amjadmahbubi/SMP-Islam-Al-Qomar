@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Student, AttendanceRecord, Teacher, UserSession } from '../../types';
 import { CheckSquare, Calendar, Users, Save, Check, CheckCircle2, MessageSquare, Send, Share2 } from 'lucide-react';
 import { WAService } from '../../services/whatsappService';
+import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
 
 interface AbsensiSiswaViewProps {
   students: Student[];
@@ -18,28 +19,15 @@ export const AbsensiSiswaView: React.FC<AbsensiSiswaViewProps> = ({
   session,
   onSaveAttendance
 }) => {
-  const mapelList = [
-    'Pendidikan Agama Islam',
-    'Al-Qur\'an Hadits',
-    'Bahasa Arab',
-    'Pancasila / PPKn',
-    'Bahasa Indonesia',
-    'Matematika',
-    'IPA Terpadu',
-    'IPS Terpadu',
-    'Bahasa Inggris',
-    'Seni Budaya',
-    'PJOK',
-    'Informatika / TIK',
-    'Prakarya / Skill'
-  ];
+  const dynamicClasses = getAllClasses(students, [], teachers);
+  const mapelList = DEFAULT_MAPEL_LIST;
 
   const loggedTeacher = teachers.find(
     t => (session.teacherId && t.id === session.teacherId) || (session.name && t.nama.toLowerCase() === session.name.toLowerCase())
   );
   const teacherDefaultMapel = loggedTeacher?.mapelUtama || mapelList[0];
 
-  const [selectedClass, setSelectedClass] = useState('7A');
+  const [selectedClass, setSelectedClass] = useState(dynamicClasses[0] || '7A');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMapel, setSelectedMapel] = useState(teacherDefaultMapel);
   const [selectedTeacher, setSelectedTeacher] = useState(session.name || loggedTeacher?.nama || teachers[0]?.nama || 'Ustadz Amjad Mahbubi, S.Pd.');
@@ -50,7 +38,7 @@ export const AbsensiSiswaView: React.FC<AbsensiSiswaViewProps> = ({
     }
   }, [session.teacherId, session.name]);
 
-  const classes = ['7A', '7B', '8A', '8B', '9A', '9B'];
+  const classes = dynamicClasses;
   const classStudents = students.filter(s => s.kelas === selectedClass && s.status === 'Aktif');
 
   // Check if attendance already logged for this date & class

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TeacherDoc, Teacher, UserSession } from '../../types';
 import { FolderKanban, Plus, ExternalLink, CheckCircle, Clock, AlertCircle, Edit3, Trash2, X, MessageSquare, FileText } from 'lucide-react';
+import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
 
 interface AdministrasiGuruViewProps {
   docs: TeacherDoc[];
@@ -19,21 +20,8 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<TeacherDoc | null>(null);
 
-  const mapelList = [
-    'Pendidikan Agama Islam',
-    'Al-Qur\'an Hadits',
-    'Bahasa Arab',
-    'Pancasila / PPKn',
-    'Bahasa Indonesia',
-    'Matematika',
-    'IPA Terpadu',
-    'IPS Terpadu',
-    'Bahasa Inggris',
-    'Seni Budaya',
-    'PJOK',
-    'Informatika / TIK',
-    'Prakarya / Skill'
-  ];
+  const dynamicClasses = getAllClasses([], [], teachers);
+  const mapelList = DEFAULT_MAPEL_LIST;
 
   const loggedTeacher = teachers.find(
     t => (session.teacherId && t.id === session.teacherId) || (session.name && t.nama.toLowerCase() === session.name.toLowerCase())
@@ -43,7 +31,7 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
   const [form, setForm] = useState<Partial<TeacherDoc>>({
     jenisDokumen: 'Modul Ajar / RPP',
     mataPelajaran: teacherDefaultMapel,
-    kelas: '7A',
+    kelas: dynamicClasses[0] || '7A',
     tahunAjaran: '2024/2025',
     judul: '',
     linkFile: '',
@@ -358,12 +346,11 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
                     onChange={(e) => setForm({ ...form, kelas: e.target.value })}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
-                    <option value="7A" className="bg-white text-slate-900">Kelas 7A</option>
-                    <option value="7B" className="bg-white text-slate-900">Kelas 7B</option>
-                    <option value="8A" className="bg-white text-slate-900">Kelas 8A</option>
-                    <option value="8B" className="bg-white text-slate-900">Kelas 8B</option>
-                    <option value="9A" className="bg-white text-slate-900">Kelas 9A</option>
-                    <option value="9B" className="bg-white text-slate-900">Kelas 9B</option>
+                    {dynamicClasses.map(c => (
+                      <option key={c} value={c} className="bg-white text-slate-900">
+                        Kelas {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Student, SubjectGradeRecord, Teacher, UserSession, GradeLockRecord } from '../../types';
 import { StorageService } from '../../services/storage';
 import { AuditLogModal } from './AuditLogModal';
+import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
 import {
   Award,
   Save,
@@ -37,28 +38,15 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
   session,
   onSaveGrades
 }) => {
-  const mapelList = [
-    'Bahasa Inggris',
-    'Pendidikan Agama Islam',
-    'Al-Qur\'an Hadits',
-    'Bahasa Arab',
-    'Pancasila / PPKn',
-    'Bahasa Indonesia',
-    'Matematika',
-    'IPA Terpadu',
-    'IPS Terpadu',
-    'Seni Budaya',
-    'PJOK',
-    'Informatika / TIK',
-    'Prakarya / Skill'
-  ];
+  const dynamicClasses = getAllClasses(students, [], teachers);
+  const mapelList = DEFAULT_MAPEL_LIST;
 
   const loggedTeacher = teachers.find(
     t => (session.teacherId && t.id === session.teacherId) || (session.name && t.nama.toLowerCase() === session.name.toLowerCase())
   );
   const teacherDefaultMapel = loggedTeacher?.mapelUtama || mapelList[0];
 
-  const [selectedClass, setSelectedClass] = useState('7A');
+  const [selectedClass, setSelectedClass] = useState(dynamicClasses[0] || '7A');
   const [selectedMapel, setSelectedMapel] = useState(teacherDefaultMapel);
   const [selectedTeacher, setSelectedTeacher] = useState(session.name || loggedTeacher?.nama || teachers[0]?.nama || 'Ustadz Amjad Mahbubi, S.Pd.');
   const [semester, setSemester] = useState<'Ganjil' | 'Genap'>('Ganjil');
@@ -76,7 +64,7 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
     }
   }, [session.teacherId, session.name]);
 
-  const classes = ['7A', '7B', '8A', '8B', '9A', '9B'];
+  const classes = dynamicClasses;
   const classStudents = students.filter(s => s.kelas === selectedClass && s.status === 'Aktif');
 
   // Find existing grade record for mapel + class + semester

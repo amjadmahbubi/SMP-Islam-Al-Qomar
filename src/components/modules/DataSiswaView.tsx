@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Student } from '../../types';
 import { exportToCSV } from '../../services/storage';
-import { Users, Plus, Search, Download, Edit3, Trash2, X, Filter } from 'lucide-react';
+import { Users, Plus, Search, Download, Edit3, Trash2, X, Filter, Layers } from 'lucide-react';
+import { getAllClasses } from '../../data/constants';
 
 interface DataSiswaViewProps {
   students: Student[];
@@ -14,6 +15,9 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({ students, onSaveSt
   const [statusFilter, setStatusFilter] = useState('Aktif');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+
+  const [isCustomClass, setIsCustomClass] = useState(false);
+  const [customClassInput, setCustomClassInput] = useState('');
 
   const [form, setForm] = useState<Partial<Student>>({
     nisn: '',
@@ -29,7 +33,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({ students, onSaveSt
     status: 'Aktif'
   });
 
-  const classes = ['7A', '7B', '8A', '8B', '9A', '9B'];
+  const classes = getAllClasses(students);
 
   const filteredStudents = students.filter((s) => {
     const matchSearch =
@@ -44,13 +48,15 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({ students, onSaveSt
 
   const handleOpenAdd = () => {
     setEditingStudent(null);
+    setIsCustomClass(false);
+    setCustomClassInput('');
     setForm({
       id: `S${Date.now().toString().slice(-4)}`,
       nisn: `00${Math.floor(10000000 + Math.random() * 90000000)}`,
       nis: `2407${Math.floor(100 + Math.random() * 899)}`,
       nama: '',
       gender: 'L',
-      kelas: '7A',
+      kelas: classes[0] || '7A',
       tempatLahir: 'Banyuwangi',
       tanggalLahir: '2011-05-15',
       namaOrangTua: '',
@@ -63,6 +69,13 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({ students, onSaveSt
 
   const handleOpenEdit = (student: Student) => {
     setEditingStudent(student);
+    if (!classes.includes(student.kelas)) {
+      setIsCustomClass(true);
+      setCustomClassInput(student.kelas);
+    } else {
+      setIsCustomClass(false);
+      setCustomClassInput('');
+    }
     setForm({ ...student });
     setIsModalOpen(true);
   };
@@ -78,8 +91,10 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({ students, onSaveSt
     e.preventDefault();
     if (!form.nama || !form.nisn) return;
 
+    const finalKelas = isCustomClass ? (customClassInput.trim() || '7A') : (form.kelas || '7A');
+
     if (editingStudent) {
-      const updated = students.map(s => (s.id === editingStudent.id ? (form as Student) : s));
+      const updated = students.map(s => (s.id === editingStudent.id ? ({ ...(form as Student), kelas: finalKelas } as Student) : s));
       onSaveStudents(updated);
     } else {
       const newStudent: Student = {
@@ -88,7 +103,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({ students, onSaveSt
         nis: form.nis || '2407000',
         nama: form.nama!,
         gender: (form.gender as 'L' | 'P') || 'L',
-        kelas: form.kelas || '7A',
+        kelas: finalKelas,
         tempatLahir: form.tempatLahir || 'Banyuwangi',
         tanggalLahir: form.tanggalLahir || '2011-01-01',
         namaOrangTua: form.namaOrangTua || 'Orang Tua Siswa',
@@ -327,18 +342,49 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({ students, onSaveSt
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Kelas</label>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">Rombel / Kelas</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomClass(!isCustomClass)}
+                    className="text-[11px] font-bold text-emerald-800 hover:underline"
+                  >
+                    {isCustomClass ? 'Pilih dari List' : '+ Tulis Kustom'}
+                  </button>
+                </div>
+                {isCustomClass ? (
+                  <input
+                    type="text"
+                    required
+                    value={customClassInput}
+                    onChange={(e) => setCustomClassInput(e.target.value)}
+                    placeholder="Contoh: 7C, 8-Tahfidz, VII Putri..."
+                    className="w-full px-3 py-2 bg-white border border-emerald-500 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    autoFocus
+                  />
+                ) : (
                   <select
                     value={form.kelas}
-                    onChange={(e) => setForm({ ...form, kelas: e.target.value })}
+                    onChange={(e) => {
+                      if (e.target.value === '__CUSTOM__') {
+                        setIsCustomClass(true);
+                        setCustomClassInput('');
+                      } else {
+                        setForm({ ...form, kelas: e.target.value });
+                      }
+                    }}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
                     {classes.map(c => <option key={c} value={c} className="bg-white text-slate-900">Kelas {c}</option>)}
+                    <option value="__CUSTOM__" className="bg-emerald-50 text-emerald-950 font-bold">
+                      + Tulis Kelas Kustom Baru...
+                    </option>
                   </select>
-                </div>
+                )}
+              </div>
 
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Jenis Kelamin</label>
                   <select

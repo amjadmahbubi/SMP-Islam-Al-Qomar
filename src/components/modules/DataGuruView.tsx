@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Teacher } from '../../types';
 import { exportToCSV } from '../../services/storage';
-import { GraduationCap, Plus, Search, Download, Edit3, Trash2, X, Check, Filter, Key, ShieldCheck, Lock, AlertCircle } from 'lucide-react';
+import { GraduationCap, Plus, Search, Download, Edit3, Trash2, X, Check, Filter, Key, ShieldCheck, Lock, AlertCircle, Sparkles } from 'lucide-react';
+import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
 
 interface DataGuruViewProps {
   teachers: Teacher[];
@@ -9,26 +10,17 @@ interface DataGuruViewProps {
 }
 
 export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeachers }) => {
-  const mapelList = [
-    'Pendidikan Agama Islam',
-    'Al-Qur\'an Hadits',
-    'Bahasa Arab',
-    'Pancasila / PPKn',
-    'Bahasa Indonesia',
-    'Matematika',
-    'IPA Terpadu',
-    'IPS Terpadu',
-    'Bahasa Inggris',
-    'Seni Budaya',
-    'PJOK',
-    'Informatika / TIK',
-    'Prakarya / Skill'
-  ];
+  const dynamicClasses = getAllClasses([], [], teachers);
+  const mapelList = DEFAULT_MAPEL_LIST;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+
+  // Custom Mapel State
+  const [isCustomMapel, setIsCustomMapel] = useState(false);
+  const [customMapelInput, setCustomMapelInput] = useState('');
 
   // Reset Password State
   const [resetTeacher, setResetTeacher] = useState<Teacher | null>(null);
@@ -60,13 +52,15 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
 
   const handleOpenAdd = () => {
     setEditingTeacher(null);
+    setIsCustomMapel(false);
+    setCustomMapelInput('');
     setForm({
       id: `T${Date.now().toString().slice(-4)}`,
       nuptk: '',
       nama: '',
       nip: '',
       gender: 'L',
-      mapelUtama: 'Pendidikan Agama Islam',
+      mapelUtama: 'Bahasa Jawa',
       jabatan: 'Guru Mata Pelajaran',
       email: '',
       telepon: '',
@@ -78,6 +72,13 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
 
   const handleOpenEdit = (teacher: Teacher) => {
     setEditingTeacher(teacher);
+    if (!mapelList.includes(teacher.mapelUtama)) {
+      setIsCustomMapel(true);
+      setCustomMapelInput(teacher.mapelUtama);
+    } else {
+      setIsCustomMapel(false);
+      setCustomMapelInput('');
+    }
     setForm({ ...teacher });
     setIsModalOpen(true);
   };
@@ -91,10 +92,12 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.nama || !form.mapelUtama) return;
+    const finalMapel = isCustomMapel ? (customMapelInput.trim() || 'Bahasa Jawa') : (form.mapelUtama || 'Bahasa Jawa');
+
+    if (!form.nama || !finalMapel) return;
 
     if (editingTeacher) {
-      const updated = teachers.map(t => (t.id === editingTeacher.id ? (form as Teacher) : t));
+      const updated = teachers.map(t => (t.id === editingTeacher.id ? ({ ...(form as Teacher), mapelUtama: finalMapel } as Teacher) : t));
       onSaveTeachers(updated);
     } else {
       const newTeacher: Teacher = {
@@ -103,7 +106,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
         nama: form.nama!,
         nip: form.nip,
         gender: (form.gender as 'L' | 'P') || 'L',
-        mapelUtama: form.mapelUtama!,
+        mapelUtama: finalMapel,
         jabatan: form.jabatan || 'Guru Mata Pelajaran',
         email: form.email || `${form.nama.toLowerCase().replace(/\s+/g, '')}@alqomar.sch.id`,
         telepon: form.telepon || '081234567890',
@@ -339,17 +342,49 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Mata Pelajaran Utama</label>
-                  <select
-                    value={form.mapelUtama}
-                    onChange={(e) => setForm({ ...form, mapelUtama: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  >
-                    {mapelList.map(m => (
-                      <option key={m} value={m} className="bg-white text-slate-900">{m}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">Mata Pelajaran Utama</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomMapel(!isCustomMapel)}
+                      className="text-[11px] font-bold text-emerald-800 hover:underline"
+                    >
+                      {isCustomMapel ? 'Daftar' : '+ Kustom'}
+                    </button>
+                  </div>
+                  {isCustomMapel ? (
+                    <input
+                      type="text"
+                      required
+                      value={customMapelInput}
+                      onChange={(e) => setCustomMapelInput(e.target.value)}
+                      placeholder="Ketik nama mapel kustom..."
+                      className="w-full px-3 py-2 bg-white border border-emerald-500 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  ) : (
+                    <select
+                      value={form.mapelUtama}
+                      onChange={(e) => {
+                        if (e.target.value === '__CUSTOM__') {
+                          setIsCustomMapel(true);
+                          setCustomMapelInput('');
+                        } else {
+                          setForm({ ...form, mapelUtama: e.target.value });
+                        }
+                      }}
+                      required
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    >
+                      {mapelList.map(m => (
+                        <option key={m} value={m} className="bg-white text-slate-900">
+                          {m} {(m === 'Bahasa Jawa' || m === "Imla'") ? '★' : ''}
+                        </option>
+                      ))}
+                      <option value="__CUSTOM__" className="bg-emerald-50 text-emerald-950 font-bold">
+                        + Ketik Mapel Kustom...
+                      </option>
+                    </select>
+                  )}
                 </div>
 
                 <div>
@@ -385,13 +420,12 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
                     onChange={(e) => setForm({ ...form, waliKelasDi: e.target.value })}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
-                    <option value="" className="bg-white text-slate-900">-- Tidak Ada --</option>
-                    <option value="7A" className="bg-white text-slate-900">Kelas 7A</option>
-                    <option value="7B" className="bg-white text-slate-900">Kelas 7B</option>
-                    <option value="8A" className="bg-white text-slate-900">Kelas 8A</option>
-                    <option value="8B" className="bg-white text-slate-900">Kelas 8B</option>
-                    <option value="9A" className="bg-white text-slate-900">Kelas 9A</option>
-                    <option value="9B" className="bg-white text-slate-900">Kelas 9B</option>
+                    <option value="" className="bg-white text-slate-900">-- Bukan Wali Kelas --</option>
+                    {dynamicClasses.map(c => (
+                      <option key={c} value={c} className="bg-white text-slate-900">
+                        Kelas {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
