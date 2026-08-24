@@ -53,6 +53,10 @@ export interface Student {
   noHpOrangTua: string;
   alamat: string;
   status: 'Aktif' | 'Lulus' | 'Pindah';
+  namaAyah?: string;
+  statusAyah?: 'Masih Hidup' | 'Meninggal';
+  namaIbu?: string;
+  statusIbu?: 'Masih Hidup' | 'Meninggal';
 }
 
 export interface SarprasItem {
@@ -180,7 +184,7 @@ export interface AuditLog {
   timestamp: string;
   userName: string;
   userRole: string;
-  action: 'UPDATE_NILAI' | 'LOCK_DRAFT_NILAI' | 'UNLOCK_DRAFT_NILAI' | 'RESET_NILAI' | 'UPDATE_ADMINISTRASI' | 'LAINNYA';
+  action: 'UPDATE_NILAI' | 'LOCK_DRAFT_NILAI' | 'UNLOCK_DRAFT_NILAI' | 'RESET_NILAI' | 'UPDATE_ADMINISTRASI' | 'SYNC_TAHUN_AJARAN' | 'LAINNYA';
   module: string;
   kelas?: string;
   mapel?: string;
@@ -258,6 +262,7 @@ export interface PpdbRegistration {
 
   // Data Ayah Kandung
   namaAyah?: string;
+  statusAyah?: 'Masih Hidup' | 'Meninggal';
   pekerjaanAyah?: string;
   noHpAyah?: string;
   pendapatanAyah?: string;
@@ -265,6 +270,7 @@ export interface PpdbRegistration {
 
   // Data Ibu Kandung
   namaIbu?: string;
+  statusIbu?: 'Masih Hidup' | 'Meninggal';
   pekerjaanIbu?: string;
   noHpIbu?: string;
   pendapatanIbu?: string;

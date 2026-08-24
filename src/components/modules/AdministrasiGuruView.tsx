@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TeacherDoc, Teacher, UserSession } from '../../types';
+import { TeacherDoc, Teacher, UserSession, SchoolInfo } from '../../types';
 import { FolderKanban, Plus, ExternalLink, CheckCircle, Clock, AlertCircle, Edit3, Trash2, X, MessageSquare, FileText } from 'lucide-react';
 import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
 
@@ -7,6 +7,7 @@ interface AdministrasiGuruViewProps {
   docs: TeacherDoc[];
   teachers: Teacher[];
   session: UserSession;
+  schoolInfo?: SchoolInfo;
   onSaveDocs: (docs: TeacherDoc[]) => void;
 }
 
@@ -14,6 +15,7 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
   docs,
   teachers,
   session,
+  schoolInfo,
   onSaveDocs
 }) => {
   const [selectedJenis, setSelectedJenis] = useState('Semua');
@@ -32,7 +34,7 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
     jenisDokumen: 'Modul Ajar / RPP',
     mataPelajaran: teacherDefaultMapel,
     kelas: dynamicClasses[0] || '7A',
-    tahunAjaran: '2024/2025',
+    tahunAjaran: schoolInfo?.tahunAjaran || '2024/2025',
     judul: '',
     linkFile: '',
     status: 'Menunggu Verifikasi'

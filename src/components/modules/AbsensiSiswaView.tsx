@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Student, AttendanceRecord, Teacher, UserSession } from '../../types';
+import { Student, AttendanceRecord, Teacher, UserSession, SchoolInfo } from '../../types';
 import { CheckSquare, Calendar, Users, Save, Check, CheckCircle2, MessageSquare, Send, Share2 } from 'lucide-react';
 import { WAService } from '../../services/whatsappService';
 import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
@@ -9,6 +9,7 @@ interface AbsensiSiswaViewProps {
   attendance: AttendanceRecord[];
   teachers: Teacher[];
   session: UserSession;
+  schoolInfo?: SchoolInfo;
   onSaveAttendance: (records: AttendanceRecord[]) => void;
 }
 
@@ -17,6 +18,7 @@ export const AbsensiSiswaView: React.FC<AbsensiSiswaViewProps> = ({
   attendance,
   teachers,
   session,
+  schoolInfo,
   onSaveAttendance
 }) => {
   const dynamicClasses = getAllClasses(students, [], teachers);
@@ -163,15 +165,20 @@ export const AbsensiSiswaView: React.FC<AbsensiSiswaViewProps> = ({
       {/* Title Header */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 mb-2">
-            <CheckSquare className="w-3.5 h-3.5 text-emerald-700" />
-            <span>Presensi Kehadiran Siswa Harian</span>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
+              <CheckSquare className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Presensi Kehadiran Siswa Harian</span>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-md border border-emerald-300 font-mono">
+              ⚡ TA: {schoolInfo?.tahunAjaran || '2024/2025'} (Sinkron Profil)
+            </span>
           </div>
           <h2 className="text-xl font-bold font-serif text-slate-900">
             Input Absensi Santri & Siswa Kelas {selectedClass}
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Catat kehadiran Hadir (H), Izin (I), Sakit (S), atau Alpa (A) secara akurat per jam pelajaran
+            Catat kehadiran Hadir (H), Izin (I), Sakit (S), atau Alpa (A) secara akurat per jam pelajaran • TA {schoolInfo?.tahunAjaran || '2024/2025'}
           </p>
         </div>
 

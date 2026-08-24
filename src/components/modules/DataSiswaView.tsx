@@ -42,6 +42,10 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
     tanggalLahir: '2011-01-01',
     namaOrangTua: '',
     noHpOrangTua: '',
+    namaAyah: '',
+    statusAyah: 'Masih Hidup',
+    namaIbu: '',
+    statusIbu: 'Masih Hidup',
     alamat: '',
     status: 'Aktif'
   });
@@ -53,7 +57,9 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
       s.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.nisn.includes(searchTerm) ||
       s.nis.includes(searchTerm) ||
-      s.namaOrangTua.toLowerCase().includes(searchTerm.toLowerCase());
+      s.namaOrangTua.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.namaAyah && s.namaAyah.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (s.namaIbu && s.namaIbu.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchClass = classFilter === 'Semua' || s.kelas === classFilter;
     const matchStatus = statusFilter === 'Semua' || s.status === statusFilter;
     return matchSearch && matchClass && matchStatus;
@@ -63,17 +69,22 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
     setEditingStudent(null);
     setIsCustomClass(false);
     setCustomClassInput('');
+    const currYearShort = new Date().getFullYear().toString().slice(-2);
     setForm({
       id: `S${Date.now().toString().slice(-4)}`,
       nisn: `00${Math.floor(10000000 + Math.random() * 90000000)}`,
-      nis: `2407${Math.floor(100 + Math.random() * 899)}`,
+      nis: `${currYearShort}07${Math.floor(100 + Math.random() * 899)}`,
       nama: '',
       gender: 'L',
       kelas: classes[0] || '7A',
       tempatLahir: 'Banyuwangi',
-      tanggalLahir: '2011-05-15',
+      tanggalLahir: `${new Date().getFullYear() - 13}-05-15`,
       namaOrangTua: '',
       noHpOrangTua: '',
+      namaAyah: '',
+      statusAyah: 'Masih Hidup',
+      namaIbu: '',
+      statusIbu: 'Masih Hidup',
       alamat: '',
       status: 'Aktif'
     });
@@ -89,7 +100,11 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
       setIsCustomClass(false);
       setCustomClassInput('');
     }
-    setForm({ ...student });
+    setForm({
+      ...student,
+      statusAyah: student.statusAyah || 'Masih Hidup',
+      statusIbu: student.statusIbu || 'Masih Hidup'
+    });
     setIsModalOpen(true);
   };
 
@@ -105,9 +120,22 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
     if (!form.nama || !form.nisn) return;
 
     const finalKelas = isCustomClass ? (customClassInput.trim() || '7A') : (form.kelas || '7A');
+    
+    // Auto format parent summary
+    const ayahText = form.namaAyah ? `${form.namaAyah}${form.statusAyah === 'Meninggal' ? ' (Alm.)' : ''}` : '';
+    const ibuText = form.namaIbu ? `${form.namaIbu}${form.statusIbu === 'Meninggal' ? ' (Almh.)' : ''}` : '';
+    const autoParentSummary = ayahText && ibuText
+      ? `${ayahText} & ${ibuText}`
+      : ayahText || ibuText || form.namaOrangTua || 'Orang Tua Siswa';
 
     if (editingStudent) {
-      const updated = students.map(s => (s.id === editingStudent.id ? ({ ...(form as Student), kelas: finalKelas } as Student) : s));
+      const updated = students.map(s => (s.id === editingStudent.id ? ({
+        ...(form as Student),
+        kelas: finalKelas,
+        namaOrangTua: form.namaOrangTua || autoParentSummary,
+        statusAyah: form.statusAyah || 'Masih Hidup',
+        statusIbu: form.statusIbu || 'Masih Hidup'
+      } as Student) : s));
       onSaveStudents(updated);
     } else {
       const newStudent: Student = {
@@ -119,8 +147,12 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
         kelas: finalKelas,
         tempatLahir: form.tempatLahir || 'Banyuwangi',
         tanggalLahir: form.tanggalLahir || '2011-01-01',
-        namaOrangTua: form.namaOrangTua || 'Orang Tua Siswa',
+        namaOrangTua: form.namaOrangTua || autoParentSummary,
         noHpOrangTua: form.noHpOrangTua || '08123456789',
+        namaAyah: form.namaAyah,
+        statusAyah: form.statusAyah || 'Masih Hidup',
+        namaIbu: form.namaIbu,
+        statusIbu: form.statusIbu || 'Masih Hidup',
         alamat: form.alamat || 'Banyuwangi',
         status: (form.status as any) || 'Aktif'
       };
@@ -140,7 +172,11 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
       Kelas: s.kelas,
       Tempat_Lahir: s.tempatLahir,
       Tanggal_Lahir: s.tanggalLahir,
-      Orang_Tua: s.namaOrangTua,
+      Nama_Ayah: s.namaAyah || '-',
+      Status_Ayah: s.statusAyah || 'Masih Hidup',
+      Nama_Ibu: s.namaIbu || '-',
+      Status_Ibu: s.statusIbu || 'Masih Hidup',
+      Orang_Tua_Wali: s.namaOrangTua,
       No_HP_Orang_Tua: s.noHpOrangTua,
       Alamat: s.alamat,
       Status: s.status
@@ -277,6 +313,26 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
                   <td className="p-3.5 text-slate-700">
                     <div className="font-semibold">{student.namaOrangTua}</div>
                     <div className="text-[11px] text-slate-500 font-mono">{student.noHpOrangTua}</div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {student.statusAyah === 'Meninggal' && student.statusIbu === 'Meninggal' ? (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                          ✨ Yatim Piatu
+                        </span>
+                      ) : (
+                        <>
+                          {student.statusAyah === 'Meninggal' && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                              🕊️ Alm. Ayah
+                            </span>
+                          )}
+                          {student.statusIbu === 'Meninggal' && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                              🕊️ Almh. Ibu
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </td>
                   <td className="p-3.5">
                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
@@ -455,22 +511,100 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
                 </div>
               </div>
 
+              {/* Data Ayah Kandung */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-800">👨 Data Ayah Kandung</label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, statusAyah: 'Masih Hidup' })}
+                      className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                        form.statusAyah === 'Masih Hidup'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                      }`}
+                    >
+                      Masih Hidup
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, statusAyah: 'Meninggal' })}
+                      className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                        form.statusAyah === 'Meninggal'
+                          ? 'bg-rose-600 text-white shadow-xs'
+                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                      }`}
+                    >
+                      Meninggal (Alm.)
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  placeholder={form.statusAyah === 'Meninggal' ? 'Nama Lengkap Almarhum Ayah' : 'Nama Lengkap Ayah Kandung'}
+                  value={form.namaAyah || ''}
+                  onChange={(e) => setForm({ ...form, namaAyah: e.target.value })}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              {/* Data Ibu Kandung */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-800">👩 Data Ibu Kandung</label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, statusIbu: 'Masih Hidup' })}
+                      className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                        form.statusIbu === 'Masih Hidup'
+                          ? 'bg-pink-600 text-white shadow-xs'
+                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                      }`}
+                    >
+                      Masih Hidup
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, statusIbu: 'Meninggal' })}
+                      className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                        form.statusIbu === 'Meninggal'
+                          ? 'bg-rose-600 text-white shadow-xs'
+                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                      }`}
+                    >
+                      Meninggal (Almh.)
+                    </button>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  placeholder={form.statusIbu === 'Meninggal' ? 'Nama Lengkap Almarhumah Ibu' : 'Nama Lengkap Ibu Kandung'}
+                  value={form.namaIbu || ''}
+                  onChange={(e) => setForm({ ...form, namaIbu: e.target.value })}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Nama Orang Tua / Wali</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Nama Orang Tua / Wali (Ringkasan)</label>
                   <input
                     type="text"
                     value={form.namaOrangTua}
+                    placeholder="Otomatis atau masukkan manual"
                     onChange={(e) => setForm({ ...form, namaOrangTua: e.target.value })}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">No. HP Orang Tua</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">No. HP Orang Tua / Kontak</label>
                   <input
                     type="text"
                     value={form.noHpOrangTua}
+                    placeholder="Contoh: 081234567890"
                     onChange={(e) => setForm({ ...form, noHpOrangTua: e.target.value })}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />

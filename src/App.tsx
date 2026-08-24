@@ -95,8 +95,52 @@ export function App() {
 
   // Save Handlers
   const handleSaveSchoolInfo = (info: SchoolInfo) => {
+    const oldTa = schoolInfo.tahunAjaran;
+    const oldSem = schoolInfo.semesterAktif;
+    const isTaChanged = oldTa !== info.tahunAjaran;
+    const isSemChanged = oldSem !== info.semesterAktif;
+
     setSchoolInfo(info);
     StorageService.setSchoolInfo(info);
+
+    // Auto-synchronize dependent modules when Master Tahun Ajaran or Semester is updated
+    if (isTaChanged || isSemChanged) {
+      // 1. Synchronize Grades (Nilai & Asesmen)
+      const updatedGrades = grades.map(g => ({
+        ...g,
+        tahunAjaran: isTaChanged ? info.tahunAjaran : g.tahunAjaran,
+        semester: isSemChanged ? (info.semesterAktif as 'Ganjil' | 'Genap') : g.semester
+      }));
+      setGrades(updatedGrades);
+      StorageService.setGrades(updatedGrades);
+
+      // 2. Synchronize Teacher Administration Docs (Modul Ajar, Prota, Promes)
+      const updatedDocs = teacherDocs.map(d => ({
+        ...d,
+        tahunAjaran: isTaChanged ? info.tahunAjaran : d.tahunAjaran
+      }));
+      setTeacherDocs(updatedDocs);
+      StorageService.setTeacherDocs(updatedDocs);
+
+      // 3. Synchronize PPDB Settings
+      if (isTaChanged) {
+        const currentPpdb = StorageService.getPpdbSettings();
+        const updatedPpdb = { ...currentPpdb, tahunAjaran: info.tahunAjaran };
+        setPpdbSettings(updatedPpdb);
+        StorageService.savePpdbSettings(updatedPpdb);
+      }
+
+      // 4. Log Audit Trail
+      StorageService.addAuditLog({
+        userName: session.name || 'Admin DAPODIK',
+        userRole: session.role === 'admin' ? 'Admin DAPODIK' : 'Kepala Sekolah',
+        action: 'SYNC_TAHUN_AJARAN',
+        module: 'Data Profil Sekolah (Master TA)',
+        details: `Otomatis menyinkronkan Tahun Ajaran Master ke seluruh modul (PPDB, Nilai & Rapor, Presensi Siswa, Administrasi Guru, Jadwal Pelajaran).`,
+        previousDataSummary: `TA Sebelumnya: ${oldTa} (${oldSem})`,
+        newDataSummary: `TA Baru: ${info.tahunAjaran} (${info.semesterAktif})`
+      });
+    }
   };
 
   const handleSavePpdbSettings = (updated: PpdbSettings) => {
@@ -116,7 +160,7 @@ export function App() {
 
   const handleAddStudentFromPpdb = (newStudentData: Omit<Student, 'id' | 'nis'>) => {
     const nextId = `S${String(students.length + 1).padStart(3, '0')}`;
-    const nextNis = `2025${String(students.length + 1).padStart(3, '0')}`;
+    const nextNis = `${new Date().getFullYear()}${String(students.length + 1).padStart(3, '0')}`;
     const newStudent: Student = {
       ...newStudentData,
       id: nextId,
@@ -307,6 +351,8 @@ export function App() {
             <PublicJadwal
               schedules={schedules}
               teachers={teachers}
+              students={students}
+              schoolInfo={schoolInfo}
             />
           )}
 
@@ -372,6 +418,7 @@ export function App() {
               schedules={schedules}
               teachers={teachers}
               students={students}
+              schoolInfo={schoolInfo}
               onSaveSchedules={handleSaveSchedules}
               onSaveStudents={handleSaveStudents}
               onSaveTeachers={handleSaveTeachers}
@@ -392,6 +439,7 @@ export function App() {
               docs={teacherDocs}
               teachers={teachers}
               session={session}
+              schoolInfo={schoolInfo}
               onSaveDocs={handleSaveDocs}
             />
           )}
@@ -402,6 +450,7 @@ export function App() {
               attendance={attendance}
               teachers={teachers}
               session={session}
+              schoolInfo={schoolInfo}
               onSaveAttendance={handleSaveAttendance}
             />
           )}
@@ -412,6 +461,7 @@ export function App() {
               grades={grades}
               teachers={teachers}
               session={session}
+              schoolInfo={schoolInfo}
               onSaveGrades={handleSaveGrades}
             />
           )}

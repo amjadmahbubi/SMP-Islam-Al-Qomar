@@ -98,8 +98,9 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
   );
 
   // Active School Year (Sync with Profil Sekolah)
-  const currentTahunAjaran = settings.tahunAjaran?.trim() || schoolInfo.tahunAjaran || '2024/2025';
-  const taStartYear = currentTahunAjaran.match(/\d{4}/)?.[0] || new Date().getFullYear().toString();
+  const currentTahunAjaran = schoolInfo.tahunAjaran?.trim() || settings.tahunAjaran?.trim() || (new Date().getMonth() >= 6 ? `${new Date().getFullYear()}/${new Date().getFullYear() + 1}` : `${new Date().getFullYear() - 1}/${new Date().getFullYear()}`);
+  const currentRegYear = new Date().getFullYear().toString();
+  const taStartYear = currentTahunAjaran.match(/\d{4}/)?.[0] || currentRegYear;
 
   // Active Gelombang from Settings
   const activeGelombang =
@@ -135,6 +136,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
 
     // Ayah
     namaAyah: '',
+    statusAyah: 'Masih Hidup' as 'Masih Hidup' | 'Meninggal',
     pekerjaanAyah: 'Wiraswasta / Pengusaha',
     noHpAyah: '',
     pendapatanAyah: 'Rp 3.000.000 - Rp 5.000.000',
@@ -142,6 +144,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
 
     // Ibu
     namaIbu: '',
+    statusIbu: 'Masih Hidup' as 'Masih Hidup' | 'Meninggal',
     pekerjaanIbu: 'Ibu Rumah Tangga',
     noHpIbu: '',
     pendapatanIbu: 'Tidak Berpenghasilan',
@@ -200,9 +203,10 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
   const handleSubmitForm = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const count = registrations.length + 1;
-    const newId = `PPDB-${taStartYear}-${String(count).padStart(3, '0')}`;
     const today = new Date().toISOString().split('T')[0];
+    const regYear = (today.split('-')[0]) || currentRegYear;
+    const count = registrations.length + 1;
+    const newId = `PPDB-${regYear}-${String(count).padStart(3, '0')}`;
 
     const mainParentName = formData.namaAyah || formData.namaIbu || formData.namaWali || 'Orang Tua';
     const mainParentPhone = formData.noHpAyah || formData.noHpIbu || formData.noHpWali || '';
@@ -219,17 +223,19 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
 
       // Ayah
       namaAyah: formData.namaAyah.trim(),
-      pekerjaanAyah: formData.pekerjaanAyah,
-      noHpAyah: formData.noHpAyah.trim(),
-      pendapatanAyah: formData.pendapatanAyah,
-      alamatAyah: formData.alamatAyah.trim() || formData.alamat.trim(),
+      statusAyah: formData.statusAyah,
+      pekerjaanAyah: formData.statusAyah === 'Meninggal' ? 'Almarhum' : formData.pekerjaanAyah,
+      noHpAyah: formData.statusAyah === 'Meninggal' ? (formData.noHpAyah.trim() || '-') : formData.noHpAyah.trim(),
+      pendapatanAyah: formData.statusAyah === 'Meninggal' ? '-' : formData.pendapatanAyah,
+      alamatAyah: formData.statusAyah === 'Meninggal' ? '-' : (formData.alamatAyah.trim() || formData.alamat.trim()),
 
       // Ibu
       namaIbu: formData.namaIbu.trim(),
-      pekerjaanIbu: formData.pekerjaanIbu,
-      noHpIbu: formData.noHpIbu.trim(),
-      pendapatanIbu: formData.pendapatanIbu,
-      alamatIbu: formData.alamatIbu.trim() || formData.alamat.trim(),
+      statusIbu: formData.statusIbu,
+      pekerjaanIbu: formData.statusIbu === 'Meninggal' ? 'Almarhumah' : formData.pekerjaanIbu,
+      noHpIbu: formData.statusIbu === 'Meninggal' ? (formData.noHpIbu.trim() || '-') : formData.noHpIbu.trim(),
+      pendapatanIbu: formData.statusIbu === 'Meninggal' ? '-' : formData.pendapatanIbu,
+      alamatIbu: formData.statusIbu === 'Meninggal' ? '-' : (formData.alamatIbu.trim() || formData.alamat.trim()),
 
       // Wali (if filled)
       namaWali: formData.hasWali ? formData.namaWali.trim() : undefined,
@@ -263,11 +269,13 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
       asalSekolah: '',
       pilihanKelas: settings.programList[0]?.kategori || 'Tahfidz Al-Qur\'an',
       namaAyah: '',
+      statusAyah: 'Masih Hidup',
       pekerjaanAyah: 'Wiraswasta / Pengusaha',
       noHpAyah: '',
       pendapatanAyah: 'Rp 3.000.000 - Rp 5.000.000',
       alamatAyah: '',
       namaIbu: '',
+      statusIbu: 'Masih Hidup',
       pekerjaanIbu: 'Ibu Rumah Tangga',
       noHpIbu: '',
       pendapatanIbu: 'Tidak Berpenghasilan',
@@ -343,10 +351,12 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
     if (!onAddStudentFromPpdb) return;
 
     if (window.confirm(`Konfirmasi masukkan ${reg.namaLengkap} ke Data Siswa Master (Kelas 7)?`)) {
-      const parentSummary = reg.namaAyah
-        ? `${reg.namaAyah} (Ayah) & ${reg.namaIbu || 'Ibu'}`
-        : reg.namaOrangTua;
-      const phoneSummary = reg.noHpAyah || reg.noHpIbu || reg.noHpOrtu;
+      const ayahLabel = reg.namaAyah ? `${reg.namaAyah}${reg.statusAyah === 'Meninggal' ? ' (Alm.)' : ''}` : '';
+      const ibuLabel = reg.namaIbu ? `${reg.namaIbu}${reg.statusIbu === 'Meninggal' ? ' (Almh.)' : ''}` : '';
+      const parentSummary = ayahLabel && ibuLabel
+        ? `${ayahLabel} & ${ibuLabel}`
+        : ayahLabel || ibuLabel || reg.namaOrangTua;
+      const phoneSummary = reg.noHpAyah && reg.noHpAyah !== '-' ? reg.noHpAyah : (reg.noHpIbu || reg.noHpOrtu);
 
       onAddStudentFromPpdb({
         nisn: reg.nisn || `009${Math.floor(1000000 + Math.random() * 9000000)}`,
@@ -358,7 +368,11 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
         namaOrangTua: parentSummary,
         noHpOrangTua: phoneSummary,
         alamat: reg.alamat,
-        status: 'Aktif'
+        status: 'Aktif',
+        namaAyah: reg.namaAyah,
+        statusAyah: reg.statusAyah || 'Masih Hidup',
+        namaIbu: reg.namaIbu,
+        statusIbu: reg.statusIbu || 'Masih Hidup'
       });
 
       handleUpdateStatus(reg.id, 'Diterima', 'Siswa telah resmi dimasukkan ke Master Data Siswa Kelas 7A.');
@@ -379,10 +393,12 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
       'Asal SD/MI': r.asalSekolah,
       'Program Pilihan': r.pilihanKelas,
       'Nama Ayah': r.namaAyah || r.namaOrangTua || '-',
+      'Status Ayah': r.statusAyah || 'Masih Hidup',
       'Pekerjaan Ayah': r.pekerjaanAyah || '-',
       'No HP/WA Ayah': r.noHpAyah || r.noHpOrtu || '-',
       'Penghasilan Ayah': r.pendapatanAyah || '-',
       'Nama Ibu': r.namaIbu || '-',
+      'Status Ibu': r.statusIbu || 'Masih Hidup',
       'Pekerjaan Ibu': r.pekerjaanIbu || '-',
       'No HP/WA Ibu': r.noHpIbu || '-',
       'Penghasilan Ibu': r.pendapatanIbu || '-',
@@ -595,10 +611,10 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                   Formulir Pendaftaran Calon Siswa Baru
                 </h3>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  Isi data calon murid dan data orang tua secara lengkap & valid sesuai dokumen resmi
+                  Isi data calon murid dan data orang tua secara lengkap & valid sesuai dokumen resmi • Tahun Pendaftaran {currentRegYear}
                 </p>
               </div>
-              <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-400/30">
+              <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-400/30 font-mono">
                 TA {currentTahunAjaran}
               </span>
             </div>
@@ -741,181 +757,287 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
 
               {/* SECTION 2: Data Ayah Kandung */}
               <div className="space-y-4 pt-2 bg-slate-950/40 p-4 rounded-2xl border border-white/5">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-300 font-bold flex items-center justify-center text-xs">2</div>
                     <h4 className="text-xs font-bold uppercase text-blue-300 tracking-wider">
                       Data Ayah Kandung
                     </h4>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSyncAddress('ayah')}
-                    className="text-[11px] text-blue-300 hover:text-white underline font-medium"
-                  >
-                    Salin Alamat Siswa
-                  </button>
+                  {formData.statusAyah === 'Masih Hidup' && (
+                    <button
+                      type="button"
+                      onClick={() => handleSyncAddress('ayah')}
+                      className="text-[11px] text-blue-300 hover:text-white underline font-medium text-left sm:text-right"
+                    >
+                      Salin Alamat Siswa
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Status Keberadaan Ayah */}
+                  <div className="md:col-span-2 bg-slate-900/70 p-3 rounded-xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-200">Status Keberadaan Ayah *</label>
+                      <span className="text-[11px] text-slate-400">Pilih status apakah ayah masih hidup atau sudah meninggal / almarhum</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, statusAyah: 'Masih Hidup' }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          formData.statusAyah === 'Masih Hidup'
+                            ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold ring-2 ring-emerald-300/40'
+                            : 'bg-slate-800 text-slate-400 hover:text-white border border-white/10'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span>Masih Hidup</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, statusAyah: 'Meninggal' }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          formData.statusAyah === 'Meninggal'
+                            ? 'bg-rose-500 text-white shadow-md font-extrabold ring-2 ring-rose-300/40'
+                            : 'bg-slate-800 text-slate-400 hover:text-white border border-white/10'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-rose-300"></span>
+                        <span>Meninggal (Almarhum)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {formData.statusAyah === 'Meninggal' && (
+                    <div className="md:col-span-2 bg-rose-500/10 border border-rose-500/20 text-rose-300 px-3.5 py-2 rounded-xl text-xs flex items-center gap-2">
+                      <span className="text-base">🕊️</span>
+                      <span>Status Ayah tercatat <strong>Meninggal (Almarhum)</strong>. Kolom No. HP dan pekerjaan disesuaikan secara otomatis.</span>
+                    </div>
+                  )}
+
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Nama Lengkap Ayah *</label>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      {formData.statusAyah === 'Meninggal' ? 'Nama Lengkap Ayah (Almarhum) *' : 'Nama Lengkap Ayah *'}
+                    </label>
                     <input
                       type="text"
                       name="namaAyah"
                       value={formData.namaAyah}
                       onChange={handleInputChange}
                       required
-                      placeholder="Nama Lengkap Ayah Kandung beserta Gelar"
+                      placeholder={formData.statusAyah === 'Meninggal' ? 'Nama Lengkap Almarhum Ayah' : 'Nama Lengkap Ayah Kandung beserta Gelar'}
                       className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Pekerjaan Ayah *</label>
-                    <select
-                      name="pekerjaanAyah"
-                      value={formData.pekerjaanAyah}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    >
-                      {PEKERJAAN_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {formData.statusAyah === 'Masih Hidup' ? (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">Pekerjaan Ayah *</label>
+                        <select
+                          name="pekerjaanAyah"
+                          value={formData.pekerjaanAyah}
+                          onChange={handleInputChange}
+                          className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        >
+                          {PEKERJAAN_OPTIONS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Nomor WhatsApp / HP Ayah *</label>
-                    <input
-                      type="tel"
-                      name="noHpAyah"
-                      value={formData.noHpAyah}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="Contoh: 081234567890"
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">Nomor WhatsApp / HP Ayah *</label>
+                        <input
+                          type="tel"
+                          name="noHpAyah"
+                          value={formData.noHpAyah}
+                          onChange={handleInputChange}
+                          required
+                          placeholder="Contoh: 081234567890"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Penghasilan Per Bulan Ayah *</label>
-                    <select
-                      name="pendapatanAyah"
-                      value={formData.pendapatanAyah}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    >
-                      {PENDAPATAN_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">Penghasilan Per Bulan Ayah *</label>
+                        <select
+                          name="pendapatanAyah"
+                          value={formData.pendapatanAyah}
+                          onChange={handleInputChange}
+                          className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        >
+                          {PENDAPATAN_OPTIONS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Alamat Ayah</label>
-                    <input
-                      type="text"
-                      name="alamatAyah"
-                      value={formData.alamatAyah}
-                      onChange={handleInputChange}
-                      placeholder="Kosongkan jika sama dengan alamat siswa"
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">Alamat Ayah</label>
+                        <input
+                          type="text"
+                          name="alamatAyah"
+                          value={formData.alamatAyah}
+                          onChange={handleInputChange}
+                          placeholder="Kosongkan jika sama dengan alamat siswa"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="md:col-span-2 bg-slate-900/40 p-3 rounded-xl border border-white/5 text-xs text-slate-400">
+                      Pekerjaan dan kontak Ayah dialihkan karena berstatus Almarhum. Silakan lengkapi kontak pada Data Ibu atau Wali.
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* SECTION 3: Data Ibu Kandung */}
               <div className="space-y-4 pt-2 bg-slate-950/40 p-4 rounded-2xl border border-white/5">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded-full bg-pink-500/20 text-pink-300 font-bold flex items-center justify-center text-xs">3</div>
                     <h4 className="text-xs font-bold uppercase text-pink-300 tracking-wider">
                       Data Ibu Kandung
                     </h4>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSyncAddress('ibu')}
-                    className="text-[11px] text-pink-300 hover:text-white underline font-medium"
-                  >
-                    Salin Alamat Siswa
-                  </button>
+                  {formData.statusIbu === 'Masih Hidup' && (
+                    <button
+                      type="button"
+                      onClick={() => handleSyncAddress('ibu')}
+                      className="text-[11px] text-pink-300 hover:text-white underline font-medium text-left sm:text-right"
+                    >
+                      Salin Alamat Siswa
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Status Keberadaan Ibu */}
+                  <div className="md:col-span-2 bg-slate-900/70 p-3 rounded-xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-200">Status Keberadaan Ibu *</label>
+                      <span className="text-[11px] text-slate-400">Pilih status apakah ibu masih hidup atau sudah meninggal / almarhumah</span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, statusIbu: 'Masih Hidup' }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          formData.statusIbu === 'Masih Hidup'
+                            ? 'bg-pink-500 text-white shadow-md font-extrabold ring-2 ring-pink-300/40'
+                            : 'bg-slate-800 text-slate-400 hover:text-white border border-white/10'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-pink-300"></span>
+                        <span>Masih Hidup</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, statusIbu: 'Meninggal' }))}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          formData.statusIbu === 'Meninggal'
+                            ? 'bg-rose-500 text-white shadow-md font-extrabold ring-2 ring-rose-300/40'
+                            : 'bg-slate-800 text-slate-400 hover:text-white border border-white/10'
+                        }`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-rose-300"></span>
+                        <span>Meninggal (Almarhumah)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {formData.statusIbu === 'Meninggal' && (
+                    <div className="md:col-span-2 bg-rose-500/10 border border-rose-500/20 text-rose-300 px-3.5 py-2 rounded-xl text-xs flex items-center gap-2">
+                      <span className="text-base">🕊️</span>
+                      <span>Status Ibu tercatat <strong>Meninggal (Almarhumah)</strong>. Kolom No. HP dan pekerjaan disesuaikan secara otomatis.</span>
+                    </div>
+                  )}
+
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Nama Lengkap Ibu *</label>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      {formData.statusIbu === 'Meninggal' ? 'Nama Lengkap Ibu (Almarhumah) *' : 'Nama Lengkap Ibu *'}
+                    </label>
                     <input
                       type="text"
                       name="namaIbu"
                       value={formData.namaIbu}
                       onChange={handleInputChange}
                       required
-                      placeholder="Nama Lengkap Ibu Kandung beserta Gelar"
+                      placeholder={formData.statusIbu === 'Meninggal' ? 'Nama Lengkap Almarhumah Ibu' : 'Nama Lengkap Ibu Kandung beserta Gelar'}
                       className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Pekerjaan Ibu *</label>
-                    <select
-                      name="pekerjaanIbu"
-                      value={formData.pekerjaanIbu}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    >
-                      {PEKERJAAN_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {formData.statusIbu === 'Masih Hidup' ? (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">Pekerjaan Ibu *</label>
+                        <select
+                          name="pekerjaanIbu"
+                          value={formData.pekerjaanIbu}
+                          onChange={handleInputChange}
+                          className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        >
+                          {PEKERJAAN_OPTIONS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Nomor WhatsApp / HP Ibu *</label>
-                    <input
-                      type="tel"
-                      name="noHpIbu"
-                      value={formData.noHpIbu}
-                      onChange={handleInputChange}
-                      required
-                      placeholder="Contoh: 081234567899"
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">Nomor WhatsApp / HP Ibu *</label>
+                        <input
+                          type="tel"
+                          name="noHpIbu"
+                          value={formData.noHpIbu}
+                          onChange={handleInputChange}
+                          required
+                          placeholder="Contoh: 081234567899"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Penghasilan Per Bulan Ibu *</label>
-                    <select
-                      name="pendapatanIbu"
-                      value={formData.pendapatanIbu}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    >
-                      {PENDAPATAN_OPTIONS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">Penghasilan Per Bulan Ibu *</label>
+                        <select
+                          name="pendapatanIbu"
+                          value={formData.pendapatanIbu}
+                          onChange={handleInputChange}
+                          className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        >
+                          {PENDAPATAN_OPTIONS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Alamat Ibu</label>
-                    <input
-                      type="text"
-                      name="alamatIbu"
-                      value={formData.alamatIbu}
-                      onChange={handleInputChange}
-                      placeholder="Kosongkan jika sama dengan alamat siswa"
-                      className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    />
-                  </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">Alamat Ibu</label>
+                        <input
+                          type="text"
+                          name="alamatIbu"
+                          value={formData.alamatIbu}
+                          onChange={handleInputChange}
+                          placeholder="Kosongkan jika sama dengan alamat siswa"
+                          className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="md:col-span-2 bg-slate-900/40 p-3 rounded-xl border border-white/5 text-xs text-slate-400">
+                      Pekerjaan dan kontak Ibu dialihkan karena berstatus Almarhumah. Silakan lengkapi kontak pada Data Ayah atau Wali.
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* SECTION 4: Data Wali (Opsional Toggle) */}
               <div className="space-y-4 pt-2 bg-slate-950/40 p-4 rounded-2xl border border-white/5">
-                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 font-bold flex items-center justify-center text-xs">4</div>
                     <h4 className="text-xs font-bold uppercase text-amber-300 tracking-wider">
@@ -926,7 +1048,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                     <input
                       type="checkbox"
                       name="hasWali"
-                      checked={formData.hasWali}
+                      checked={formData.hasWali || (formData.statusAyah === 'Meninggal' && formData.statusIbu === 'Meninggal')}
                       onChange={handleInputChange}
                       className="rounded border-slate-400 text-emerald-500 focus:ring-emerald-400"
                     />
@@ -934,7 +1056,14 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                   </label>
                 </div>
 
-                {formData.hasWali && (
+                {formData.statusAyah === 'Meninggal' && formData.statusIbu === 'Meninggal' && (
+                  <div className="bg-amber-500/15 border border-amber-500/30 text-amber-200 px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2">
+                    <span className="text-lg">✨</span>
+                    <span>Ananda terdata <strong>Yatim Piatu</strong>. Mohon lengkapi data Wali Santri di bawah ini untuk kelancaran pendampingan dan prioritas beasiswa santri.</span>
+                  </div>
+                )}
+
+                {(formData.hasWali || (formData.statusAyah === 'Meninggal' && formData.statusIbu === 'Meninggal')) && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
                     <div>
                       <label className="block text-xs font-bold text-slate-300 mb-1">Nama Lengkap Wali</label>
@@ -1034,7 +1163,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                   </div>
                   <div>
                     <h5 className="font-bold text-white">Dapatkan Nomor Registrasi</h5>
-                    <p className="text-slate-400 text-[11px]">Simpan Bukti Pendaftaran resmi (misal: PPDB-{taStartYear}-001).</p>
+                    <p className="text-slate-400 text-[11px]">Simpan Bukti Pendaftaran resmi (misal: PPDB-{currentRegYear}-001).</p>
                   </div>
                 </div>
 
@@ -1121,7 +1250,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
               Cek Status Hasil Seleksi PPDB TA {currentTahunAjaran}
             </h3>
             <p className="text-xs text-slate-300">
-              Masukkan Nomor Pendaftaran (misal: PPDB-{taStartYear}-001), Nama Calon Siswa, atau Nomor WhatsApp Orang Tua
+              Masukkan Nomor Pendaftaran (misal: PPDB-{currentRegYear}-001), Nama Calon Siswa, atau Nomor WhatsApp Orang Tua
             </p>
 
             <form onSubmit={handleSearchStatus} className="flex items-center gap-2 mt-4">
@@ -1171,8 +1300,14 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                       <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
                         <div><strong>Program:</strong> {r.pilihanKelas}</div>
                         <div><strong>Tgl Daftar:</strong> {r.tanggalDaftar}</div>
-                        <div><strong>Ayah:</strong> {r.namaAyah || r.namaOrangTua}</div>
-                        <div><strong>Ibu:</strong> {r.namaIbu || '-'}</div>
+                        <div>
+                          <strong>Ayah:</strong> {r.namaAyah || r.namaOrangTua}
+                          {r.statusAyah === 'Meninggal' && <span className="ml-1 text-[10px] text-rose-400 bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-800/50">Almarhum</span>}
+                        </div>
+                        <div>
+                          <strong>Ibu:</strong> {r.namaIbu || '-'}
+                          {r.statusIbu === 'Meninggal' && <span className="ml-1 text-[10px] text-rose-400 bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-800/50">Almarhumah</span>}
+                        </div>
                         <div className="col-span-2"><strong>Kontak:</strong> {r.noHpAyah || r.noHpIbu || r.noHpOrtu}</div>
                       </div>
 
@@ -1363,13 +1498,30 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                 <div><strong>Asal SD/MI:</strong> {submittedReceipt.asalSekolah}</div>
                 <div><strong>Program Pilihan:</strong> <span className="text-emerald-700 font-bold">{submittedReceipt.pilihanKelas}</span></div>
                 
-                <div className="border-t pt-1.5 mt-1">
-                  <div><strong>Nama Ayah:</strong> {submittedReceipt.namaAyah || submittedReceipt.namaOrangTua} ({submittedReceipt.pekerjaanAyah || '-'})</div>
-                  <div><strong>No. HP/WA Ayah:</strong> {submittedReceipt.noHpAyah || submittedReceipt.noHpOrtu}</div>
-                  {submittedReceipt.namaIbu && (
-                    <div className="mt-1"><strong>Nama Ibu:</strong> {submittedReceipt.namaIbu} ({submittedReceipt.pekerjaanIbu || '-'})</div>
+                <div className="border-t pt-1.5 mt-1 space-y-1">
+                  <div>
+                    <strong>Nama Ayah:</strong> {submittedReceipt.namaAyah || submittedReceipt.namaOrangTua}
+                    {submittedReceipt.statusAyah === 'Meninggal' ? (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">Meninggal (Almarhum)</span>
+                    ) : (
+                      <span className="ml-1.5 text-slate-500 font-normal">({submittedReceipt.pekerjaanAyah || '-'})</span>
+                    )}
+                  </div>
+                  {submittedReceipt.statusAyah !== 'Meninggal' && (
+                    <div><strong>No. HP/WA Ayah:</strong> {submittedReceipt.noHpAyah || submittedReceipt.noHpOrtu}</div>
                   )}
-                  {submittedReceipt.noHpIbu && (
+
+                  {submittedReceipt.namaIbu && (
+                    <div className="mt-1">
+                      <strong>Nama Ibu:</strong> {submittedReceipt.namaIbu}
+                      {submittedReceipt.statusIbu === 'Meninggal' ? (
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">Meninggal (Almarhumah)</span>
+                      ) : (
+                        <span className="ml-1.5 text-slate-500 font-normal">({submittedReceipt.pekerjaanIbu || '-'})</span>
+                      )}
+                    </div>
+                  )}
+                  {submittedReceipt.statusIbu !== 'Meninggal' && submittedReceipt.noHpIbu && (
                     <div><strong>No. HP/WA Ibu:</strong> {submittedReceipt.noHpIbu}</div>
                   )}
                 </div>
@@ -1442,7 +1594,14 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
               {/* Data Ayah & Ibu */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-slate-950/80 p-3.5 rounded-xl border border-white/10 text-xs space-y-1">
-                  <h5 className="font-bold text-blue-300 border-b border-white/5 pb-1">👨 Data Ayah Kandung</h5>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-1">
+                    <h5 className="font-bold text-blue-300">👨 Data Ayah Kandung</h5>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      selectedRegForAction.statusAyah === 'Meninggal' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    }`}>
+                      {selectedRegForAction.statusAyah === 'Meninggal' ? '🕊️ Almarhum' : '🟢 Masih Hidup'}
+                    </span>
+                  </div>
                   <p><strong>Nama:</strong> {selectedRegForAction.namaAyah || selectedRegForAction.namaOrangTua || '-'}</p>
                   <p><strong>Pekerjaan:</strong> {selectedRegForAction.pekerjaanAyah || '-'}</p>
                   <p><strong>No. HP/WA:</strong> {selectedRegForAction.noHpAyah || selectedRegForAction.noHpOrtu || '-'}</p>
@@ -1450,7 +1609,14 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                 </div>
 
                 <div className="bg-slate-950/80 p-3.5 rounded-xl border border-white/10 text-xs space-y-1">
-                  <h5 className="font-bold text-pink-300 border-b border-white/5 pb-1">👩 Data Ibu Kandung</h5>
+                  <div className="flex items-center justify-between border-b border-white/5 pb-1">
+                    <h5 className="font-bold text-pink-300">👩 Data Ibu Kandung</h5>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      selectedRegForAction.statusIbu === 'Meninggal' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-pink-500/20 text-pink-300 border border-pink-500/30'
+                    }`}>
+                      {selectedRegForAction.statusIbu === 'Meninggal' ? '🕊️ Almarhumah' : '🟢 Masih Hidup'}
+                    </span>
+                  </div>
                   <p><strong>Nama:</strong> {selectedRegForAction.namaIbu || '-'}</p>
                   <p><strong>Pekerjaan:</strong> {selectedRegForAction.pekerjaanIbu || '-'}</p>
                   <p><strong>No. HP/WA:</strong> {selectedRegForAction.noHpIbu || '-'}</p>

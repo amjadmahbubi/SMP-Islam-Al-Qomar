@@ -174,6 +174,8 @@ function doGet(e) {
       if (key.indexOf("email") !== -1) info.email = val;
       if (key.indexOf("website") !== -1) info.website = val;
       if (key.indexOf("telepon") !== -1) info.telepon = val;
+      if (key.indexOf("tahun") !== -1 || key.indexOf("ajaran") !== -1) info.tahunAjaran = val;
+      if (key.indexOf("semester") !== -1) info.semesterAktif = val;
     }
     return info;
   }
@@ -183,17 +185,20 @@ function doGet(e) {
     var rows = getTabData("Data_PPDB");
     if (rows.length <= 1) return [];
     var list = [];
+    var currentYear = new Date().getFullYear();
+    var defaultTa = (new Date().getMonth() >= 6) ? (currentYear + "/" + (currentYear + 1)) : ((currentYear - 1) + "/" + currentYear);
+
     for (var i = 1; i < rows.length; i++) {
       var r = rows[i];
       if (r[0] || r[2]) {
         list.push({
-          id: String(r[0] || "PPDB" + i),
-          tahunAjaran: String(r[1] || "2024/2025"),
+          id: String(r[0] || ("PPDB-" + currentYear + "-" + (i < 10 ? "00" + i : i < 100 ? "0" + i : i))),
+          tahunAjaran: String(r[1] || defaultTa),
           namaLengkap: String(r[2] || ""),
           nisn: String(r[3] || ""),
           jenisKelamin: String(r[4] || "L").toUpperCase().indexOf("P") !== -1 ? "P" : "L",
           tempatLahir: String(r[5] || "Banyuwangi"),
-          tanggalLahir: String(r[6] || "2012-01-01"),
+          tanggalLahir: String(r[6] || (currentYear - 13) + "-01-01"),
           asalSekolah: String(r[7] || "SD/MI"),
           pilihanKelas: String(r[8] || "Tahfidz Al-Qur'an"),
           namaAyah: String(r[9] || ""),
@@ -269,6 +274,8 @@ function doPost(e) {
         [
           ["Nama Sekolah", s.nama || ""],
           ["NPSN", s.npsn || ""],
+          ["Tahun Ajaran", s.tahunAjaran || ""],
+          ["Semester Aktif", s.semesterAktif || ""],
           ["Alamat", s.alamat || ""],
           ["Kepala Sekolah", s.kepalaSekolah || ""],
           ["NIGY Kepala Sekolah", s.nigyKepalaSekolah || s.nipKepalaSekolah || ""],
@@ -316,10 +323,12 @@ function doPost(e) {
     }
 
     if (payload.ppdbRegistrations && Array.isArray(payload.ppdbRegistrations)) {
+      var currentYear = new Date().getFullYear();
+      var defaultTa = (new Date().getMonth() >= 6) ? (currentYear + "/" + (currentYear + 1)) : ((currentYear - 1) + "/" + currentYear);
       var ppdbRows = payload.ppdbRegistrations.map(function(p) {
         return [
           p.id,
-          p.tahunAjaran || "2024/2025",
+          p.tahunAjaran || defaultTa,
           p.namaLengkap,
           p.nisn || "-",
           p.jenisKelamin,

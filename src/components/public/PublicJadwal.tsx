@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScheduleItem, Teacher, Student } from '../../types';
+import { ScheduleItem, Teacher, Student, SchoolInfo } from '../../types';
 import { Clock, Filter, Search, Printer, CalendarDays } from 'lucide-react';
 import { getAllClasses, COMMON_SCHEDULE_ACTIVITIES } from '../../data/constants';
 
@@ -7,12 +7,14 @@ interface PublicJadwalProps {
   schedules: ScheduleItem[];
   teachers?: Teacher[];
   students?: Student[];
+  schoolInfo?: SchoolInfo;
 }
 
 export const PublicJadwal: React.FC<PublicJadwalProps> = ({
   schedules,
   teachers = [],
-  students = []
+  students = [],
+  schoolInfo
 }) => {
   const dynamicClasses = getAllClasses(students, schedules, teachers);
   const [selectedClass, setSelectedClass] = useState<string>(dynamicClasses[0] || '7A');
@@ -41,9 +43,14 @@ export const PublicJadwal: React.FC<PublicJadwalProps> = ({
       {/* Title Header */}
       <div className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-6 border border-white/10 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30 mb-2">
-            <Clock className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Jadwal Pelajaran SMP Islam Al Qomar</span>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30">
+              <Clock className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Jadwal Pelajaran SMP Islam Al Qomar</span>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-400/20 text-amber-300 px-2.5 py-0.5 rounded-md border border-amber-400/30 font-mono">
+              TA {schoolInfo?.tahunAjaran || '2024/2025'} • Semester {schoolInfo?.semesterAktif || 'Ganjil'}
+            </span>
           </div>
           <h2 className="text-xl font-bold font-serif text-white">
             Jadwal Pembelajaran Kelas {selectedClass} — Hari {selectedDay}

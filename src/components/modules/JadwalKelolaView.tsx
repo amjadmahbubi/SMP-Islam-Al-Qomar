@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScheduleItem, Teacher, Student } from '../../types';
+import { ScheduleItem, Teacher, Student, SchoolInfo } from '../../types';
 import { Clock, Plus, Edit3, Trash2, X, Save, Sparkles, BookOpen, Layers, Check, Settings } from 'lucide-react';
 import { DEFAULT_MAPEL_LIST, COMMON_SCHEDULE_ACTIVITIES, getAllClasses } from '../../data/constants';
 import { KelolaKelasModal } from './KelolaKelasModal';
@@ -8,6 +8,7 @@ interface JadwalKelolaViewProps {
   schedules: ScheduleItem[];
   teachers: Teacher[];
   students?: Student[];
+  schoolInfo?: SchoolInfo;
   onSaveSchedules: (schedules: ScheduleItem[]) => void;
   onSaveStudents?: (students: Student[]) => void;
   onSaveTeachers?: (teachers: Teacher[]) => void;
@@ -17,6 +18,7 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
   schedules,
   teachers,
   students = [],
+  schoolInfo,
   onSaveSchedules,
   onSaveStudents = () => {},
   onSaveTeachers = () => {}
@@ -157,15 +159,20 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
       {/* Title Header */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 mb-2">
-            <Clock className="w-3.5 h-3.5 text-emerald-700" />
-            <span>Manajemen Kelola Jadwal Pelajaran</span>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
+              <Clock className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Manajemen Kelola Jadwal Pelajaran</span>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-md border border-emerald-300 font-mono">
+              ⚡ TA: {schoolInfo?.tahunAjaran || '2024/2025'} (Sinkron Profil)
+            </span>
           </div>
           <h2 className="text-xl font-bold font-serif text-slate-900">
             Pengaturan Alokasi Jam & Pengampu Mapel
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Atur jam pelajaran resmi (termasuk Bahasa Jawa & Imla'), pembiasaan santri, dan kegiatan kustom per kelas
+            Atur jam pelajaran resmi (termasuk Bahasa Jawa & Imla'), pembiasaan santri, dan kegiatan kustom per kelas • TA {schoolInfo?.tahunAjaran || '2024/2025'}
           </p>
         </div>
 

@@ -274,29 +274,74 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({ schoolInfo, on
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Tahun Ajaran Aktif</label>
+            <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-500/30 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-emerald-300">
+                  Tahun Ajaran Aktif (Master TA)
+                </label>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                  ⚡ Auto-Sync
+                </span>
+              </div>
               <input
                 type="text"
                 name="tahunAjaran"
                 value={formData.tahunAjaran}
                 onChange={handleChange}
                 required
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                placeholder="Contoh: 2024/2025"
+                className="w-full px-3 py-2 bg-white border border-emerald-400 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm font-mono"
               />
+              <p className="text-[11px] text-emerald-200/90 leading-tight">
+                Tersinkronisasi otomatis ke PPDB, Nilai & Rapor, Presensi, dan Jadwal Pelajaran.
+              </p>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Semester Aktif</label>
+            <div className="bg-emerald-950/40 p-3 rounded-xl border border-emerald-500/30 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-emerald-300">
+                  Semester Aktif
+                </label>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                  ⚡ Auto-Sync
+                </span>
+              </div>
               <select
                 name="semesterAktif"
                 value={formData.semesterAktif}
                 onChange={handleChange}
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                className="w-full px-3 py-2 bg-white border border-emerald-400 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
               >
                 <option value="Ganjil" className="bg-white text-slate-900">Semester Ganjil</option>
                 <option value="Genap" className="bg-white text-slate-900">Semester Genap</option>
               </select>
+              <p className="text-[11px] text-emerald-200/90 leading-tight">
+                Semester aktif yang digunakan di seluruh laporan dan kalkulasi asesmen.
+              </p>
+            </div>
+          </div>
+
+          {/* Real-time Module Sync Indicator Chips */}
+          <div className="mt-4 p-3.5 rounded-xl bg-slate-950/60 border border-emerald-500/25 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="text-xs font-bold text-slate-200">
+                Status Sinkronisasi Modul dengan TA <span className="text-amber-300 font-mono">[{formData.tahunAjaran}]</span>:
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-semibold">
+                ✓ PPDB ({formData.tahunAjaran})
+              </span>
+              <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-semibold">
+                ✓ Nilai & Rapor ({formData.tahunAjaran} • Sem. {formData.semesterAktif})
+              </span>
+              <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-semibold">
+                ✓ Presensi Siswa ({formData.tahunAjaran})
+              </span>
+              <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-semibold">
+                ✓ Jadwal Pelajaran ({formData.tahunAjaran})
+              </span>
             </div>
           </div>
         </div>

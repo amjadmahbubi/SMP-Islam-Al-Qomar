@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Student, SubjectGradeRecord, Teacher, UserSession, GradeLockRecord } from '../../types';
+import { Student, SubjectGradeRecord, Teacher, UserSession, GradeLockRecord, SchoolInfo } from '../../types';
 import { StorageService } from '../../services/storage';
 import { AuditLogModal } from './AuditLogModal';
 import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
@@ -28,6 +28,7 @@ interface InputNilaiViewProps {
   grades: SubjectGradeRecord[];
   teachers: Teacher[];
   session: UserSession;
+  schoolInfo?: SchoolInfo;
   onSaveGrades: (grades: SubjectGradeRecord[]) => void;
 }
 
@@ -36,6 +37,7 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
   grades,
   teachers,
   session,
+  schoolInfo,
   onSaveGrades
 }) => {
   const dynamicClasses = getAllClasses(students, [], teachers);
@@ -49,7 +51,14 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
   const [selectedClass, setSelectedClass] = useState(dynamicClasses[0] || '7A');
   const [selectedMapel, setSelectedMapel] = useState(teacherDefaultMapel);
   const [selectedTeacher, setSelectedTeacher] = useState(session.name || loggedTeacher?.nama || teachers[0]?.nama || 'Ustadz Amjad Mahbubi, S.Pd.');
-  const [semester, setSemester] = useState<'Ganjil' | 'Genap'>('Ganjil');
+  const [semester, setSemester] = useState<'Ganjil' | 'Genap'>(schoolInfo?.semesterAktif || 'Ganjil');
+
+  // Update semester when schoolInfo changes
+  useEffect(() => {
+    if (schoolInfo?.semesterAktif) {
+      setSemester(schoolInfo.semesterAktif);
+    }
+  }, [schoolInfo?.semesterAktif]);
 
   // Grade Locks & Audit Trail State
   const [gradeLocks, setGradeLocks] = useState<GradeLockRecord[]>(() => StorageService.getGradeLocks());
@@ -380,6 +389,8 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
       };
     });
 
+    const activeTahunAjaran = schoolInfo?.tahunAjaran || '2024/2025';
+
     const newRecord: SubjectGradeRecord = {
       id: existingRecord ? existingRecord.id : `GRD${Date.now().toString().slice(-4)}`,
       mapel: selectedMapel,
@@ -387,7 +398,7 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
       teacherId: session.teacherId || 'T001',
       teacherName: selectedTeacher,
       semester,
-      tahunAjaran: '2024/2025',
+      tahunAjaran: activeTahunAjaran,
       tpList,
       studentGrades,
       isLocked: isDraftLocked,
@@ -412,7 +423,7 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
       kelas: selectedClass,
       mapel: selectedMapel,
       semester,
-      details: `Memperbarui & menyimpan data nilai untuk ${classStudents.length} siswa pada Mapel ${selectedMapel} Kelas ${selectedClass} (${semester}). Guru Pengampu: ${selectedTeacher}.`,
+      details: `Memperbarui & menyimpan data nilai untuk ${classStudents.length} siswa pada Mapel ${selectedMapel} Kelas ${selectedClass} (${semester} TA ${activeTahunAjaran}). Guru Pengampu: ${selectedTeacher}.`,
       previousDataSummary: existingRecord ? `Versi Terakhir: ID ${existingRecord.id}` : 'Entri Baru',
       newDataSummary: `Total Siswa Terupdate: ${classStudents.length} Santri`
     });
@@ -427,15 +438,20 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
       {/* Title Header */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 mb-2">
-            <Award className="w-3.5 h-3.5 text-emerald-700" />
-            <span>Input Nilai Asesmen &amp; Raport Kurikulum Merdeka</span>
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
+              <Award className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Input Nilai Asesmen &amp; Raport Kurikulum Merdeka</span>
+            </div>
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-md border border-emerald-300 font-mono">
+              ⚡ TA: {schoolInfo?.tahunAjaran || '2024/2025'} (Sinkron Profil)
+            </span>
           </div>
           <h2 className="text-xl font-bold font-serif text-slate-900">
             Penilaian Sumatif Lingkup Materi (TP) &amp; Akhir Semester
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Format sesuai petunjuk Kurikulum Merdeka: Input nilai berdasarkan Tujuan Pembelajaran (TP 1 - 10) dari Administrasi Guru.
+            Format sesuai petunjuk Kurikulum Merdeka: Input nilai berdasarkan Tujuan Pembelajaran (TP 1 - 10) dari Administrasi Guru • TA {schoolInfo?.tahunAjaran || '2024/2025'}.
           </p>
         </div>
 

@@ -18,6 +18,12 @@ import {
   AuditLog
 } from '../types';
 
+const currentCalendarYear = new Date().getFullYear();
+const currentMonth = new Date().getMonth();
+const dynamicCurrentTA = currentMonth >= 6
+  ? `${currentCalendarYear}/${currentCalendarYear + 1}`
+  : `${currentCalendarYear - 1}/${currentCalendarYear}`;
+
 export const initialSchoolInfo: SchoolInfo = {
   nama: 'SMP Islam Al Qomar',
   npsn: '20348912',
@@ -36,8 +42,8 @@ export const initialSchoolInfo: SchoolInfo = {
     "Membentuk karakter disiplin, jujur, peduli lingkungan, dan berjiwa kepemimpinan.",
     "Menyediakan sarana pembelajaran modern berpadu dengan tradisi keislaman yang sejuk."
   ],
-  tahunAjaran: '2024/2025',
-  semesterAktif: 'Ganjil'
+  tahunAjaran: dynamicCurrentTA,
+  semesterAktif: currentMonth >= 6 && currentMonth <= 11 ? 'Ganjil' : 'Genap'
 };
 
 export const initialTeachers: Teacher[] = [
@@ -900,11 +906,13 @@ export const initialPpdbRegistrations: PpdbRegistration[] = [
     tanggalLahir: '2012-05-14',
     asalSekolah: 'SD Islam Terpadu Al-Uswah Banyuwangi',
     namaAyah: 'Drs. Rahmat Hidayat',
+    statusAyah: 'Masih Hidup',
     pekerjaanAyah: 'PNS / Guru',
     noHpAyah: '081234567890',
     pendapatanAyah: 'Rp 5.000.000 - Rp 10.000.000',
     alamatAyah: 'Jl. Giri Indah No. 24, Banyuwangi',
     namaIbu: 'Hj. Nurul Aini, S.Pd.',
+    statusIbu: 'Masih Hidup',
     pekerjaanIbu: 'Guru / Dosen',
     noHpIbu: '081234567899',
     pendapatanIbu: 'Rp 3.000.000 - Rp 5.000.000',
@@ -927,11 +935,13 @@ export const initialPpdbRegistrations: PpdbRegistration[] = [
     tanggalLahir: '2012-08-20',
     asalSekolah: 'MI Negeri 1 Sidoarjo',
     namaAyah: 'Ahmad Syarifuddin, S.T.',
+    statusAyah: 'Masih Hidup',
     pekerjaanAyah: 'Karyawan Swasta',
     noHpAyah: '081398765432',
     pendapatanAyah: 'Rp 5.000.000 - Rp 10.000.000',
     alamatAyah: 'Perum Taman Pinang Indah Blok C-12, Sidoarjo',
     namaIbu: 'Khadijah Indrawati',
+    statusIbu: 'Masih Hidup',
     pekerjaanIbu: 'Ibu Rumah Tangga',
     noHpIbu: '081398765433',
     pendapatanIbu: 'Tidak Berpenghasilan',
@@ -954,11 +964,13 @@ export const initialPpdbRegistrations: PpdbRegistration[] = [
     tanggalLahir: '2012-03-10',
     asalSekolah: 'SD Muhammadiyah 1 Giri Gresik',
     namaAyah: 'H. Bambang Kurniawan',
+    statusAyah: 'Masih Hidup',
     pekerjaanAyah: 'Wiraswasta / Pengusaha',
     noHpAyah: '085712345678',
     pendapatanAyah: '> Rp 10.000.000',
     alamatAyah: 'Jl. Veteran No. 88, Gresik',
     namaIbu: 'Hj. Aminah Wardani',
+    statusIbu: 'Masih Hidup',
     pekerjaanIbu: 'Wiraswasta',
     noHpIbu: '085712345679',
     pendapatanIbu: 'Rp 3.000.000 - Rp 5.000.000',
