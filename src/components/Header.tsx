@@ -1,6 +1,6 @@
 import React from 'react';
-import { UserSession, SchoolInfo } from '../types';
-import { School, LogIn, LogOut, ShieldCheck, UserCheck, Eye, FileSpreadsheet, Menu, X, Sun, Moon } from 'lucide-react';
+import { UserSession, SchoolInfo, GoogleSheetsConfig } from '../types';
+import { School, LogIn, LogOut, ShieldCheck, UserCheck, Eye, FileSpreadsheet, Menu, X, Sun, Moon, AlertTriangle } from 'lucide-react';
 
 interface HeaderProps {
   schoolInfo: SchoolInfo;
@@ -13,6 +13,8 @@ interface HeaderProps {
   isSidebarOpen: boolean;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
+  sheetsConfig?: GoogleSheetsConfig;
+  hasSheetsMismatch?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,7 +27,9 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleSidebar,
   isSidebarOpen,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  sheetsConfig,
+  hasSheetsMismatch = false
 }) => {
   return (
     <header className="bg-slate-900/70 backdrop-blur-xl text-white shadow-2xl sticky top-0 z-30 border-b border-white/10">
@@ -96,6 +100,32 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Google Sheets Status / Warning Indicator for Admin */}
+            {session.role === 'admin' && (
+              <>
+                {hasSheetsMismatch ? (
+                  <button
+                    onClick={() => setActiveTab('google-sheets')}
+                    className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/50 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md animate-pulse cursor-pointer"
+                    title="Peringatan: URL Web App Google Sheets yang aktif berbeda dengan database konfigurasi tersimpan. Klik untuk meninjau dan menyimpan."
+                  >
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span className="hidden md:inline">URL Sheets Berubah (Belum Simpan)</span>
+                    <span className="md:hidden">⚠️ Sheets</span>
+                  </button>
+                ) : sheetsConfig?.webAppUrl ? (
+                  <button
+                    onClick={() => setActiveTab('google-sheets')}
+                    className="hidden xl:flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                    title={`Google Sheets Terkunci & Siap: ${sheetsConfig.webAppUrl}`}
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>Sheets Terhubung</span>
+                  </button>
+                ) : null}
+              </>
+            )}
 
             {/* Light/Dark Mode Toggle */}
             <button

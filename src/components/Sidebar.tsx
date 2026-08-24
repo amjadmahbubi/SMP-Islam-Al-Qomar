@@ -60,8 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'administrasi-guru', label: 'Administrasi Guru', icon: FolderKanban },
     { id: 'absensi-siswa', label: 'Absensi Siswa (WA)', icon: CheckSquare },
     { id: 'input-nilai', label: 'Input Nilai Asesmen', icon: BookOpen },
-    { id: 'laporan-rapor', label: 'Laporan Rapor Digital', icon: Award },
-    { id: 'wa-gateway', label: 'WhatsApp Gateway & Log', icon: MessageSquare }
+    { id: 'laporan-rapor', label: 'Laporan Rapor Digital', icon: Award }
   ];
 
   const adminNav = [

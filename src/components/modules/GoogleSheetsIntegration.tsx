@@ -1,6 +1,112 @@
-import React, { useState } from 'react';
-import { Student, Teacher, SarprasItem, AttendanceRecord, SubjectGradeRecord, SchoolInfo, ScheduleItem, CalendarEvent, PpdbRegistration } from '../../types';
-import { Sheet, Copy, Check, RefreshCw, Code, Link2, Database, Table, CheckCircle2, Calendar, UserPlus, Clock, Download, Upload, ArrowLeftRight, Sparkles, Eye, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Student, Teacher, SarprasItem, AttendanceRecord, SubjectGradeRecord, SchoolInfo, ScheduleItem, CalendarEvent, PpdbRegistration, GoogleSheetsConfig } from '../../types';
+import { 
+  Sheet, 
+  Copy, 
+  Check, 
+  RefreshCw, 
+  Code, 
+  Link2, 
+  Database, 
+  Table, 
+  CheckCircle2, 
+  Calendar, 
+  UserPlus, 
+  Clock, 
+  Download, 
+  Upload, 
+  ArrowLeftRight, 
+  Sparkles, 
+  Eye, 
+  AlertCircle,
+  AlertTriangle,
+  Lock,
+  Unlock,
+  Save,
+  RotateCcw,
+  ShieldCheck,
+  ExternalLink,
+  HelpCircle
+} from 'lucide-react';
+import { StorageService } from '../../services/storage';
+
+export interface UrlValidationResult {
+  isValid: boolean;
+  error?: string;
+  isEditorUrl?: boolean;
+}
+
+/**
+ * Validates whether the given string is a valid Google Apps Script Web App URL.
+ * Checks protocol, domain (script.google.com), /macros/s/ path, and /exec endpoint.
+ */
+export function validateGoogleAppsScriptUrl(url: string): UrlValidationResult {
+  const trimmed = (url || '').trim();
+  if (!trimmed) {
+    return {
+      isValid: false,
+      error: 'URL Web App Google Apps Script tidak boleh kosong.'
+    };
+  }
+
+  if (!trimmed.startsWith('https://')) {
+    return {
+      isValid: false,
+      error: 'URL harus diawali dengan https:// (protokol HTTPS aman).'
+    };
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    return {
+      isValid: false,
+      error: 'Format URL tidak valid. Pastikan format URL ditulis dengan benar.'
+    };
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (
+    hostname !== 'script.google.com' &&
+    hostname !== 'script.googleusercontent.com' &&
+    !hostname.endsWith('.google.com')
+  ) {
+    return {
+      isValid: false,
+      error: `Domain tidak valid ("${hostname}"). URL harus berasal dari domain script.google.com`
+    };
+  }
+
+  const pathname = parsed.pathname;
+
+  // Check if user accidentally pasted the Script Editor URL (/edit)
+  if (pathname.includes('/edit') || pathname.endsWith('/edit')) {
+    return {
+      isValid: false,
+      isEditorUrl: true,
+      error: 'URL yang Anda masukkan adalah URL Editor Kode Apps Script (/edit), bukan URL Web App (/exec). Buka Apps Script > klik tombol "Deploy" (Terapkan) di kanan atas > "Deployment baru" > pilih jenis "Aplikasi Web" > Akses: "Siapa saja" (Anyone) > Salin URL Web App yang berakhiran /exec.'
+    };
+  }
+
+  // Must contain /macros/s/
+  if (!pathname.includes('/macros/s/')) {
+    return {
+      isValid: false,
+      error: 'Struktur URL tidak valid. URL Web App Apps Script harus memuat path "/macros/s/<DEPLOYMENT_ID>/exec".'
+    };
+  }
+
+  // Must have /exec or /dev in path
+  if (!pathname.includes('/exec') && !pathname.includes('/dev')) {
+    return {
+      isValid: false,
+      error: 'URL Web App harus memiliki akhiran "/exec" agar dapat diakses untuk sinkronisasi DAPODIK.'
+    };
+  }
+
+  return { isValid: true };
+}
 
 interface GoogleSheetsIntegrationProps {
   students: Student[];
@@ -12,6 +118,9 @@ interface GoogleSheetsIntegrationProps {
   schedules?: ScheduleItem[];
   events?: CalendarEvent[];
   ppdbRegistrations?: PpdbRegistration[];
+  sheetsConfig?: GoogleSheetsConfig;
+  onSaveSheetsConfig?: (config: GoogleSheetsConfig) => void;
+  onUrlDraftChange?: (isMismatched: boolean) => void;
   onImportStudents?: (students: Student[]) => void;
   onImportTeachers?: (teachers: Teacher[]) => void;
   onImportSarpras?: (sarpras: SarprasItem[]) => void;
@@ -31,6 +140,9 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   schedules = [],
   events = [],
   ppdbRegistrations = [],
+  sheetsConfig,
+  onSaveSheetsConfig,
+  onUrlDraftChange,
   onImportStudents,
   onImportTeachers,
   onImportSarpras,
@@ -39,16 +151,30 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   onImportPpdb,
   onImportSchoolInfo
 }) => {
-  const [sheetUrl, setSheetUrl] = useState(
-    'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec'
-  );
+  // Load persisted config from props or storage
+  const initialConfig = sheetsConfig || StorageService.getSheetsConfig();
+
+  const [sheetUrl, setSheetUrl] = useState<string>(() => {
+    return initialConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec';
+  });
+
+  // Keep URL locked by default if it was configured/locked previously
+  const [isLocked, setIsLocked] = useState<boolean>(() => {
+    if (initialConfig.isLocked !== undefined) return initialConfig.isLocked;
+    // Default to true if a URL is already set, so it won't be lost accidentally
+    return Boolean(initialConfig.webAppUrl);
+  });
+
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success'>('idle');
-  const [lastSynced, setLastSynced] = useState<string | null>(null);
+  const [lastSynced, setLastSynced] = useState<string | null>(() => initialConfig.lastSyncedAt || null);
 
   // Pull / Import State
   const [pullStatus, setPullStatus] = useState<'idle' | 'pulling' | 'success'>('idle');
-  const [lastPulled, setLastPulled] = useState<string | null>(null);
+  const [lastPulled, setLastPulled] = useState<string | null>(() => initialConfig.lastPulledAt || null);
   const [isPullModalOpen, setIsPullModalOpen] = useState(false);
   
   // Pulled Data Preview
@@ -59,6 +185,133 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
     schoolInfo?: SchoolInfo;
     ppdbRegistrations?: PpdbRegistration[];
   } | null>(null);
+
+  // Saved database URL
+  const savedDbUrl = (sheetsConfig?.webAppUrl || StorageService.getSheetsConfig().webAppUrl || '').trim();
+  const currentUrl = sheetUrl.trim();
+  const isUrlMismatched = Boolean(savedDbUrl && currentUrl && currentUrl !== savedDbUrl);
+  const currentValidation = validateGoogleAppsScriptUrl(currentUrl);
+
+  // Notify parent of mismatch state for Header indicator
+  useEffect(() => {
+    if (onUrlDraftChange) {
+      onUrlDraftChange(isUrlMismatched);
+    }
+  }, [isUrlMismatched, onUrlDraftChange]);
+
+  // Keep state synchronized if external config changes
+  useEffect(() => {
+    if (sheetsConfig) {
+      if (sheetsConfig.webAppUrl && sheetsConfig.webAppUrl !== sheetUrl && isLocked) {
+        setSheetUrl(sheetsConfig.webAppUrl);
+      }
+      if (sheetsConfig.isLocked !== undefined) {
+        setIsLocked(sheetsConfig.isLocked);
+      }
+      if (sheetsConfig.lastSyncedAt) {
+        setLastSynced(sheetsConfig.lastSyncedAt);
+      }
+      if (sheetsConfig.lastPulledAt) {
+        setLastPulled(sheetsConfig.lastPulledAt);
+      }
+    }
+  }, [sheetsConfig, isLocked]);
+
+  // Save and lock the URL permanently with strict validation
+  const handleSaveAndLockUrl = (urlToSave?: string): boolean => {
+    const targetUrl = (urlToSave !== undefined ? urlToSave : sheetUrl).trim();
+    
+    // Strict Validation
+    const validation = validateGoogleAppsScriptUrl(targetUrl);
+    if (!validation.isValid) {
+      setValidationError(validation.error || 'Format URL Google Apps Script tidak valid.');
+      alert(`VALIDASI GAGAL:\n\n${validation.error}\n\nPastikan URL hasil deployment Web App berakhiran "/exec".`);
+      return false;
+    }
+
+    setValidationError(null);
+
+    const updatedConfig: GoogleSheetsConfig = {
+      ...(sheetsConfig || StorageService.getSheetsConfig()),
+      webAppUrl: targetUrl,
+      isLocked: true,
+      lastSyncedAt: lastSynced || undefined,
+      lastPulledAt: lastPulled || undefined
+    };
+
+    setSheetUrl(targetUrl);
+    setIsLocked(true);
+    StorageService.setSheetsConfig(updatedConfig);
+    if (onSaveSheetsConfig) {
+      onSaveSheetsConfig(updatedConfig);
+    }
+
+    if (onUrlDraftChange) {
+      onUrlDraftChange(false);
+    }
+
+    setSaveSuccessMsg('URL Web App Terverifikasi Valid, Dikunci & Tersimpan Permanen!');
+    setTimeout(() => setSaveSuccessMsg(null), 4000);
+    return true;
+  };
+
+  // Unlock URL to allow editing
+  const handleUnlockUrl = () => {
+    setIsLocked(false);
+    setValidationError(null);
+  };
+
+  // Restore stored DB URL
+  const handleRestoreStoredUrl = () => {
+    if (savedDbUrl) {
+      setSheetUrl(savedDbUrl);
+      setIsLocked(true);
+      setValidationError(null);
+      if (onUrlDraftChange) {
+        onUrlDraftChange(false);
+      }
+      setSaveSuccessMsg('URL berhasil dikembalikan ke URL tersimpan di database konfigurasi.');
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
+    }
+  };
+
+  // Copy current URL to clipboard
+  const handleCopyUrl = () => {
+    if (!sheetUrl) return;
+    navigator.clipboard.writeText(sheetUrl);
+    setCopiedUrl(true);
+    setTimeout(() => setCopiedUrl(false), 2500);
+  };
+
+  // Reset to default sample URL
+  const handleResetToDefaultUrl = () => {
+    const confirmReset = window.confirm(
+      'Apakah Anda yakin ingin mengembalikan URL ke URL bawaan/default?\n\nCatatan: Jika Anda telah men-deploy Apps Script sendiri di spreadsheet Anda, URL custom Anda akan digantikan.'
+    );
+    if (!confirmReset) return;
+
+    const defaultUrl = 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec';
+    setSheetUrl(defaultUrl);
+    setIsLocked(false);
+    setValidationError(null);
+
+    const updatedConfig: GoogleSheetsConfig = {
+      ...(sheetsConfig || StorageService.getSheetsConfig()),
+      webAppUrl: defaultUrl,
+      isLocked: false
+    };
+
+    StorageService.setSheetsConfig(updatedConfig);
+    if (onSaveSheetsConfig) {
+      onSaveSheetsConfig(updatedConfig);
+    }
+    if (onUrlDraftChange) {
+      onUrlDraftChange(false);
+    }
+
+    setSaveSuccessMsg('URL telah dikembalikan ke bawaan/default.');
+    setTimeout(() => setSaveSuccessMsg(null), 3000);
+  };
 
   // Comprehensive Google Apps Script code with Bi-Directional (doGet & doPost)
   const appsScriptCode = `/**
@@ -395,42 +648,68 @@ function doPost(e) {
 
   // Push Data from Web App -> Google Sheets
   const handleTestSync = async () => {
+    const cleanUrl = sheetUrl.trim();
+    const validation = validateGoogleAppsScriptUrl(cleanUrl);
+    if (!validation.isValid) {
+      alert(`GAGAL SINKRONISASI PUSH:\n\n${validation.error}\n\nSilakan masukkan URL Web App Google Apps Script yang valid (berakhiran /exec).`);
+      setIsLocked(false);
+      return;
+    }
+
+    // Auto-lock and save URL to storage to ensure it's never lost during data edits
+    const savedSuccessfully = handleSaveAndLockUrl(cleanUrl);
+    if (!savedSuccessfully) return;
+
     setSyncStatus('syncing');
     try {
-      if (sheetUrl && sheetUrl.startsWith('http')) {
-        const payload = {
-          type: 'SINKRONISASI_DAPODIK_PUSH',
-          timestamp: new Date().toISOString(),
-          payload: {
-            schoolInfo: schoolInfo || null,
-            studentsCount: students.length,
-            teachersCount: teachers.length,
-            sarprasCount: sarpras.length,
-            attendanceCount: attendance.length,
-            gradesCount: grades.length,
-            schedulesCount: schedules.length,
-            eventsCount: events.length,
-            ppdbCount: ppdbRegistrations.length,
-            students,
-            teachers,
-            sarpras,
-            schedules,
-            events,
-            ppdbRegistrations,
-            attendance,
-            grades
-          }
-        };
+      const payload = {
+        type: 'SINKRONISASI_DAPODIK_PUSH',
+        timestamp: new Date().toISOString(),
+        payload: {
+          schoolInfo: schoolInfo || null,
+          studentsCount: students.length,
+          teachersCount: teachers.length,
+          sarprasCount: sarpras.length,
+          attendanceCount: attendance.length,
+          gradesCount: grades.length,
+          schedulesCount: schedules.length,
+          eventsCount: events.length,
+          ppdbCount: ppdbRegistrations.length,
+          students,
+          teachers,
+          sarpras,
+          schedules,
+          events,
+          ppdbRegistrations,
+          attendance,
+          grades
+        }
+      };
 
-        await fetch(sheetUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload),
-          mode: 'no-cors'
-        });
-      }
+      await fetch(cleanUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload),
+        mode: 'no-cors'
+      });
+
+      const timeNow = new Date().toLocaleTimeString('id-ID');
       setSyncStatus('success');
-      setLastSynced(new Date().toLocaleTimeString('id-ID'));
+      setLastSynced(timeNow);
+
+      // Persist last sync time in storage
+      const currentConfig = sheetsConfig || StorageService.getSheetsConfig();
+      const updatedConfig: GoogleSheetsConfig = {
+        ...currentConfig,
+        webAppUrl: cleanUrl,
+        isLocked: true,
+        lastSyncedAt: timeNow
+      };
+      StorageService.setSheetsConfig(updatedConfig);
+      if (onSaveSheetsConfig) {
+        onSaveSheetsConfig(updatedConfig);
+      }
+
       setTimeout(() => setSyncStatus('idle'), 4000);
     } catch (err) {
       console.error('Error syncing to Google Sheets:', err);
@@ -441,15 +720,23 @@ function doPost(e) {
 
   // Pull / Fetch Data from Google Sheets -> Web App
   const handlePullFromSheets = async () => {
+    const cleanUrl = sheetUrl.trim();
+    const validation = validateGoogleAppsScriptUrl(cleanUrl);
+    if (!validation.isValid) {
+      alert(`GAGAL MENARIK DATA (PULL):\n\n${validation.error}\n\nSilakan masukkan URL Web App Google Apps Script yang valid (berakhiran /exec).`);
+      setIsLocked(false);
+      return;
+    }
+
+    // Auto-lock and save URL to storage
+    const savedSuccessfully = handleSaveAndLockUrl(cleanUrl);
+    if (!savedSuccessfully) return;
+
     setPullStatus('pulling');
     try {
-      if (!sheetUrl || !sheetUrl.startsWith('http')) {
-        throw new Error('URL Web App Google Sheets belum diatur.');
-      }
-
-      const fetchUrl = sheetUrl.includes('?') 
-        ? `${sheetUrl}&action=getAllData` 
-        : `${sheetUrl}?action=getAllData`;
+      const fetchUrl = cleanUrl.includes('?') 
+        ? `${cleanUrl}&action=getAllData` 
+        : `${cleanUrl}?action=getAllData`;
 
       const response = await fetch(fetchUrl);
       const data = await response.json();
@@ -464,7 +751,21 @@ function doPost(e) {
         });
         setIsPullModalOpen(true);
         setPullStatus('success');
-        setLastPulled(new Date().toLocaleTimeString('id-ID'));
+        const timeNow = new Date().toLocaleTimeString('id-ID');
+        setLastPulled(timeNow);
+
+        // Persist last pull time in storage
+        const currentConfig = sheetsConfig || StorageService.getSheetsConfig();
+        const updatedConfig: GoogleSheetsConfig = {
+          ...currentConfig,
+          webAppUrl: cleanUrl,
+          isLocked: true,
+          lastPulledAt: timeNow
+        };
+        StorageService.setSheetsConfig(updatedConfig);
+        if (onSaveSheetsConfig) {
+          onSaveSheetsConfig(updatedConfig);
+        }
       } else {
         alert('Respon dari Google Sheets valid, namun tidak ditemukan baris data di tab Sheets. Pastikan Anda telah menjalankan Sinkronkan Ke Sheets atau mengisi data di Sheets terlebih dahulu.');
         setPullStatus('idle');
@@ -566,7 +867,7 @@ function doPost(e) {
             <span>Integrasi 2-Arah (Bi-Directional Sync) Google Sheets</span>
           </div>
           <h2 className="text-xl font-bold font-serif text-white">
-            Sinkronisasi Dua Arah (Kirim & Tarik Data Google Sheets)
+            Sinkronisasi Dua Arah (Kirim &amp; Tarik Data Google Sheets)
           </h2>
           <p className="text-xs text-slate-300 mt-1">
             Data dapat dikirim dari Web App ke Google Sheets, dan sebaliknya data dari spreadsheet dapat ditarik kembali ke Web App secara otomatis.
@@ -580,7 +881,7 @@ function doPost(e) {
           <button
             onClick={handleTestSync}
             disabled={syncStatus === 'syncing'}
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all border border-emerald-300/50"
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all border border-emerald-300/50 cursor-pointer disabled:opacity-50"
           >
             <Upload className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-bounce' : ''}`} />
             <span>{syncStatus === 'syncing' ? 'Mengirim Data...' : 'Kirim Ke Sheets (Push)'}</span>
@@ -590,7 +891,7 @@ function doPost(e) {
           <button
             onClick={handlePullFromSheets}
             disabled={pullStatus === 'pulling'}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all border border-indigo-400/40"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all border border-indigo-400/40 cursor-pointer disabled:opacity-50"
           >
             <Download className={`w-4 h-4 ${pullStatus === 'pulling' ? 'animate-spin' : ''}`} />
             <span>{pullStatus === 'pulling' ? 'Menarik Data...' : 'Tarik Dari Sheets (Pull)'}</span>
@@ -600,7 +901,7 @@ function doPost(e) {
           <button
             onClick={handleSimulatePull}
             title="Uji coba tarik data langsung di lingkungan preview"
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-colors border border-emerald-500/30"
+            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-colors border border-emerald-500/30 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>Simulasi Tarik Data</span>
@@ -646,31 +947,280 @@ function doPost(e) {
         </div>
       </div>
 
-      {/* Sheet Webhook URL Settings */}
-      <div className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-6 border border-white/10 shadow-xl space-y-4">
-        <h3 className="text-sm font-bold font-serif text-white flex items-center gap-2">
-          <Link2 className="w-4 h-4 text-emerald-400" />
-          <span>Pengaturan Endpoint API Google Apps Script</span>
-        </h3>
+      {/* Sheet Webhook URL Settings with Permanent Locking */}
+      <div className={`glass backdrop-blur-xl rounded-2xl p-6 border shadow-xl space-y-4 transition-all ${
+        isUrlMismatched
+          ? 'bg-slate-900/90 border-amber-400/60 ring-2 ring-amber-400/30'
+          : isLocked 
+            ? 'bg-slate-900/70 border-emerald-500/40 ring-1 ring-emerald-500/20' 
+            : 'bg-slate-900/90 border-amber-400/50 ring-1 ring-amber-400/30'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className={`p-2 rounded-xl ${
+              isUrlMismatched
+                ? 'bg-amber-500/25 text-amber-300'
+                : isLocked 
+                  ? 'bg-emerald-500/20 text-emerald-400' 
+                  : 'bg-amber-500/20 text-amber-300'
+            }`}>
+              {isUrlMismatched ? <AlertTriangle className="w-4 h-4 text-amber-400 animate-bounce" /> : isLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+            </div>
+            <div>
+              <h3 className="text-sm font-bold font-serif text-white flex items-center gap-2">
+                <span>Pengaturan &amp; Penguncian Endpoint API Google Apps Script</span>
+                {isUrlMismatched && (
+                  <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold border border-amber-400/40 animate-pulse">
+                    Perbedaan Terdeteksi
+                  </span>
+                )}
+              </h3>
+              <p className="text-[11px] text-slate-300">
+                {isUrlMismatched
+                  ? '⚠️ Peringatan: URL di kolom input berbeda dengan URL tersimpan di database konfigurasi.'
+                  : isLocked 
+                    ? '🔒 URL Web App saat ini TERKUNCI & TERSIMPAN PERMANEN di database konfigurasi.' 
+                    : '🔓 Mode Edit URL Aktif — Masukkan URL Web App Google Apps Script (/exec), lalu klik Kunci & Simpan.'}
+              </p>
+            </div>
+          </div>
 
-        <p className="text-xs text-slate-300 leading-relaxed">
-          Masukkan URL Web App hasil deploy Google Apps Script spreadsheet Anda untuk mengaktifkan sinkronisasi otomatis 2-Arah (Kirim &amp; Tarik Data).
-        </p>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            {isUrlMismatched ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/25 text-amber-300 text-[11px] font-bold border border-amber-400/40 animate-pulse">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                <span>Belum Disimpan</span>
+              </span>
+            ) : isLocked ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 text-[11px] font-bold border border-emerald-400/30">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Link Terkunci Permanen</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-400/30 animate-pulse">
+                <Unlock className="w-3.5 h-3.5 text-amber-400" />
+                <span>Siap Diubah</span>
+              </span>
+            )}
+          </div>
+        </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
-          <input
-            type="url"
-            value={sheetUrl}
-            onChange={(e) => setSheetUrl(e.target.value)}
-            placeholder="https://script.google.com/macros/s/.../exec"
-            className="flex-1 px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-500"
-          />
-          <button
-            onClick={handleTestSync}
-            className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg transition-all border border-white/10 whitespace-nowrap"
-          >
-            Simpan Endpoint
-          </button>
+        {/* FEEDBACK ALERT IF JUST SAVED */}
+        {saveSuccessMsg && (
+          <div className="p-3 bg-emerald-950/80 border border-emerald-400/50 rounded-xl flex items-center gap-2 text-emerald-200 text-xs font-semibold animate-in fade-in slide-in-from-top-1">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{saveSuccessMsg}</span>
+          </div>
+        )}
+
+        {/* MISMATCH WARNING CARD (If active URL != stored DB URL) */}
+        {isUrlMismatched && (
+          <div className="p-4 bg-amber-950/70 border-2 border-amber-500/50 rounded-2xl space-y-3 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl shrink-0 mt-0.5">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                  <span>Peringatan Administrator: URL Berbeda dengan Database</span>
+                </h4>
+                <p className="text-xs text-slate-200 mt-1">
+                  URL yang ada pada input saat ini belum disinkronkan ke database konfigurasi aplikasi. Jika halaman dimuat ulang atau berpindah menu tanpa menyimpan, perubahan akan hilang.
+                </p>
+
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
+                  <div className="p-2.5 bg-slate-950/80 rounded-xl border border-white/10">
+                    <span className="text-[10px] text-slate-400 uppercase font-sans font-bold block mb-1">
+                      📁 URL Tersimpan di Database Konfigurasi:
+                    </span>
+                    <span className="text-emerald-300 break-all select-all font-bold">
+                      {savedDbUrl || '(Belum Dikonfigurasi)'}
+                    </span>
+                  </div>
+
+                  <div className="p-2.5 bg-slate-950/80 rounded-xl border border-amber-400/40">
+                    <span className="text-[10px] text-amber-400 uppercase font-sans font-bold block mb-1">
+                      ✏️ URL Aktif Saat Ini di Input:
+                    </span>
+                    <span className="text-amber-200 break-all select-all font-bold">
+                      {currentUrl || '(Kosong)'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-amber-500/30">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAndLockUrl()}
+                    className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl shadow-lg transition-all cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Kunci &amp; Simpan URL Ini ke Database</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRestoreStoredUrl}
+                    className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl border border-white/10 transition-colors cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Batalkan &amp; Pulihkan URL Tersimpan</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <div className="flex flex-col md:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <input
+                type="url"
+                value={sheetUrl}
+                readOnly={isLocked}
+                onChange={(e) => {
+                  setSheetUrl(e.target.value);
+                  if (validationError) setValidationError(null);
+                }}
+                placeholder="https://script.google.com/macros/s/.../exec"
+                className={`w-full px-4 py-3 rounded-xl text-xs font-mono font-bold transition-all focus:outline-none ${
+                  isLocked 
+                    ? 'bg-slate-950/90 text-emerald-300 border border-emerald-500/40 cursor-default select-all' 
+                    : !currentValidation.isValid && currentUrl
+                      ? 'bg-white text-slate-950 border-2 border-rose-500 focus:ring-2 focus:ring-rose-400/50 shadow-inner'
+                      : 'bg-white text-slate-950 border-2 border-amber-400 focus:ring-2 focus:ring-amber-400/50 shadow-inner'
+                }`}
+              />
+              {isLocked && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30">
+                  <Lock className="w-3 h-3" />
+                  <span>Terkunci</span>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              {isLocked ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleUnlockUrl}
+                    className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-3 rounded-xl shadow transition-all cursor-pointer"
+                    title="Klik untuk membuka kunci jika Anda ingin mengubah link URL Web App"
+                  >
+                    <Unlock className="w-3.5 h-3.5" />
+                    <span>Buka Kunci / Ganti URL</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyUrl}
+                    className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3.5 py-3 rounded-xl border border-white/10 transition-all cursor-pointer"
+                    title="Salin URL saat ini"
+                  >
+                    {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedUrl ? 'Tersalin!' : 'Salin URL'}</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAndLockUrl()}
+                    className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-3 rounded-xl shadow-lg transition-all cursor-pointer font-sans"
+                    title="Kunci link ini agar tidak berubah saat Anda berpindah menu atau mengedit data"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Kunci &amp; Simpan URL Web App</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (savedDbUrl) {
+                        setSheetUrl(savedDbUrl);
+                      }
+                      setIsLocked(true);
+                      setValidationError(null);
+                      if (onUrlDraftChange) {
+                        onUrlDraftChange(false);
+                      }
+                    }}
+                    className="px-3.5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl border border-white/10 transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetToDefaultUrl}
+                    className="flex items-center gap-1 text-slate-400 hover:text-rose-300 text-[11px] px-2.5 py-3 transition-colors cursor-pointer"
+                    title="Kembalikan URL ke contoh default bawaan aplikasi"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reset Default</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* REAL-TIME VALIDATION STATUS BADGE */}
+          {!isLocked && (
+            <div className="space-y-2">
+              {currentValidation.isValid ? (
+                <div className="p-3 bg-emerald-950/70 border border-emerald-500/40 rounded-xl flex items-center gap-2.5 text-xs text-emerald-200 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div>
+                    <span className="font-bold text-emerald-300">Format URL Google Apps Script Valid: </span>
+                    <span>Protokol HTTPS, Domain script.google.com, dan Endpoint /exec terverifikasi. Siap dikunci &amp; disimpan.</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3.5 bg-rose-950/80 border-2 border-rose-500/50 rounded-xl flex items-start gap-2.5 text-xs text-rose-200 animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-rose-300">
+                      {currentValidation.isEditorUrl ? 'Perhatian: Ini adalah URL Editor Kode, Bukan Web App!' : 'URL Apps Script Tidak Valid:'}
+                    </p>
+                    <p className="text-slate-200 leading-relaxed">
+                      {currentValidation.error}
+                    </p>
+                    {currentValidation.isEditorUrl && (
+                      <div className="mt-2 p-2 bg-slate-950/80 rounded-lg text-[11px] border border-rose-400/30 text-slate-300">
+                        <strong className="text-amber-300">Cara Mendapatkan URL Web App:</strong>
+                        <ol className="list-decimal list-inside mt-1 space-y-0.5">
+                          <li>Di Google Apps Script, klik tombol biru <strong>Deploy (Terapkan)</strong> di kanan atas.</li>
+                          <li>Pilih <strong>Deployment baru</strong>.</li>
+                          <li>Klik ikon gerigi &gt; pilih <strong>Aplikasi web</strong>.</li>
+                          <li>Pilih Akses: <strong>Siapa saja (Anyone)</strong>, lalu klik <strong>Terapkan</strong>.</li>
+                          <li>Salin <strong>URL Aplikasi Web</strong> (berakhiran <code>/exec</code>).</li>
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 pt-1">
+            <span className="flex items-center gap-1.5 text-emerald-300/90">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>URL tersimpan secara persisten di database konfigurasi browser dan diproteksi dari penimpaan tidak sengaja.</span>
+            </span>
+            {isLocked && (
+              <button
+                type="button"
+                onClick={handleResetToDefaultUrl}
+                className="text-slate-400 hover:text-rose-300 underline cursor-pointer text-[11px]"
+              >
+                Kembalikan ke URL Bawaan
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -814,63 +1364,6 @@ function doPost(e) {
             </div>
           </div>
 
-        </div>
-      </div>
-
-      {/* Troubleshooting & Solusi Sinkronisasi Google Sheets */}
-      <div className="bg-gradient-to-br from-amber-950/40 via-slate-900/80 to-slate-900/90 rounded-2xl p-6 border border-amber-400/30 shadow-xl space-y-4 text-slate-200">
-        <div className="flex items-center gap-2.5 text-amber-300">
-          <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
-          <h3 className="text-base font-bold font-serif">
-            Solusi &amp; Penjelasan Teknis Integrasi Google Sheets
-          </h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          {/* Box 1: Mengapa Hanya Muncul Tab Log */}
-          <div className="bg-slate-950/80 p-4 rounded-xl border border-white/10 space-y-2">
-            <h4 className="font-bold text-amber-300 flex items-center gap-1.5">
-              <span>⚠️ 1. Mengapa Hanya Muncul Riwayat Log (Tab Data Lain Belum Muncul)?</span>
-            </h4>
-            <p className="text-slate-300 leading-relaxed">
-              <strong>Penyebab:</strong> Di Google Apps Script, ketika kode baru ditempelkan, URL Web App yang sudah aktif <strong>tetap menjalankan versi kode lama</strong> sebelum Anda membuat <em>"Versi Baru" (New Version)</em> pada menu deployment.
-            </p>
-            <div className="bg-emerald-950/50 p-3 rounded-lg border border-emerald-500/30 space-y-1.5 text-emerald-200">
-              <p className="font-bold text-emerald-300">Langkah Solusi Cepat (2 Menit):</p>
-              <ol className="list-decimal list-inside space-y-1 text-[11px] leading-relaxed text-slate-200">
-                <li>Klik tombol <strong>Salin Skrip Baru</strong> di bawah.</li>
-                <li>Buka Google Sheets &gt; <strong>Ekstensi &gt; Apps Script</strong> &gt; Hapus semua kode lama lalu Paste skrip baru ini.</li>
-                <li>Klik <strong>Deploy (Terapkan)</strong> di pojok kanan atas &gt; pilih <strong>Manage Deployments (Kelola Penerapan)</strong>.</li>
-                <li>Klik tombol <strong>Edit (Ikon Pensil)</strong> &gt; Pada baris <em>Version</em>, pilih <strong>New version (Versi Baru)</strong>.</li>
-                <li>Pastikan <em>Who has access</em> adalah <strong>Anyone (Siapa Saja)</strong> &gt; Klik <strong>Deploy</strong>.</li>
-                <li>Kembali ke sini dan klik tombol <strong>Kirim Ke Sheets (Push)</strong>. Seketika seluruh 7 tab data akan terisi lengkap!</li>
-              </ol>
-            </div>
-          </div>
-
-          {/* Box 2: Apakah URL Web App Berganti */}
-          <div className="bg-slate-950/80 p-4 rounded-xl border border-white/10 space-y-2">
-            <h4 className="font-bold text-emerald-300 flex items-center gap-1.5">
-              <span>🔗 2. Apakah URL Web App Harus Berganti Setiap Ada Pembaruan Data?</span>
-            </h4>
-            <p className="text-slate-300 leading-relaxed">
-              <strong>Jawabannya: TIDAK PERLU.</strong> URL Web App Google Apps Script berfungsi sebagai <em>endpoint API permanen</em>.
-            </p>
-            <ul className="space-y-2 text-[11px] text-slate-300 leading-relaxed">
-              <li className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                <span>URL Web App cukup Anda salin dan simpan <strong>1 kali saja</strong> di kotak Endpoint di atas.</span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                <span>Setiap kali ada siswa baru, perubahan jadwal, mutasi guru, atau nilai rapor baru di web, Anda cukup klik <strong>"Kirim Ke Sheets"</strong>. Data di Google Sheets akan otomatis ter-update pada spreadsheet yang sama menggunakan URL tersebut.</span>
-              </li>
-              <li className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                <span>Anda hanya perlu memperbarui URL jika membuat project Apps Script yang benar-benar baru di file Spreadsheet lain.</span>
-              </li>
-            </ul>
-          </div>
         </div>
       </div>
 

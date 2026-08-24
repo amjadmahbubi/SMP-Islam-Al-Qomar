@@ -198,7 +198,9 @@ export interface GoogleSheetsConfig {
   webAppUrl: string; // Apps Script Web App URL
   spreadsheetId: string;
   autoSync: boolean;
+  isLocked?: boolean;
   lastSyncedAt?: string;
+  lastPulledAt?: string;
 }
 
 export interface StudentAchievement {

@@ -49,24 +49,27 @@ export function getAllClasses(
   customClasses?: string[]
 ): string[] {
   let baseClasses = customClasses;
-  if (!baseClasses) {
+  if (!baseClasses || !Array.isArray(baseClasses)) {
     try {
       const stored = localStorage.getItem('alqomar_classes');
       if (stored) {
-        baseClasses = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          baseClasses = parsed;
+        }
       }
     } catch {
       // fallback
     }
   }
 
-  if (!baseClasses || baseClasses.length === 0) {
+  if (!baseClasses || !Array.isArray(baseClasses) || baseClasses.length === 0) {
     baseClasses = DEFAULT_CLASSES;
   }
 
-  const fromStudents = students.map(s => s.kelas?.trim()).filter(Boolean);
-  const fromSchedules = schedules.map(s => s.kelas?.trim()).filter(Boolean);
-  const fromTeachers = teachers.map(t => t.waliKelasDi?.trim()).filter(Boolean);
+  const fromStudents = (students || []).map(s => s?.kelas?.trim()).filter(Boolean);
+  const fromSchedules = (schedules || []).map(s => s?.kelas?.trim()).filter(Boolean);
+  const fromTeachers = (teachers || []).map(t => t?.waliKelasDi?.trim()).filter(Boolean);
 
   const merged = Array.from(
     new Set([...baseClasses, ...fromStudents, ...fromSchedules, ...fromTeachers])

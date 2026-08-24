@@ -189,7 +189,7 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
               Misi Pendidikan
             </span>
             <ul className="mt-2 space-y-2">
-              {schoolInfo.misi.map((m, idx) => (
+              {(schoolInfo?.misi || []).map((m, idx) => (
                 <li key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-200">
                   <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <span>{m}</span>
@@ -211,12 +211,12 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
             <p className="text-xs text-slate-400">Sarana pembelajaran modern terpadu dalam lingkungan Islami</p>
           </div>
           <span className="text-xs font-bold text-emerald-300 bg-emerald-500/20 px-2.5 py-1 rounded-lg border border-emerald-400/30">
-            {sarpras.length} Fasilitas Master
+            {(sarpras || []).length} Fasilitas Master
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {sarpras.slice(0, 4).map((s) => (
+          {(sarpras || []).slice(0, 4).map((s) => (
             <div key={s.id} className="bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/10 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-mono text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded font-semibold border border-emerald-400/30">

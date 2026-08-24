@@ -531,7 +531,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
 
         {/* Feature Badges from Program List */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-white/10">
-          {settings.programList.slice(0, 3).map((prog, idx) => (
+          {(settings?.programList || []).slice(0, 3).map((prog, idx) => (
             <div key={prog.id || idx} className="flex items-center gap-3 bg-slate-950/50 p-3 rounded-xl border border-white/5">
               <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold shrink-0">
                 {renderProgramIcon(prog.icon)}
@@ -583,7 +583,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
               }`}
             >
               <ShieldAlert className="w-4 h-4" />
-              <span>Panel Admin PPDB ({registrations.length})</span>
+              <span>Panel Admin PPDB ({(registrations || []).length})</span>
             </button>
           )}
         </div>
@@ -627,7 +627,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                   Pilihan Program / Kelas Unggulan *
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {settings.programList.map(prog => (
+                  {(settings?.programList || []).map(prog => (
                     <label
                       key={prog.id || prog.kategori}
                       className={`cursor-pointer p-3 rounded-xl border text-left transition-all ${
@@ -1190,14 +1190,14 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
             </div>
 
             {/* Syarat Pendaftaran */}
-            {settings.syaratPendaftaran && settings.syaratPendaftaran.length > 0 && (
+            {settings?.syaratPendaftaran && settings.syaratPendaftaran.length > 0 && (
               <div className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-5 border border-white/10 shadow-xl space-y-3">
                 <h3 className="text-sm font-bold font-serif text-white border-b border-white/10 pb-2 flex items-center gap-2">
                   <FileText className="w-4 h-4 text-amber-400" />
                   <span>Persyaratan Dokumen</span>
                 </h3>
                 <ul className="space-y-2 text-xs text-slate-300">
-                  {settings.syaratPendaftaran.map((syarat, i) => (
+                  {(settings.syaratPendaftaran || []).map((syarat, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <span className="text-emerald-400 font-bold shrink-0">✓</span>
                       <span>{syarat}</span>
@@ -1217,11 +1217,11 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
               </div>
               
               <div className="space-y-3">
-                {settings.contactList.map((c, i) => (
+                {(settings?.contactList || []).map((c, i) => (
                   <div key={i} className="bg-slate-950 p-3 rounded-xl border border-white/10 text-xs space-y-1">
                     <p className="text-slate-200"><strong>{c.nama} ({c.jabatan}):</strong></p>
                     <a
-                      href={`https://wa.me/${c.noHp.replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=Assalamu'alaikum%20Panitia%20PPDB%20${encodeURIComponent(schoolInfo.nama)},%20saya%20ingin%20bertanya%20informasi%20pendaftaran.`}
+                      href={`https://wa.me/${c.noHp.replace(/[^0-9]/g, '').replace(/^0/, '62')}?text=Assalamu'alaikum%20Panitia%20PPDB%20${encodeURIComponent(schoolInfo?.nama || 'SMP Islam Al Qomar')},%20saya%20ingin%20bertanya%20informasi%20pendaftaran.`}
                       target="_blank"
                       rel="noreferrer"
                       className="text-emerald-400 hover:text-emerald-300 font-mono font-bold block"
@@ -1286,7 +1286,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {searchResult.map(r => (
+                  {(searchResult || []).map(r => (
                     <div key={r.id} className="bg-slate-950/80 p-5 rounded-2xl border border-white/10 shadow-lg space-y-3">
                       <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3">
                         <div>
@@ -1333,24 +1333,24 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
           {/* Admin Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="glass backdrop-blur-xl bg-slate-900/60 p-4 rounded-2xl border border-white/10">
-              <span className="text-2xl font-black text-white font-serif">{registrations.length}</span>
+              <span className="text-2xl font-black text-white font-serif">{(registrations || []).length}</span>
               <span className="block text-xs text-slate-400 mt-1 font-semibold">Total Pendaftar (TA {currentTahunAjaran})</span>
             </div>
             <div className="glass backdrop-blur-xl bg-slate-900/60 p-4 rounded-2xl border border-emerald-500/30">
               <span className="text-2xl font-black text-emerald-300 font-serif">
-                {registrations.filter(r => r.status === 'Diterima').length}
+                {(registrations || []).filter(r => r.status === 'Diterima').length}
               </span>
               <span className="block text-xs text-emerald-400 mt-1 font-semibold">Siswa Diterima</span>
             </div>
             <div className="glass backdrop-blur-xl bg-slate-900/60 p-4 rounded-2xl border border-blue-500/30">
               <span className="text-2xl font-black text-blue-300 font-serif">
-                {registrations.filter(r => r.status === 'Lulus Berkas').length}
+                {(registrations || []).filter(r => r.status === 'Lulus Berkas').length}
               </span>
               <span className="block text-xs text-blue-400 mt-1 font-semibold">Lulus Berkas</span>
             </div>
             <div className="glass backdrop-blur-xl bg-slate-900/60 p-4 rounded-2xl border border-amber-500/30">
               <span className="text-2xl font-black text-amber-300 font-serif">
-                {registrations.filter(r => r.status === 'Menunggu Verifikasi').length}
+                {(registrations || []).filter(r => r.status === 'Menunggu Verifikasi').length}
               </span>
               <span className="block text-xs text-amber-400 mt-1 font-semibold">Menunggu Verifikasi</span>
             </div>
@@ -1386,7 +1386,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                   className="px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="Semua">Semua Program</option>
-                  {settings.programList.map(prog => (
+                  {(settings?.programList || []).map(prog => (
                     <option key={prog.id} value={prog.kategori}>{prog.nama}</option>
                   ))}
                 </select>
@@ -1427,7 +1427,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {adminFilteredList.map(reg => (
+                  {(adminFilteredList || []).map(reg => (
                     <tr key={reg.id} className="hover:bg-white/5 transition-colors text-slate-200">
                       <td className="p-3 font-mono font-bold text-emerald-400">{reg.id}</td>
                       <td className="p-3">

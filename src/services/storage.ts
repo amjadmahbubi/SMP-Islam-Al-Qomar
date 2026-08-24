@@ -65,7 +65,15 @@ const defaultSession: UserSession = {
 function getStored<T>(key: string, fallback: T): T {
   try {
     const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : fallback;
+    if (!item) return fallback;
+    const parsed = JSON.parse(item);
+    if (parsed === null || parsed === undefined) return fallback;
+    
+    // If fallback is array, ensure parsed is also array
+    if (Array.isArray(fallback) && !Array.isArray(parsed)) {
+      return fallback;
+    }
+    return parsed;
   } catch (e) {
     console.error('Failed to read from localStorage:', key, e);
     return fallback;
@@ -85,63 +93,106 @@ export const StorageService = {
   getSession: (): UserSession => getStored(KEYS.SESSION, defaultSession),
   setSession: (session: UserSession): void => setStored(KEYS.SESSION, session),
 
-  // School Info
-  getSchoolInfo: (): SchoolInfo => getStored(KEYS.SCHOOL, initialSchoolInfo),
+  // School Info (deep merge with initialSchoolInfo to ensure misi is always array)
+  getSchoolInfo: (): SchoolInfo => {
+    const stored = getStored<Partial<SchoolInfo>>(KEYS.SCHOOL, initialSchoolInfo);
+    return {
+      ...initialSchoolInfo,
+      ...stored,
+      misi: Array.isArray(stored.misi) && stored.misi.length ? stored.misi : initialSchoolInfo.misi
+    };
+  },
   saveSchoolInfo: (data: SchoolInfo): void => setStored(KEYS.SCHOOL, data),
   setSchoolInfo: (data: SchoolInfo): void => setStored(KEYS.SCHOOL, data),
 
   // Teachers
-  getTeachers: (): Teacher[] => getStored(KEYS.TEACHERS, initialTeachers),
+  getTeachers: (): Teacher[] => {
+    const data = getStored(KEYS.TEACHERS, initialTeachers);
+    return Array.isArray(data) ? data : initialTeachers;
+  },
   saveTeachers: (data: Teacher[]): void => setStored(KEYS.TEACHERS, data),
   setTeachers: (data: Teacher[]): void => setStored(KEYS.TEACHERS, data),
 
   // Students
-  getStudents: (): Student[] => getStored(KEYS.STUDENTS, initialStudents),
+  getStudents: (): Student[] => {
+    const data = getStored(KEYS.STUDENTS, initialStudents);
+    return Array.isArray(data) ? data : initialStudents;
+  },
   saveStudents: (data: Student[]): void => setStored(KEYS.STUDENTS, data),
   setStudents: (data: Student[]): void => setStored(KEYS.STUDENTS, data),
 
   // Sarpras
-  getSarpras: (): SarprasItem[] => getStored(KEYS.SARPRAS, initialSarpras),
+  getSarpras: (): SarprasItem[] => {
+    const data = getStored(KEYS.SARPRAS, initialSarpras);
+    return Array.isArray(data) ? data : initialSarpras;
+  },
   saveSarpras: (data: SarprasItem[]): void => setStored(KEYS.SARPRAS, data),
   setSarpras: (data: SarprasItem[]): void => setStored(KEYS.SARPRAS, data),
 
   // Teacher Docs
-  getTeacherDocs: (): TeacherDoc[] => getStored(KEYS.TEACHER_DOCS, initialTeacherDocs),
+  getTeacherDocs: (): TeacherDoc[] => {
+    const data = getStored(KEYS.TEACHER_DOCS, initialTeacherDocs);
+    return Array.isArray(data) ? data : initialTeacherDocs;
+  },
   saveTeacherDocs: (data: TeacherDoc[]): void => setStored(KEYS.TEACHER_DOCS, data),
   setTeacherDocs: (data: TeacherDoc[]): void => setStored(KEYS.TEACHER_DOCS, data),
 
   // Schedules
-  getSchedules: (): ScheduleItem[] => getStored(KEYS.SCHEDULES, initialSchedules),
+  getSchedules: (): ScheduleItem[] => {
+    const data = getStored(KEYS.SCHEDULES, initialSchedules);
+    return Array.isArray(data) ? data : initialSchedules;
+  },
   saveSchedules: (data: ScheduleItem[]): void => setStored(KEYS.SCHEDULES, data),
   setSchedules: (data: ScheduleItem[]): void => setStored(KEYS.SCHEDULES, data),
 
   // Calendar
-  getCalendarEvents: (): CalendarEvent[] => getStored(KEYS.CALENDAR, initialCalendarEvents),
+  getCalendarEvents: (): CalendarEvent[] => {
+    const data = getStored(KEYS.CALENDAR, initialCalendarEvents);
+    return Array.isArray(data) ? data : initialCalendarEvents;
+  },
   saveCalendarEvents: (data: CalendarEvent[]): void => setStored(KEYS.CALENDAR, data),
   setCalendarEvents: (data: CalendarEvent[]): void => setStored(KEYS.CALENDAR, data),
 
   // Agenda
-  getAgendas: (): AgendaItem[] => getStored(KEYS.AGENDA, initialAgendaItems),
+  getAgendas: (): AgendaItem[] => {
+    const data = getStored(KEYS.AGENDA, initialAgendaItems);
+    return Array.isArray(data) ? data : initialAgendaItems;
+  },
   saveAgendas: (data: AgendaItem[]): void => setStored(KEYS.AGENDA, data),
   setAgendas: (data: AgendaItem[]): void => setStored(KEYS.AGENDA, data),
 
   // Attendance
-  getAttendance: (): AttendanceRecord[] => getStored(KEYS.ATTENDANCE, initialAttendanceRecords),
+  getAttendance: (): AttendanceRecord[] => {
+    const data = getStored(KEYS.ATTENDANCE, initialAttendanceRecords);
+    return Array.isArray(data) ? data : initialAttendanceRecords;
+  },
   saveAttendance: (data: AttendanceRecord[]): void => setStored(KEYS.ATTENDANCE, data),
   setAttendance: (data: AttendanceRecord[]): void => setStored(KEYS.ATTENDANCE, data),
 
   // Grades
-  getGrades: (): SubjectGradeRecord[] => getStored(KEYS.GRADES, initialSubjectGradeRecords),
+  getGrades: (): SubjectGradeRecord[] => {
+    const data = getStored(KEYS.GRADES, initialSubjectGradeRecords);
+    return Array.isArray(data) ? data : initialSubjectGradeRecords;
+  },
   saveGrades: (data: SubjectGradeRecord[]): void => setStored(KEYS.GRADES, data),
   setGrades: (data: SubjectGradeRecord[]): void => setStored(KEYS.GRADES, data),
 
   // Google Sheets Config
-  getSheetsConfig: (): GoogleSheetsConfig => getStored(KEYS.SHEETS_CONFIG, initialSheetsConfig),
+  getSheetsConfig: (): GoogleSheetsConfig => {
+    const stored = getStored<Partial<GoogleSheetsConfig>>(KEYS.SHEETS_CONFIG, initialSheetsConfig);
+    return {
+      ...initialSheetsConfig,
+      ...stored
+    };
+  },
   saveSheetsConfig: (data: GoogleSheetsConfig): void => setStored(KEYS.SHEETS_CONFIG, data),
   setSheetsConfig: (data: GoogleSheetsConfig): void => setStored(KEYS.SHEETS_CONFIG, data),
 
   // Achievements
-  getAchievements: (): StudentAchievement[] => getStored(KEYS.ACHIEVEMENTS, initialAchievements),
+  getAchievements: (): StudentAchievement[] => {
+    const data = getStored(KEYS.ACHIEVEMENTS, initialAchievements);
+    return Array.isArray(data) ? data : initialAchievements;
+  },
   saveAchievements: (data: StudentAchievement[]): void => setStored(KEYS.ACHIEVEMENTS, data),
   setAchievements: (data: StudentAchievement[]): void => setStored(KEYS.ACHIEVEMENTS, data),
 
@@ -150,27 +201,49 @@ export const StorageService = {
   setTheme: (theme: 'dark' | 'light'): void => setStored(KEYS.THEME, theme),
 
   // PPDB Registrations
-  getPpdbRegistrations: (): PpdbRegistration[] => getStored(KEYS.PPDB, initialPpdbRegistrations),
+  getPpdbRegistrations: (): PpdbRegistration[] => {
+    const data = getStored(KEYS.PPDB, initialPpdbRegistrations);
+    return Array.isArray(data) ? data : initialPpdbRegistrations;
+  },
   savePpdbRegistrations: (data: PpdbRegistration[]): void => setStored(KEYS.PPDB, data),
 
-  // PPDB Settings (Gelombang, Program Unggulan, Contact Persons)
-  getPpdbSettings: (): PpdbSettings => getStored(KEYS.PPDB_SETTINGS, initialPpdbSettings),
+  // PPDB Settings (Gelombang, Program Unggulan, Contact Persons, Syarat)
+  getPpdbSettings: (): PpdbSettings => {
+    const stored = getStored<Partial<PpdbSettings>>(KEYS.PPDB_SETTINGS, initialPpdbSettings);
+    return {
+      ...initialPpdbSettings,
+      ...stored,
+      gelombangList: Array.isArray(stored.gelombangList) ? stored.gelombangList : initialPpdbSettings.gelombangList,
+      programList: Array.isArray(stored.programList) ? stored.programList : initialPpdbSettings.programList,
+      contactList: Array.isArray(stored.contactList) ? stored.contactList : initialPpdbSettings.contactList,
+      syaratPendaftaran: Array.isArray(stored.syaratPendaftaran) ? stored.syaratPendaftaran : initialPpdbSettings.syaratPendaftaran
+    };
+  },
   savePpdbSettings: (data: PpdbSettings): void => setStored(KEYS.PPDB_SETTINGS, data),
   setPpdbSettings: (data: PpdbSettings): void => setStored(KEYS.PPDB_SETTINGS, data),
 
   // Gallery Items
-  getGalleryItems: (): GalleryItem[] => getStored(KEYS.GALLERY, initialGalleryItems),
+  getGalleryItems: (): GalleryItem[] => {
+    const data = getStored(KEYS.GALLERY, initialGalleryItems);
+    return Array.isArray(data) ? data : initialGalleryItems;
+  },
   saveGalleryItems: (data: GalleryItem[]): void => setStored(KEYS.GALLERY, data),
 
   // Grade Locks
-  getGradeLocks: (): GradeLockRecord[] => getStored(KEYS.GRADE_LOCKS, initialGradeLocks),
+  getGradeLocks: (): GradeLockRecord[] => {
+    const data = getStored(KEYS.GRADE_LOCKS, initialGradeLocks);
+    return Array.isArray(data) ? data : initialGradeLocks;
+  },
   saveGradeLocks: (data: GradeLockRecord[]): void => setStored(KEYS.GRADE_LOCKS, data),
 
   // Audit Logs
-  getAuditLogs: (): AuditLog[] => getStored(KEYS.AUDIT_LOGS, initialAuditLogs),
+  getAuditLogs: (): AuditLog[] => {
+    const data = getStored(KEYS.AUDIT_LOGS, initialAuditLogs);
+    return Array.isArray(data) ? data : initialAuditLogs;
+  },
   saveAuditLogs: (data: AuditLog[]): void => setStored(KEYS.AUDIT_LOGS, data),
   addAuditLog: (log: Omit<AuditLog, 'id' | 'timestamp'>): void => {
-    const existing = getStored<AuditLog[]>(KEYS.AUDIT_LOGS, initialAuditLogs);
+    const existing = StorageService.getAuditLogs();
     const now = new Date();
     const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     const newEntry: AuditLog = {
@@ -182,7 +255,10 @@ export const StorageService = {
   },
 
   // Custom & Active Classes
-  getClasses: (): string[] => getStored(KEYS.CLASSES, ['7A', '7B', '8A', '8B', '9A', '9B']),
+  getClasses: (): string[] => {
+    const data = getStored(KEYS.CLASSES, ['7A', '7B', '8A', '8B', '9A', '9B']);
+    return Array.isArray(data) ? data : ['7A', '7B', '8A', '8B', '9A', '9B'];
+  },
   saveClasses: (data: string[]): void => setStored(KEYS.CLASSES, data),
   setClasses: (data: string[]): void => setStored(KEYS.CLASSES, data),
 

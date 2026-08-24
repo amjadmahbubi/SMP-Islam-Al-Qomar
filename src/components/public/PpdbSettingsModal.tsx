@@ -107,10 +107,11 @@ export const PpdbSettingsModal: React.FC<PpdbSettingsModalProps> = ({
     if (!gelombangForm.nama.trim()) return;
 
     let updatedList: PpdbGelombang[];
+    const currentList = localSettings.gelombangList || [];
     if (editingGelombangId === 'NEW') {
-      updatedList = [...localSettings.gelombangList, gelombangForm];
+      updatedList = [...currentList, gelombangForm];
     } else {
-      updatedList = localSettings.gelombangList.map(g => (g.id === editingGelombangId ? gelombangForm : g));
+      updatedList = currentList.map(g => (g.id === editingGelombangId ? gelombangForm : g));
     }
     setLocalSettings({ ...localSettings, gelombangList: updatedList });
     setEditingGelombangId(null);
@@ -118,7 +119,7 @@ export const PpdbSettingsModal: React.FC<PpdbSettingsModalProps> = ({
 
   const handleDeleteGelombang = (id: string) => {
     if (window.confirm('Hapus gelombang pendaftaran ini?')) {
-      const updated = localSettings.gelombangList.filter(g => g.id !== id);
+      const updated = (localSettings.gelombangList || []).filter(g => g.id !== id);
       setLocalSettings({ ...localSettings, gelombangList: updated });
     }
   };
@@ -151,10 +152,11 @@ export const PpdbSettingsModal: React.FC<PpdbSettingsModalProps> = ({
     };
 
     let updatedList: PpdbProgramUnggulan[];
+    const currentList = localSettings.programList || [];
     if (editingProgramId === 'NEW') {
-      updatedList = [...localSettings.programList, payload];
+      updatedList = [...currentList, payload];
     } else {
-      updatedList = localSettings.programList.map(p => (p.id === editingProgramId ? payload : p));
+      updatedList = currentList.map(p => (p.id === editingProgramId ? payload : p));
     }
     setLocalSettings({ ...localSettings, programList: updatedList });
     setEditingProgramId(null);
@@ -162,7 +164,7 @@ export const PpdbSettingsModal: React.FC<PpdbSettingsModalProps> = ({
 
   const handleDeleteProgram = (id: string) => {
     if (window.confirm('Hapus program unggulan ini?')) {
-      const updated = localSettings.programList.filter(p => p.id !== id);
+      const updated = (localSettings.programList || []).filter(p => p.id !== id);
       setLocalSettings({ ...localSettings, programList: updated });
     }
   };
@@ -189,10 +191,11 @@ export const PpdbSettingsModal: React.FC<PpdbSettingsModalProps> = ({
     if (!contactForm.nama.trim() || !contactForm.noHp.trim()) return;
 
     let updatedList: PpdbContactPerson[];
+    const currentList = localSettings.contactList || [];
     if (editingContactIdx === -1) {
-      updatedList = [...localSettings.contactList, contactForm];
+      updatedList = [...currentList, contactForm];
     } else {
-      updatedList = localSettings.contactList.map((c, idx) => (idx === editingContactIdx ? contactForm : c));
+      updatedList = currentList.map((c, idx) => (idx === editingContactIdx ? contactForm : c));
     }
     setLocalSettings({ ...localSettings, contactList: updatedList });
     setEditingContactIdx(null);
@@ -424,7 +427,7 @@ export const PpdbSettingsModal: React.FC<PpdbSettingsModalProps> = ({
 
               {/* List Gelombang Cards */}
               <div className="grid grid-cols-1 gap-3">
-                {localSettings.gelombangList.map((g) => (
+                {(localSettings?.gelombangList || []).map((g) => (
                   <div
                     key={g.id}
                     className="p-4 rounded-2xl bg-slate-950/60 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/20 transition-all"
@@ -598,7 +601,7 @@ export const PpdbSettingsModal: React.FC<PpdbSettingsModalProps> = ({
 
               {/* List Program Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {localSettings.programList.map((p) => (
+                {(localSettings?.programList || []).map((p) => (
                   <div
                     key={p.id}
                     className="p-4 rounded-2xl bg-slate-950/60 border border-white/10 flex flex-col justify-between gap-3 hover:border-white/20 transition-all"
@@ -756,7 +759,7 @@ export const PpdbSettingsModal: React.FC<PpdbSettingsModalProps> = ({
 
               {/* List Contacts */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {localSettings.contactList.map((c, idx) => (
+                {(localSettings?.contactList || []).map((c, idx) => (
                   <div
                     key={idx}
                     className="p-4 rounded-2xl bg-slate-950/60 border border-white/10 flex flex-col justify-between gap-3 hover:border-white/20 transition-all"

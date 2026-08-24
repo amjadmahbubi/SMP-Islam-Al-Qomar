@@ -14,7 +14,8 @@ import {
   StudentAchievement,
   PpdbRegistration,
   GalleryItem,
-  PpdbSettings
+  PpdbSettings,
+  GoogleSheetsConfig
 } from './types';
 import { StorageService } from './services/storage';
 
@@ -92,6 +93,8 @@ export function App() {
   const [ppdbRegistrations, setPpdbRegistrations] = useState<PpdbRegistration[]>(StorageService.getPpdbRegistrations());
   const [ppdbSettings, setPpdbSettings] = useState<PpdbSettings>(StorageService.getPpdbSettings());
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>(StorageService.getGalleryItems());
+  const [sheetsConfig, setSheetsConfig] = useState<GoogleSheetsConfig>(() => StorageService.getSheetsConfig());
+  const [hasSheetsMismatch, setHasSheetsMismatch] = useState<boolean>(false);
 
   // Save Handlers
   const handleSaveSchoolInfo = (info: SchoolInfo) => {
@@ -221,6 +224,12 @@ export function App() {
     StorageService.setAchievements(updated);
   };
 
+  const handleSaveSheetsConfig = (updated: GoogleSheetsConfig) => {
+    setSheetsConfig(updated);
+    setHasSheetsMismatch(false);
+    StorageService.setSheetsConfig(updated);
+  };
+
   // Login / Logout Handlers
   const handleLogin = (user: UserSession) => {
     setSession(user);
@@ -274,6 +283,8 @@ export function App() {
         isSidebarOpen={isSidebarOpen}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        sheetsConfig={sheetsConfig}
+        hasSheetsMismatch={hasSheetsMismatch}
       />
 
       {/* Main Layout Area */}
@@ -489,6 +500,9 @@ export function App() {
               schedules={schedules}
               events={events}
               ppdbRegistrations={ppdbRegistrations}
+              sheetsConfig={sheetsConfig}
+              onSaveSheetsConfig={handleSaveSheetsConfig}
+              onUrlDraftChange={setHasSheetsMismatch}
               onImportStudents={handleSaveStudents}
               onImportTeachers={handleSaveTeachers}
               onImportSarpras={handleSaveSarpras}
