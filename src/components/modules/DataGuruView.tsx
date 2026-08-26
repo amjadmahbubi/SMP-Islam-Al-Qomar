@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Teacher } from '../../types';
 import { exportToCSV } from '../../services/storage';
-import { GraduationCap, Plus, Search, Download, Edit3, Trash2, X, Check, Filter, Key, ShieldCheck, Lock, AlertCircle, Sparkles } from 'lucide-react';
+import { GraduationCap, Plus, Search, Download, Edit3, Trash2, X, Check, Filter, Key, ShieldCheck, Lock, AlertCircle, Sparkles, BookOpen } from 'lucide-react';
 import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
 
 interface DataGuruViewProps {
@@ -22,6 +22,11 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
   const [isCustomMapel, setIsCustomMapel] = useState(false);
   const [customMapelInput, setCustomMapelInput] = useState('');
 
+  // Additional Mapel State for Form
+  const [newAdditionalMapelSelect, setNewAdditionalMapelSelect] = useState('');
+  const [isCustomAdditionalMapel, setIsCustomAdditionalMapel] = useState(false);
+  const [customAdditionalInput, setCustomAdditionalInput] = useState('');
+
   // Reset Password State
   const [resetTeacher, setResetTeacher] = useState<Teacher | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -33,6 +38,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
     nip: '',
     gender: 'L',
     mapelUtama: 'Matematika',
+    mapelTambahan: [],
     jabatan: 'Guru Mata Pelajaran',
     email: '',
     telepon: '',
@@ -44,6 +50,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
     const matchSearch =
       t.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.mapelUtama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (t.mapelTambahan && t.mapelTambahan.some(m => m.toLowerCase().includes(searchTerm.toLowerCase()))) ||
       t.nuptk.includes(searchTerm) ||
       t.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = statusFilter === 'Semua' || t.statusPegawai === statusFilter;
@@ -54,6 +61,9 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
     setEditingTeacher(null);
     setIsCustomMapel(false);
     setCustomMapelInput('');
+    setNewAdditionalMapelSelect('');
+    setIsCustomAdditionalMapel(false);
+    setCustomAdditionalInput('');
     setForm({
       id: `T${Date.now().toString().slice(-4)}`,
       nuptk: '',
@@ -61,6 +71,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
       nip: '',
       gender: 'L',
       mapelUtama: 'Bahasa Jawa',
+      mapelTambahan: [],
       jabatan: 'Guru Mata Pelajaran',
       email: '',
       telepon: '',
@@ -79,8 +90,38 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
       setIsCustomMapel(false);
       setCustomMapelInput('');
     }
-    setForm({ ...teacher });
+    setNewAdditionalMapelSelect('');
+    setIsCustomAdditionalMapel(false);
+    setCustomAdditionalInput('');
+    setForm({
+      ...teacher,
+      mapelTambahan: Array.isArray(teacher.mapelTambahan) ? [...teacher.mapelTambahan] : []
+    });
     setIsModalOpen(true);
+  };
+
+  const handleAddAdditionalMapel = (mapelToAdd: string) => {
+    const trimmed = mapelToAdd.trim();
+    if (!trimmed) return;
+
+    const currentList = form.mapelTambahan || [];
+    if (currentList.includes(trimmed) || form.mapelUtama === trimmed) return;
+
+    setForm({
+      ...form,
+      mapelTambahan: [...currentList, trimmed]
+    });
+    setNewAdditionalMapelSelect('');
+    setCustomAdditionalInput('');
+    setIsCustomAdditionalMapel(false);
+  };
+
+  const handleRemoveAdditionalMapel = (indexToRemove: number) => {
+    const currentList = form.mapelTambahan || [];
+    setForm({
+      ...form,
+      mapelTambahan: currentList.filter((_, idx) => idx !== indexToRemove)
+    });
   };
 
   const handleDelete = (id: string) => {
@@ -96,8 +137,21 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
 
     if (!form.nama || !finalMapel) return;
 
+    // Filter out duplicate or mapelUtama from mapelTambahan
+    const cleanedAdditionalMapels = (form.mapelTambahan || []).filter(
+      m => m && m.trim().toLowerCase() !== finalMapel.trim().toLowerCase()
+    );
+
     if (editingTeacher) {
-      const updated = teachers.map(t => (t.id === editingTeacher.id ? ({ ...(form as Teacher), mapelUtama: finalMapel } as Teacher) : t));
+      const updated = teachers.map(t =>
+        t.id === editingTeacher.id
+          ? ({
+              ...(form as Teacher),
+              mapelUtama: finalMapel,
+              mapelTambahan: cleanedAdditionalMapels
+            } as Teacher)
+          : t
+      );
       onSaveTeachers(updated);
     } else {
       const newTeacher: Teacher = {
@@ -107,6 +161,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
         nip: form.nip,
         gender: (form.gender as 'L' | 'P') || 'L',
         mapelUtama: finalMapel,
+        mapelTambahan: cleanedAdditionalMapels,
         jabatan: form.jabatan || 'Guru Mata Pelajaran',
         email: form.email || `${form.nama.toLowerCase().replace(/\s+/g, '')}@alqomar.sch.id`,
         telepon: form.telepon || '081234567890',
@@ -126,7 +181,8 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
       NIGY: t.nigy || t.nip || '-',
       Nama: t.nama,
       Gender: t.gender === 'L' ? 'Laki-Laki' : 'Perempuan',
-      Mata_Pelajaran: t.mapelUtama,
+      Mata_Pelajaran_Utama: t.mapelUtama,
+      Mata_Pelajaran_Tambahan: (t.mapelTambahan || []).join('; '),
       Jabatan: t.jabatan,
       Status_Pegawai: t.statusPegawai,
       Wali_Kelas: t.waliKelasDi || '-',
@@ -211,7 +267,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
                 <th className="p-3.5">Nama & NUPTK</th>
-                <th className="p-3.5">Mata Pelajaran Utama</th>
+                <th className="p-3.5">Mata Pelajaran Diampu</th>
                 <th className="p-3.5">Jabatan / Wali Kelas</th>
                 <th className="p-3.5">Status Pegawai</th>
                 <th className="p-3.5">Kontak & Email</th>
@@ -227,8 +283,27 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
                       NUPTK: {teacher.nuptk} {(teacher.nigy || teacher.nip) ? `| NIGY: ${teacher.nigy || teacher.nip}` : ''}
                     </div>
                   </td>
-                  <td className="p-3.5 font-semibold text-emerald-800">
-                    {teacher.mapelUtama}
+                  <td className="p-3.5">
+                    <div className="font-semibold text-emerald-900 flex items-center gap-1.5 flex-wrap">
+                      <span>{teacher.mapelUtama}</span>
+                      {teacher.mapelTambahan && teacher.mapelTambahan.length > 0 && (
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-300">
+                          Mapel 1
+                        </span>
+                      )}
+                    </div>
+                    {teacher.mapelTambahan && teacher.mapelTambahan.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {teacher.mapelTambahan.map((m, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1 bg-sky-50 text-sky-900 text-[10px] font-bold px-2 py-0.5 rounded-md border border-sky-200 shadow-2xs"
+                          >
+                            <span>+ {m}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="p-3.5 text-slate-700">
                     <div>{teacher.jabatan}</div>
@@ -399,6 +474,113 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
                     <option value="GTT" className="bg-white text-slate-900">GTT (Guru Tidak Tetap)</option>
                     <option value="Honor" className="bg-white text-slate-900">Honor</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Mata Pelajaran Tambahan / Ke-2 (Opsional) */}
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-emerald-700" />
+                    <label className="text-xs font-bold text-emerald-950">
+                      Mata Pelajaran Tambahan / Ke-2 (Opsional)
+                    </label>
+                  </div>
+                  <span className="text-[10px] text-emerald-800 font-medium bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-300">
+                    Untuk Guru 2 Mapel
+                  </span>
+                </div>
+
+                {/* List of currently assigned additional mapels */}
+                {form.mapelTambahan && form.mapelTambahan.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 py-1">
+                    {form.mapelTambahan.map((m, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 bg-white text-emerald-950 border border-emerald-300 px-2.5 py-1 rounded-lg text-xs font-bold shadow-2xs"
+                      >
+                        <span>{m}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAdditionalMapel(idx)}
+                          className="text-slate-400 hover:text-rose-600 rounded-full p-0.5 transition-colors"
+                          title="Hapus mata pelajaran tambahan ini"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-emerald-900/80 italic">
+                    Belum ada mata pelajaran tambahan. Tambahkan jika guru ini mengampu 2 mata pelajaran atau lebih.
+                  </p>
+                )}
+
+                {/* Add Additional Mapel Control */}
+                <div className="flex items-center gap-2 pt-1 border-t border-emerald-200/60">
+                  {isCustomAdditionalMapel ? (
+                    <div className="flex-1 flex gap-1.5">
+                      <input
+                        type="text"
+                        value={customAdditionalInput}
+                        onChange={(e) => setCustomAdditionalInput(e.target.value)}
+                        placeholder="Nama mapel tambahan kustom..."
+                        className="flex-1 px-3 py-1.5 bg-white border border-emerald-400 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (customAdditionalInput.trim()) {
+                            handleAddAdditionalMapel(customAdditionalInput.trim());
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors"
+                      >
+                        Tambah
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomAdditionalMapel(false)}
+                        className="px-2.5 py-1.5 text-xs text-slate-600 hover:bg-white/60 rounded-lg"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex gap-1.5">
+                      <select
+                        value={newAdditionalMapelSelect}
+                        onChange={(e) => {
+                          if (e.target.value === '__CUSTOM_ADDITIONAL__') {
+                            setIsCustomAdditionalMapel(true);
+                            setCustomAdditionalInput('');
+                          } else if (e.target.value) {
+                            handleAddAdditionalMapel(e.target.value);
+                          }
+                        }}
+                        className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value="" className="bg-white text-slate-900">
+                          + Pilih Tambah Mata Pelajaran...
+                        </option>
+                        {mapelList
+                          .filter(
+                            m =>
+                              m !== form.mapelUtama &&
+                              !(form.mapelTambahan || []).includes(m)
+                          )
+                          .map(m => (
+                            <option key={m} value={m} className="bg-white text-slate-900">
+                              {m}
+                            </option>
+                          ))}
+                        <option value="__CUSTOM_ADDITIONAL__" className="bg-emerald-50 text-emerald-950 font-bold">
+                          + Ketik Nama Mapel Tambahan Lain...
+                        </option>
+                      </select>
+                    </div>
+                  )}
                 </div>
               </div>
 

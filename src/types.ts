@@ -33,6 +33,7 @@ export interface Teacher {
   nip?: string; // Legacy compatibility
   gender: 'L' | 'P';
   mapelUtama: string;
+  mapelTambahan?: string[]; // Mata pelajaran kedua / tambahan yang diampu
   jabatan: string; // e.g. 'Wali Kelas 7A', 'Guru Mata Pelajaran', 'Waka Kurikulum'
   email: string;
   telepon: string;

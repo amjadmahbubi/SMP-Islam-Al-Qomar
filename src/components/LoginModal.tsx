@@ -217,16 +217,21 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   onChange={(e) => setSelectedTeacherId(e.target.value)}
                   className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 >
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id} className="bg-white text-slate-900">
-                      {t.nama} — ({t.mapelUtama || 'Guru'})
-                    </option>
-                  ))}
+                  {teachers.map((t) => {
+                    const allMapels = [t.mapelUtama, ...(t.mapelTambahan || [])].filter(Boolean).join(' & ');
+                    return (
+                      <option key={t.id} value={t.id} className="bg-white text-slate-900">
+                        {t.nama} — ({allMapels || 'Guru'})
+                      </option>
+                    );
+                  })}
                 </select>
                 {selectedTeacher && (
                   <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400 px-1">
                     <span>NUPTK: {selectedTeacher.nuptk || '-'}</span>
-                    <span className="text-emerald-400 font-semibold">{selectedTeacher.mapelUtama}</span>
+                    <span className="text-emerald-400 font-semibold">
+                      {[selectedTeacher.mapelUtama, ...(selectedTeacher.mapelTambahan || [])].filter(Boolean).join(', ')}
+                    </span>
                   </div>
                 )}
               </div>

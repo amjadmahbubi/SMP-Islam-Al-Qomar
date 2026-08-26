@@ -400,7 +400,7 @@ export const initialSchedules: ScheduleItem[] = [
   { id: 'SCH002', hari: 'Senin', kelas: '7A', jamKe: 2, waktu: '07:40 - 08:20', mapel: 'Tahfidz & Halqah Qur\'an', guruNama: 'Ustadz Muhammad Ridwan, Lc., M.A.', ruang: 'Kelas 7A' },
   { id: 'SCH003', hari: 'Senin', kelas: '7A', jamKe: 3, waktu: '08:20 - 09:00', mapel: 'Matematika', guruNama: 'Ustadzah Siti Fatimah, S.Pd.', ruang: 'Kelas 7A' },
   { id: 'SCH004', hari: 'Senin', kelas: '7A', jamKe: 4, waktu: '09:15 - 09:55', mapel: 'Matematika', guruNama: 'Ustadzah Siti Fatimah, S.Pd.', ruang: 'Kelas 7A' },
-  { id: 'SCH005', hari: 'Senin', kelas: '7A', jamKe: 5, waktu: '09:55 - 10:35', mapel: 'PAI & Akidah Akhlak', guruNama: 'Ustadz H. Ahmad Basuki, M.Pd.', ruang: 'Kelas 7A' },
+  { id: 'SCH005', hari: 'Senin', kelas: '7A', jamKe: 5, waktu: '09:55 - 10:35', mapel: 'Pendidikan Agama Islam', guruNama: 'Ustadz H. Ahmad Basuki, M.Pd.', ruang: 'Kelas 7A' },
   { id: 'SCH006', hari: 'Senin', kelas: '7A', jamKe: 6, waktu: '10:35 - 11:15', mapel: 'Bahasa Indonesia', guruNama: 'Ustadz Nur Hidayat, S.Hum.', ruang: 'Kelas 7A' },
   
   // SELASA - Kelas 7A

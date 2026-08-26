@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Student, AttendanceRecord, Teacher, UserSession, SchoolInfo } from '../../types';
-import { CheckSquare, Calendar, Users, Save, Check, CheckCircle2, MessageSquare, Send, Share2 } from 'lucide-react';
+import { CheckSquare, Calendar, Users, Save, Check, CheckCircle2, MessageSquare, Send, Share2, Lock } from 'lucide-react';
 import { WAService } from '../../services/whatsappService';
-import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
+import { DEFAULT_MAPEL_LIST, getAllClasses, getTeacherAllowedMapelList } from '../../data/constants';
 
 interface AbsensiSiswaViewProps {
   students: Student[];
@@ -24,10 +24,13 @@ export const AbsensiSiswaView: React.FC<AbsensiSiswaViewProps> = ({
   const dynamicClasses = getAllClasses(students, [], teachers);
   const mapelList = DEFAULT_MAPEL_LIST;
 
-  const loggedTeacher = teachers.find(
-    t => (session.teacherId && t.id === session.teacherId) || (session.name && t.nama.toLowerCase() === session.name.toLowerCase())
+  const { allowedMapels, isRestricted, loggedTeacher } = getTeacherAllowedMapelList(
+    session,
+    teachers,
+    mapelList
   );
-  const teacherDefaultMapel = loggedTeacher?.mapelUtama || mapelList[0];
+
+  const teacherDefaultMapel = allowedMapels[0] || loggedTeacher?.mapelUtama || mapelList[0];
 
   const [selectedClass, setSelectedClass] = useState(dynamicClasses[0] || '7A');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -35,13 +38,20 @@ export const AbsensiSiswaView: React.FC<AbsensiSiswaViewProps> = ({
   const [selectedTeacher, setSelectedTeacher] = useState(session.name || loggedTeacher?.nama || teachers[0]?.nama || 'Ustadz Amjad Mahbubi, S.Pd.');
 
   React.useEffect(() => {
-    if (loggedTeacher?.mapelUtama) {
-      setSelectedMapel(loggedTeacher.mapelUtama);
+    if (allowedMapels.length > 0 && !allowedMapels.includes(selectedMapel)) {
+      setSelectedMapel(allowedMapels[0]);
     }
-  }, [session.teacherId, session.name]);
+  }, [allowedMapels, selectedMapel]);
+
+  React.useEffect(() => {
+    if (loggedTeacher?.nama && session.role === 'guru') {
+      setSelectedTeacher(loggedTeacher.nama);
+    }
+  }, [session.teacherId, session.name, loggedTeacher]);
 
   const classes = dynamicClasses;
   const classStudents = students.filter(s => s.kelas === selectedClass && s.status === 'Aktif');
+
 
   // Check if attendance already logged for this date & class
   const existingRecord = attendance.find(
@@ -216,23 +226,56 @@ export const AbsensiSiswaView: React.FC<AbsensiSiswaViewProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Mata Pelajaran</label>
-            <select
-              value={selectedMapel}
-              onChange={(e) => setSelectedMapel(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {mapelList.map(m => <option key={m} value={m} className="bg-white text-slate-900">{m}</option>)}
-            </select>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700">Mata Pelajaran</label>
+              {isRestricted && (
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-emerald-700" />
+                  Mapel Diampu
+                </span>
+              )}
+            </div>
+            {isRestricted && allowedMapels.length === 1 ? (
+              <div className="w-full px-3 py-2 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-950 flex items-center justify-between shadow-xs">
+                <span>{allowedMapels[0]}</span>
+                <span className="text-[10px] text-emerald-700 font-semibold bg-white/80 px-1.5 py-0.5 rounded border border-emerald-200">
+                  Terkunci
+                </span>
+              </div>
+            ) : (
+              <select
+                value={selectedMapel}
+                onChange={(e) => setSelectedMapel(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                {allowedMapels.map(m => (
+                  <option key={m} value={m} className="bg-white text-slate-900">
+                    {m}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Guru Pengampu</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700">Guru Pengampu</label>
+              {isRestricted && (
+                <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                  Akun Anda
+                </span>
+              )}
+            </div>
             <input
               type="text"
+              readOnly={isRestricted}
               value={selectedTeacher}
               onChange={(e) => setSelectedTeacher(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className={`w-full px-3 py-2 border rounded-xl text-xs font-bold ${
+                isRestricted
+                  ? 'bg-slate-100/90 border-slate-300 text-slate-700 cursor-not-allowed'
+                  : 'bg-slate-100 border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500'
+              }`}
             />
           </div>
         </div>

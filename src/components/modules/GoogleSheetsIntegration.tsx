@@ -367,6 +367,11 @@ function doGet(e) {
     for (var i = 1; i < rows.length; i++) {
       var r = rows[i];
       if (r[0] || r[3]) {
+        const rawMapelTambahan = String(r[11] || "").trim();
+        const mapelTambahanList = rawMapelTambahan
+          ? rawMapelTambahan.split(/[;,]/).map(s => s.trim()).filter(Boolean)
+          : [];
+
         list.push({
           id: String(r[0] || "T" + (i < 10 ? "00" + i : i < 100 ? "0" + i : i)),
           nuptk: String(r[1] || ""),
@@ -375,6 +380,7 @@ function doGet(e) {
           nama: String(r[3] || ""),
           gender: String(r[4] || "L").toUpperCase().indexOf("P") !== -1 ? "P" : "L",
           mapelUtama: String(r[5] || "Pendidikan Agama Islam"),
+          mapelTambahan: mapelTambahanList,
           jabatan: String(r[6] || "Guru Mata Pelajaran"),
           statusPegawai: String(r[7] || "Tetap Yayasan"),
           waliKelasDi: String(r[8] || "-"),
@@ -549,9 +555,10 @@ function doPost(e) {
 
     if (payload.teachers && Array.isArray(payload.teachers)) {
       var teacherRows = payload.teachers.map(function(t) {
-        return [t.id, t.nuptk, t.nigy || t.nip || "-", t.nama, t.gender, t.mapelUtama, t.jabatan, t.statusPegawai, t.waliKelasDi || "-", t.email, t.telepon];
+        var mapelTambahanStr = Array.isArray(t.mapelTambahan) && t.mapelTambahan.length > 0 ? t.mapelTambahan.join("; ") : "-";
+        return [t.id, t.nuptk, t.nigy || t.nip || "-", t.nama, t.gender, t.mapelUtama, t.jabatan, t.statusPegawai, t.waliKelasDi || "-", t.email, t.telepon, mapelTambahanStr];
       });
-      updateTab("Data_Guru", ["ID", "NUPTK", "NIGY", "Nama Lengkap", "Jenis Kelamin", "Mapel Utama", "Jabatan", "Status Pegawai", "Wali Kelas", "Email", "No HP"], teacherRows);
+      updateTab("Data_Guru", ["ID", "NUPTK", "NIGY", "Nama Lengkap", "Jenis Kelamin", "Mapel Utama", "Jabatan", "Status Pegawai", "Wali Kelas", "Email", "No HP", "Mapel Tambahan"], teacherRows);
     }
 
     if (payload.sarpras && Array.isArray(payload.sarpras)) {

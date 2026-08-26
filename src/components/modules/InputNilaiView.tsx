@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Student, SubjectGradeRecord, Teacher, UserSession, GradeLockRecord, SchoolInfo } from '../../types';
 import { StorageService } from '../../services/storage';
 import { AuditLogModal } from './AuditLogModal';
-import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
+import { DEFAULT_MAPEL_LIST, getAllClasses, getTeacherAllowedMapelList } from '../../data/constants';
 import {
   Award,
   Save,
@@ -43,10 +43,13 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
   const dynamicClasses = getAllClasses(students, [], teachers);
   const mapelList = DEFAULT_MAPEL_LIST;
 
-  const loggedTeacher = teachers.find(
-    t => (session.teacherId && t.id === session.teacherId) || (session.name && t.nama.toLowerCase() === session.name.toLowerCase())
+  const { allowedMapels, isRestricted, loggedTeacher } = getTeacherAllowedMapelList(
+    session,
+    teachers,
+    mapelList
   );
-  const teacherDefaultMapel = loggedTeacher?.mapelUtama || mapelList[0];
+
+  const teacherDefaultMapel = allowedMapels[0] || loggedTeacher?.mapelUtama || mapelList[0];
 
   const [selectedClass, setSelectedClass] = useState(dynamicClasses[0] || '7A');
   const [selectedMapel, setSelectedMapel] = useState(teacherDefaultMapel);
@@ -68,13 +71,20 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
   const [lockReason, setLockReason] = useState('Draft nilai dikunci untuk rekapitulasi Rapor Digital');
 
   useEffect(() => {
-    if (loggedTeacher?.mapelUtama) {
-      setSelectedMapel(loggedTeacher.mapelUtama);
+    if (allowedMapels.length > 0 && !allowedMapels.includes(selectedMapel)) {
+      setSelectedMapel(allowedMapels[0]);
     }
-  }, [session.teacherId, session.name]);
+  }, [allowedMapels, selectedMapel]);
+
+  useEffect(() => {
+    if (loggedTeacher?.nama && session.role === 'guru') {
+      setSelectedTeacher(loggedTeacher.nama);
+    }
+  }, [session.teacherId, session.name, loggedTeacher]);
 
   const classes = dynamicClasses;
   const classStudents = students.filter(s => s.kelas === selectedClass && s.status === 'Aktif');
+
 
   // Find existing grade record for mapel + class + semester
   const existingRecord = grades.find(
@@ -93,12 +103,20 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
     loggedTeacher?.jabatan?.toLowerCase().includes('wali kelas')
   );
 
-  // Kunci Akses Edit Mapel: Regular teacher can only edit their assigned subject
+  // Kunci Akses Edit Mapel: Regular teacher can only edit their assigned subject(s)
+  const teacherAllMapels = [
+    loggedTeacher?.mapelUtama,
+    ...(Array.isArray(loggedTeacher?.mapelTambahan) ? loggedTeacher.mapelTambahan : [])
+  ].filter(Boolean) as string[];
+
   const isSubjectTeacher = Boolean(
     isAdmin ||
     isWakaKurikulum ||
-    (loggedTeacher?.mapelUtama && selectedMapel.toLowerCase().includes(loggedTeacher.mapelUtama.toLowerCase())) ||
-    (loggedTeacher?.mapelUtama && loggedTeacher.mapelUtama.toLowerCase().includes(selectedMapel.toLowerCase())) ||
+    teacherAllMapels.some(
+      m =>
+        selectedMapel.toLowerCase().includes(m.toLowerCase()) ||
+        m.toLowerCase().includes(selectedMapel.toLowerCase())
+    ) ||
     selectedTeacher.toLowerCase() === (session.name || '').toLowerCase()
   );
 
@@ -505,7 +523,7 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
               </span>
             </div>
             <p className="mt-1 leading-relaxed text-amber-900">
-              Anda saat ini terdaftar sebagai <strong>Guru Pengampu: {loggedTeacher?.mapelUtama || 'Lainnya'}</strong>.
+              Anda saat ini terdaftar sebagai <strong>Guru Pengampu: {teacherAllMapels.join(', ') || 'Lainnya'}</strong>.
               Sesuai aturan keamanan data, Anda hanya berwenang mengedit nilai untuk mata pelajaran Anda sendiri.
               Mata pelajaran <strong>{selectedMapel}</strong> ditampilkan dalam mode <strong>Lihat Saja</strong>.
             </p>
@@ -553,18 +571,35 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
       <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Mata Pelajaran</label>
-            <select
-              value={selectedMapel}
-              onChange={(e) => setSelectedMapel(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {mapelList.map(m => (
-                <option key={m} value={m} className="bg-white text-slate-900">
-                  {m} {loggedTeacher?.mapelUtama === m ? '★ (Mapel Anda)' : ''}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700">Mata Pelajaran</label>
+              {isRestricted && (
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-emerald-700" />
+                  Mapel Diampu
+                </span>
+              )}
+            </div>
+            {isRestricted && allowedMapels.length === 1 ? (
+              <div className="w-full px-3 py-2 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-950 flex items-center justify-between shadow-xs">
+                <span>{allowedMapels[0]}</span>
+                <span className="text-[10px] text-emerald-700 font-semibold bg-white/80 px-1.5 py-0.5 rounded border border-emerald-200">
+                  Terkunci
+                </span>
+              </div>
+            ) : (
+              <select
+                value={selectedMapel}
+                onChange={(e) => setSelectedMapel(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                {allowedMapels.map(m => (
+                  <option key={m} value={m} className="bg-white text-slate-900">
+                    {m} {teacherAllMapels.includes(m) ? '★ (Mapel Anda)' : ''}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div>
@@ -591,13 +626,25 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Guru Pengampu</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-bold text-slate-700">Guru Pengampu</label>
+              {isRestricted && (
+                <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-300">
+                  Akun Anda
+                </span>
+              )}
+            </div>
             <input
               type="text"
+              readOnly={isRestricted}
               value={selectedTeacher}
               onChange={(e) => setSelectedTeacher(e.target.value)}
-              disabled={!canUserEdit}
-              className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none disabled:opacity-60"
+              disabled={!canUserEdit && !isRestricted}
+              className={`w-full px-3 py-2 border rounded-xl text-xs font-bold ${
+                isRestricted
+                  ? 'bg-slate-100/90 border-slate-300 text-slate-700 cursor-not-allowed'
+                  : 'bg-slate-100 border-slate-300 text-slate-900 focus:outline-none disabled:opacity-60'
+              }`}
             />
           </div>
         </div>
