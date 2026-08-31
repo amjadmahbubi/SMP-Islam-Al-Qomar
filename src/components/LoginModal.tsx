@@ -56,9 +56,16 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       setLoginError(`Kata sandi untuk ${teacher.nama} tidak sesuai. Silakan hubungi Administrator.`);
       return;
     }
+
+    const isKepalaSekolah = !!(
+      teacher.jabatan?.toLowerCase().includes('kepala sekolah') ||
+      teacher.jabatan?.toLowerCase().includes('kepsek') ||
+      teacher.id === 'T001'
+    );
+
     setLoginError('');
     onLogin({
-      role: 'guru',
+      role: isKepalaSekolah ? 'admin' : 'guru',
       name: teacher.nama,
       email: teacher.email,
       teacherId: teacher.id
@@ -68,6 +75,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   };
 
   const selectedTeacher = teachers.find(t => t.id === selectedTeacherId) || teachers[0];
+  const isSelectedKepsek = !!(
+    selectedTeacher &&
+    (selectedTeacher.jabatan?.toLowerCase().includes('kepala sekolah') ||
+      selectedTeacher.jabatan?.toLowerCase().includes('kepsek') ||
+      selectedTeacher.id === 'T001')
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
@@ -221,17 +234,34 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                     const allMapels = [t.mapelUtama, ...(t.mapelTambahan || [])].filter(Boolean).join(' & ');
                     return (
                       <option key={t.id} value={t.id} className="bg-white text-slate-900">
-                        {t.nama} — ({allMapels || 'Guru'})
+                        {t.nama} — ({allMapels || 'Guru'}{t.jabatan && t.jabatan !== 'Guru Mata Pelajaran' ? ` • ${t.jabatan}` : ''})
                       </option>
                     );
                   })}
                 </select>
                 {selectedTeacher && (
-                  <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-400 px-1">
+                  <div className="mt-1.5 flex flex-wrap items-center justify-between text-[11px] text-slate-400 px-1 gap-1">
                     <span>NUPTK: {selectedTeacher.nuptk || '-'}</span>
+                    {selectedTeacher.jabatan && (
+                      <span className="text-amber-300 font-bold bg-amber-400/20 px-1.5 py-0.5 rounded border border-amber-400/30">
+                        {selectedTeacher.jabatan}
+                      </span>
+                    )}
                     <span className="text-emerald-400 font-semibold">
                       {[selectedTeacher.mapelUtama, ...(selectedTeacher.mapelTambahan || [])].filter(Boolean).join(', ')}
                     </span>
+                  </div>
+                )}
+
+                {isSelectedKepsek && (
+                  <div className="mt-2.5 p-3 bg-amber-500/20 border border-amber-400/40 rounded-xl text-xs text-amber-200 flex items-start gap-2">
+                    <Shield className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-amber-300">Hak Akses Kepala Sekolah:</span>
+                      <p className="text-[11px] text-amber-200/90 mt-0.5">
+                        Sebagai Kepala Sekolah, akun <strong>{selectedTeacher.nama}</strong> memiliki kewenangan <strong>Administrator Penuh</strong> untuk mengawasi dan mengelola seluruh master data, sarpras, kalender, kurikulum, dan administrasi guru.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

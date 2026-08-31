@@ -275,6 +275,7 @@ export function App() {
       <Header
         schoolInfo={schoolInfo}
         session={session}
+        teachers={teachers}
         onOpenLoginModal={() => setIsLoginOpen(true)}
         onLogout={handleLogout}
         activeTab={activeTab}
@@ -303,6 +304,7 @@ export function App() {
             <div className="fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto w-72 lg:w-64 shrink-0 p-4 lg:p-0 bg-slate-950/95 lg:bg-transparent overflow-y-auto lg:overflow-visible transition-all duration-300">
               <Sidebar
                 session={session}
+                teachers={teachers}
                 activeTab={activeTab}
                 setActiveTab={handleSelectTab}
                 onCloseMobile={() => setIsSidebarOpen(false)}
@@ -421,6 +423,8 @@ export function App() {
             <DataSarprasView
               sarpras={sarpras}
               onSaveSarpras={handleSaveSarpras}
+              session={session}
+              teachers={teachers}
             />
           )}
 
@@ -430,6 +434,8 @@ export function App() {
               teachers={teachers}
               students={students}
               schoolInfo={schoolInfo}
+              sarpras={sarpras}
+              session={session}
               onSaveSchedules={handleSaveSchedules}
               onSaveStudents={handleSaveStudents}
               onSaveTeachers={handleSaveTeachers}
@@ -440,6 +446,8 @@ export function App() {
             <KalenderKelolaView
               events={events}
               agendas={agendas}
+              session={session}
+              teachers={teachers}
               onSaveEvents={handleSaveEvents}
               onSaveAgendas={handleSaveAgendas}
             />

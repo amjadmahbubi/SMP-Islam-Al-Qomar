@@ -1,10 +1,11 @@
 import React from 'react';
-import { UserSession, SchoolInfo, GoogleSheetsConfig } from '../types';
+import { UserSession, SchoolInfo, GoogleSheetsConfig, Teacher } from '../types';
 import { School, LogIn, LogOut, ShieldCheck, UserCheck, Eye, FileSpreadsheet, Menu, X, Sun, Moon, AlertTriangle } from 'lucide-react';
 
 interface HeaderProps {
   schoolInfo: SchoolInfo;
   session: UserSession;
+  teachers?: Teacher[];
   onOpenLoginModal: () => void;
   onLogout: () => void;
   activeTab: string;
@@ -20,6 +21,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   schoolInfo,
   session,
+  teachers = [],
   onOpenLoginModal,
   onLogout,
   activeTab,
@@ -31,6 +33,14 @@ export const Header: React.FC<HeaderProps> = ({
   sheetsConfig,
   hasSheetsMismatch = false
 }) => {
+  const loggedTeacher = teachers.find(
+    t => (session.teacherId && t.id === session.teacherId) || t.nama === session.name
+  );
+  const isKepalaSekolah = !!(
+    loggedTeacher &&
+    (loggedTeacher.jabatan?.toLowerCase().includes('kepala sekolah') ||
+      loggedTeacher.jabatan?.toLowerCase().includes('kepsek'))
+  );
   return (
     <header className="bg-slate-900/70 backdrop-blur-xl text-white shadow-2xl sticky top-0 z-30 border-b border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -84,13 +94,24 @@ export const Header: React.FC<HeaderProps> = ({
               {session.role === 'admin' && (
                 <div className="flex items-center gap-1.5 text-amber-300 font-semibold">
                   <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  <span>Admin DAPODIK</span>
+                  <span>
+                    {isKepalaSekolah
+                      ? `Kepala Sekolah (${session.name.split(',')[0]})`
+                      : session.teacherId
+                      ? `Admin • ${session.name.split(',')[0]}`
+                      : 'Admin DAPODIK'}
+                  </span>
                 </div>
               )}
               {session.role === 'guru' && (
                 <div className="flex items-center gap-1.5 text-emerald-300 font-semibold">
                   <UserCheck className="w-4 h-4 text-emerald-400" />
-                  <span className="truncate max-w-[130px]">{session.name}</span>
+                  <span className="truncate max-w-[150px]">
+                    {session.name.split(',')[0]}
+                    {loggedTeacher?.jabatan && loggedTeacher.jabatan !== 'Guru Mata Pelajaran'
+                      ? ` (${loggedTeacher.jabatan.split('&')[0].trim()})`
+                      : ''}
+                  </span>
                 </div>
               )}
               {session.role === 'public' && (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserSession } from '../types';
+import { UserSession, Teacher } from '../types';
 import {
   BarChart3,
   Calendar,
@@ -19,13 +19,15 @@ import {
   X,
   UserPlus,
   Image as ImageIcon,
-  MessageSquare
+  MessageSquare,
+  ShieldCheck
 } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
   session: UserSession;
+  teachers?: Teacher[];
   onCloseMobile?: () => void;
 }
 
@@ -33,10 +35,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   setActiveTab,
   session,
+  teachers = [],
   onCloseMobile
 }) => {
   const isGuru = session.role === 'guru' || session.role === 'admin';
   const isAdmin = session.role === 'admin';
+
+  const loggedTeacher = teachers.find(
+    t => (session.teacherId && t.id === session.teacherId) || t.nama === session.name
+  );
+
+  const isWakaSarpras = !!(
+    loggedTeacher &&
+    (loggedTeacher.jabatan?.toLowerCase().includes('sarpras') ||
+      loggedTeacher.jabatan?.toLowerCase().includes('sarana'))
+  );
+
+  const isWakaKurikulum = !!(
+    loggedTeacher &&
+    (loggedTeacher.jabatan?.toLowerCase().includes('kurikulum') ||
+      loggedTeacher.jabatan?.toLowerCase().includes('kurikuler'))
+  );
+
+  const isWakaKesiswaan = !!(
+    loggedTeacher &&
+    (loggedTeacher.jabatan?.toLowerCase().includes('kesiswaan') ||
+      loggedTeacher.jabatan?.toLowerCase().includes('santri'))
+  );
+
+  const isKoordinatorUmmi = !!(
+    loggedTeacher &&
+    (loggedTeacher.jabatan?.toLowerCase().includes('ummi') ||
+      loggedTeacher.jabatan?.toLowerCase().includes('tahfidz') ||
+      loggedTeacher.jabatan?.toLowerCase().includes('qur') ||
+      loggedTeacher.jabatan?.toLowerCase().includes('diniyah'))
+  );
+
+  const hasTugasTambahan = session.role === 'guru' && (isWakaKurikulum || isWakaKesiswaan || isKoordinatorUmmi || isWakaSarpras);
 
   const handleSelectTab = (tabId: string) => {
     setActiveTab(tabId);
@@ -160,6 +195,121 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               );
             })}
+          </nav>
+        </div>
+      )}
+
+      {/* SECTION 2B: TUGAS TAMBAHAN WAKA & KOORDINATOR (For Guru who is Waka / Koordinator) */}
+      {hasTugasTambahan && (
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-amber-300 mb-2 px-3 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+              <span>Tugas Tambahan & Otoritas</span>
+            </span>
+            <span className="bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[9px] px-1.5 py-0.5 rounded font-bold">
+              KHUSUS
+            </span>
+          </div>
+          <nav className="space-y-1">
+            {/* Waka Kurikulum */}
+            {isWakaKurikulum && (
+              <>
+                <button
+                  onClick={() => handleSelectTab('kelola-jadwal')}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                    activeTab === 'kelola-jadwal'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-lg font-semibold'
+                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 truncate">
+                    <Clock className={`w-4 h-4 shrink-0 ${activeTab === 'kelola-jadwal' ? 'text-amber-400' : 'text-amber-400/70'}`} />
+                    <span className="truncate">Kelola Jadwal Kelas</span>
+                  </div>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded shrink-0">
+                    Kurikulum
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => handleSelectTab('kelola-kalender')}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                    activeTab === 'kelola-kalender'
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-lg font-semibold'
+                      : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 truncate">
+                    <CalendarDays className={`w-4 h-4 shrink-0 ${activeTab === 'kelola-kalender' ? 'text-amber-400' : 'text-amber-400/70'}`} />
+                    <span className="truncate">Kalender & Agenda</span>
+                  </div>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded shrink-0">
+                    Kurikulum
+                  </span>
+                </button>
+              </>
+            )}
+
+            {/* Waka Kesiswaan */}
+            {isWakaKesiswaan && !isWakaKurikulum && (
+              <button
+                onClick={() => handleSelectTab('kelola-kalender')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                  activeTab === 'kelola-kalender'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-lg font-semibold'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-3 truncate">
+                  <CalendarDays className={`w-4 h-4 shrink-0 ${activeTab === 'kelola-kalender' ? 'text-amber-400' : 'text-amber-400/70'}`} />
+                  <span className="truncate">Agenda & Kalender</span>
+                </div>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 rounded shrink-0">
+                  Kesiswaan
+                </span>
+              </button>
+            )}
+
+            {/* Koordinator Ummi */}
+            {isKoordinatorUmmi && !isWakaKurikulum && !isWakaKesiswaan && (
+              <button
+                onClick={() => handleSelectTab('kelola-kalender')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                  activeTab === 'kelola-kalender'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-lg font-semibold'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-3 truncate">
+                  <Calendar className={`w-4 h-4 shrink-0 ${activeTab === 'kelola-kalender' ? 'text-amber-400' : 'text-amber-400/70'}`} />
+                  <span className="truncate">Agenda Ummi & Tahfidz</span>
+                </div>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 bg-teal-400/20 text-teal-300 border border-teal-400/30 rounded shrink-0">
+                  Koord. Ummi
+                </span>
+              </button>
+            )}
+
+            {/* Waka Sarpras */}
+            {isWakaSarpras && (
+              <button
+                onClick={() => handleSelectTab('data-sarpras')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                  activeTab === 'data-sarpras'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 shadow-lg font-semibold'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-3 truncate">
+                  <Package className={`w-4 h-4 shrink-0 ${activeTab === 'data-sarpras' ? 'text-amber-400' : 'text-amber-400/70'}`} />
+                  <span className="truncate">Data Sarpras Sekolah</span>
+                </div>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 rounded shrink-0">
+                  Sarpras
+                </span>
+              </button>
+            )}
           </nav>
         </div>
       )}

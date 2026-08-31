@@ -80,7 +80,7 @@ export const initialTeachers: Teacher[] = [
     nama: 'Ustadz Muhammad Ridwan, Lc., M.A.',
     gender: 'L',
     mapelUtama: 'Bahasa Arab & Tahfidz',
-    jabatan: 'Wali Kelas 8A & Koordinator Tahfidz',
+    jabatan: 'Wali Kelas 8A & Koordinator Ummi & Tahfidz',
     email: 'ridwan@alqomar.sch.id',
     telepon: '081234567803',
     statusPegawai: 'GTY',
@@ -137,7 +137,7 @@ export const initialTeachers: Teacher[] = [
     nama: 'Ustadz Arif Budiman, S.Kom.',
     gender: 'L',
     mapelUtama: 'Informatika & Media',
-    jabatan: 'Kepala Lab Komputer & IT',
+    jabatan: 'Waka Sarpras & Kepala Lab IT',
     email: 'arif@alqomar.sch.id',
     telepon: '081234567808',
     statusPegawai: 'GTT'
@@ -290,7 +290,7 @@ export const initialStudents: Student[] = [
 export const initialSarpras: SarprasItem[] = [
   {
     id: 'SRP001',
-    kode: 'R-7A',
+    kode: 'R-001',
     namaBarangRuang: 'Gedung Ruang Kelas 7A (Multimedia)',
     kategori: 'Ruang / Gedung',
     jumlah: 1,
@@ -303,7 +303,7 @@ export const initialSarpras: SarprasItem[] = [
   },
   {
     id: 'SRP002',
-    kode: 'R-LAB-KOMP',
+    kode: 'R-002',
     namaBarangRuang: 'Laboratorium Komputer & Media Digital',
     kategori: 'Ruang / Gedung',
     jumlah: 1,
@@ -316,11 +316,11 @@ export const initialSarpras: SarprasItem[] = [
   },
   {
     id: 'SRP003',
-    kode: 'M-MSJD',
+    kode: 'AG-001',
     namaBarangRuang: 'Masjid Al Qomar (Kapasitas 600 Jamaah)',
     kategori: 'Keagamaan',
     jumlah: 1,
-    satuan: 'Bangunan',
+    satuan: 'Ruang',
     kondisiBaik: 1,
     kondisiRusakRingan: 0,
     kondisiRusakBerat: 0,
@@ -329,11 +329,11 @@ export const initialSarpras: SarprasItem[] = [
   },
   {
     id: 'SRP004',
-    kode: 'P-KOMP-32',
+    kode: 'EL-001',
     namaBarangRuang: 'Komputer Client All-in-One Lenovo',
     kategori: 'Elektronik',
     jumlah: 32,
-    satuan: 'Unit',
+    satuan: 'Unit / Pcs',
     kondisiBaik: 30,
     kondisiRusakRingan: 2,
     kondisiRusakBerat: 0,
@@ -342,7 +342,7 @@ export const initialSarpras: SarprasItem[] = [
   },
   {
     id: 'SRP005',
-    kode: 'R-LAB-IPA',
+    kode: 'LAB-001',
     namaBarangRuang: 'Laboratorium IPA Terpadu',
     kategori: 'Peralatan Lab',
     jumlah: 1,
@@ -355,7 +355,7 @@ export const initialSarpras: SarprasItem[] = [
   },
   {
     id: 'SRP006',
-    kode: 'B-PERPUS',
+    kode: 'R-003',
     namaBarangRuang: 'Perpustakaan Al-Hikmah & Digital Learning',
     kategori: 'Ruang / Gedung',
     jumlah: 1,
@@ -368,11 +368,11 @@ export const initialSarpras: SarprasItem[] = [
   },
   {
     id: 'SRP007',
-    kode: 'L-LAP-SBRG',
+    kode: 'OR-001',
     namaBarangRuang: 'Lapangan Olahraga Serbaguna (Futsal, Basket, Voli)',
     kategori: 'Olahraga & Seni',
     jumlah: 1,
-    satuan: 'Lapangan',
+    satuan: 'Set',
     kondisiBaik: 1,
     kondisiRusakRingan: 0,
     kondisiRusakBerat: 0,
@@ -381,16 +381,29 @@ export const initialSarpras: SarprasItem[] = [
   },
   {
     id: 'SRP008',
-    kode: 'E-PROY-LCD',
+    kode: 'EL-002',
     namaBarangRuang: 'Proyektor EPSON EB-E500 3300 Lumens',
     kategori: 'Elektronik',
     jumlah: 8,
-    satuan: 'Unit',
+    satuan: 'Unit / Pcs',
     kondisiBaik: 7,
     kondisiRusakRingan: 1,
     kondisiRusakBerat: 0,
     lokasi: 'Seluruh Ruang Kelas & Ruang Rapat',
     keterangan: '1 unit di R-8B penggantian lampu proyektor'
+  },
+  {
+    id: 'SRP009',
+    kode: 'M-001',
+    namaBarangRuang: 'Set Meja & Kursi Siswa Kayu Jati Ergonomis',
+    kategori: 'Mebelair',
+    jumlah: 36,
+    satuan: 'Set',
+    kondisiBaik: 36,
+    kondisiRusakRingan: 0,
+    kondisiRusakBerat: 0,
+    lokasi: 'Kelas 7A & 7B',
+    keterangan: 'Set meja kursi standar Kemdikbud/Kemenag untuk kenyamanan belajar'
   }
 ];
 
