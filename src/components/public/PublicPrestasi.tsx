@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { StudentAchievement, Student, UserSession } from '../../types';
+import React, { useState, useMemo } from 'react';
+import { StudentAchievement, Student, UserSession, Teacher, ScheduleItem } from '../../types';
+import { getAllClasses } from '../../data/constants';
 import {
   Trophy,
   Award,
@@ -19,6 +20,8 @@ import {
 interface PublicPrestasiProps {
   achievements: StudentAchievement[];
   students: Student[];
+  schedules?: ScheduleItem[];
+  teachers?: Teacher[];
   session: UserSession;
   onSaveAchievements: (updated: StudentAchievement[]) => void;
 }
@@ -26,14 +29,23 @@ interface PublicPrestasiProps {
 export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
   achievements,
   students,
+  schedules = [],
+  teachers = [],
   session,
   onSaveAchievements
 }) => {
   const isAuthorized = session.role === 'admin' || session.role === 'guru';
 
+  const dynamicClasses = useMemo(
+    () => getAllClasses(students, schedules, teachers),
+    [students, schedules, teachers]
+  );
+  const formatClassLabel = (c: string) => (c.toLowerCase().startsWith('kelas') ? c : `Kelas ${c}`);
+
   // Filters
   const [selectedKategori, setSelectedKategori] = useState<string>('Semua');
   const [selectedTingkat, setSelectedTingkat] = useState<string>('Semua');
+  const [selectedKelas, setSelectedKelas] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Form Modal State
@@ -42,7 +54,7 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
 
   const [formData, setFormData] = useState<Omit<StudentAchievement, 'id'>>({
     studentName: '',
-    kelas: '7A',
+    kelas: dynamicClasses[0] || '7A',
     judulPrestasi: '',
     kategori: "Tahfidz & Al-Qur'an",
     tingkat: 'Provinsi',
@@ -69,12 +81,13 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
   const filteredAchievements = achievements.filter((item) => {
     const matchCategory = selectedKategori === 'Semua' || item.kategori === selectedKategori;
     const matchLevel = selectedTingkat === 'Semua' || item.tingkat === selectedTingkat;
+    const matchClass = selectedKelas === 'Semua' || item.kelas === selectedKelas;
     const matchSearch =
       item.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.judulPrestasi.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.penyelenggara.toLowerCase().includes(searchQuery.toLowerCase());
 
-    return matchCategory && matchLevel && matchSearch;
+    return matchCategory && matchLevel && matchClass && matchSearch;
   });
 
   // Stats
@@ -87,11 +100,11 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
     setEditingId(null);
     setFormData({
       studentName: '',
-      kelas: '7A',
+      kelas: dynamicClasses[0] || '7A',
       judulPrestasi: '',
       kategori: "Tahfidz & Al-Qur'an",
       tingkat: 'Provinsi',
-      tahun: '2024',
+      tahun: new Date().getFullYear().toString(),
       penyelenggara: '',
       pembimbing: '',
       medali: 'Juara 1',
@@ -272,33 +285,51 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
           </div>
         </div>
 
-        {/* Level & Search */}
+        {/* Level, Class & Search */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-2 border-t border-white/10">
-          <div className="md:col-span-6 flex flex-wrap gap-1.5 items-center">
-            <span className="text-xs text-slate-400 font-medium mr-1 flex items-center gap-1">
-              <Filter className="w-3.5 h-3.5" /> Tingkat:
-            </span>
-            {levels.map((lvl) => (
-              <button
-                key={lvl}
-                onClick={() => setSelectedTingkat(lvl)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                  selectedTingkat === lvl
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 font-bold'
-                    : 'bg-slate-950/40 text-slate-300 hover:bg-white/10 border border-white/5'
-                }`}
+          <div className="md:col-span-7 flex flex-wrap gap-2 items-center">
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-xs text-slate-400 font-medium mr-1 flex items-center gap-1">
+                <Filter className="w-3.5 h-3.5" /> Tingkat:
+              </span>
+              {levels.map((lvl) => (
+                <button
+                  key={lvl}
+                  onClick={() => setSelectedTingkat(lvl)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+                    selectedTingkat === lvl
+                      ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 font-bold'
+                      : 'bg-slate-950/40 text-slate-300 hover:bg-white/10 border border-white/5'
+                  }`}
+                >
+                  {lvl}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-1.5 pl-2 border-l border-white/10">
+              <span className="text-xs text-slate-400 font-medium">Kelas:</span>
+              <select
+                value={selectedKelas}
+                onChange={(e) => setSelectedKelas(e.target.value)}
+                className="px-2.5 py-1 bg-slate-950/60 border border-white/10 rounded-lg text-xs font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               >
-                {lvl}
-              </button>
-            ))}
+                <option value="Semua" className="bg-slate-900 text-white">Semua Kelas</option>
+                {dynamicClasses.map((c) => (
+                  <option key={c} value={c} className="bg-slate-900 text-white">
+                    {formatClassLabel(c)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="md:col-span-6 relative">
+          <div className="md:col-span-5 relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari nama siswa, judul kejuaraan, penyelenggara..."
+              placeholder="Cari nama siswa, judul kejuaraan..."
               className="w-full px-4 py-2 pl-10 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-500"
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -341,7 +372,7 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
                         {item.studentName}
                       </span>
                       <span className="text-xs font-semibold text-slate-300 bg-white/10 px-2 py-0.5 rounded">
-                        Kelas {item.kelas}
+                        {formatClassLabel(item.kelas)}
                       </span>
                     </div>
 
@@ -440,7 +471,7 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
                 <datalist id="studentList">
                   {students.map((s) => (
                     <option key={s.id} value={s.nama}>
-                      {s.nama} (Kelas {s.kelas})
+                      {s.nama} ({formatClassLabel(s.kelas)})
                     </option>
                   ))}
                 </datalist>
@@ -454,12 +485,11 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
                     onChange={(e) => setFormData({ ...formData, kelas: e.target.value })}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
-                    <option value="7A" className="bg-white text-slate-900">7A</option>
-                    <option value="7B" className="bg-white text-slate-900">7B</option>
-                    <option value="8A" className="bg-white text-slate-900">8A</option>
-                    <option value="8B" className="bg-white text-slate-900">8B</option>
-                    <option value="9A" className="bg-white text-slate-900">9A</option>
-                    <option value="9B" className="bg-white text-slate-900">9B</option>
+                    {dynamicClasses.map((c) => (
+                      <option key={c} value={c} className="bg-white text-slate-900">
+                        {formatClassLabel(c)}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

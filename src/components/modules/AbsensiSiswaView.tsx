@@ -221,7 +221,11 @@ export const AbsensiSiswaView: React.FC<AbsensiSiswaViewProps> = ({
               onChange={(e) => setSelectedClass(e.target.value)}
               className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              {classes.map(c => <option key={c} value={c} className="bg-white text-slate-900">Kelas {c}</option>)}
+              {classes.map(c => (
+                <option key={c} value={c} className="bg-white text-slate-900">
+                  {c.toLowerCase().startsWith('kelas') ? c : `Kelas ${c}`}
+                </option>
+              ))}
             </select>
           </div>
 

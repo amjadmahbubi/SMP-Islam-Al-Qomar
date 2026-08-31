@@ -44,7 +44,12 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
   onSaveStudents = () => {},
   onSaveTeachers = () => {}
 }) => {
-  const dynamicClasses = getAllClasses(students, schedules, teachers);
+  const [classesVersion, setClassesVersion] = useState(0);
+  const dynamicClasses = React.useMemo(
+    () => getAllClasses(students, schedules, teachers),
+    [students, schedules, teachers, classesVersion]
+  );
+  const formatClassLabel = (c: string) => (c.toLowerCase().startsWith('kelas') ? c : `Kelas ${c}`);
 
   const [selectedClass, setSelectedClass] = useState<string>(dynamicClasses[0] || '7A');
   const [selectedDay, setSelectedDay] = useState<string>('Senin');
@@ -450,7 +455,7 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
                 }`}
               >
-                Kelas {c}
+                {formatClassLabel(c)}
               </button>
             ))}
           </div>
@@ -684,7 +689,7 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
                         </option>
                         {dynamicClasses.map(c => (
                           <option key={c} value={c} className="bg-white text-slate-900">
-                            Kelas {c}
+                            {formatClassLabel(c)}
                           </option>
                         ))}
                       </optgroup>
@@ -982,6 +987,7 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
         onUpdateStudents={onSaveStudents}
         onUpdateSchedules={onSaveSchedules}
         onUpdateTeachers={onSaveTeachers}
+        onClassesChange={() => setClassesVersion(v => v + 1)}
       />
 
     </div>

@@ -325,6 +325,7 @@ export function App() {
               schoolInfo={schoolInfo}
               students={students}
               teachers={teachers}
+              schedules={schedules}
               sarpras={sarpras}
               attendance={attendance}
               grades={grades}
@@ -355,6 +356,8 @@ export function App() {
             <PublicPrestasi
               achievements={achievements}
               students={students}
+              schedules={schedules}
+              teachers={teachers}
               session={session}
               onSaveAchievements={handleSaveAchievements}
             />
@@ -404,6 +407,8 @@ export function App() {
           {activeTab === 'data-guru' && (
             <DataGuruView
               teachers={teachers}
+              students={students}
+              schedules={schedules}
               onSaveTeachers={handleSaveTeachers}
             />
           )}

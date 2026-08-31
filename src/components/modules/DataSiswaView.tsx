@@ -22,6 +22,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
   teachers = [],
   onSaveTeachers = () => {}
 }) => {
+  const [classesVersion, setClassesVersion] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('Semua');
   const [statusFilter, setStatusFilter] = useState('Aktif');
@@ -32,12 +33,19 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
   const [isCustomClass, setIsCustomClass] = useState(false);
   const [customClassInput, setCustomClassInput] = useState('');
 
+  const classes = React.useMemo(
+    () => getAllClasses(students, schedules, teachers),
+    [students, schedules, teachers, classesVersion]
+  );
+
+  const formatClassLabel = (c: string) => (c.toLowerCase().startsWith('kelas') ? c : `Kelas ${c}`);
+
   const [form, setForm] = useState<Partial<Student>>({
     nisn: '',
     nis: '',
     nama: '',
     gender: 'L',
-    kelas: '7A',
+    kelas: classes[0] || '7A',
     tempatLahir: 'Banyuwangi',
     tanggalLahir: '2011-01-01',
     namaOrangTua: '',
@@ -49,8 +57,6 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
     alamat: '',
     status: 'Aktif'
   });
-
-  const classes = getAllClasses(students);
 
   const filteredStudents = students.filter((s) => {
     const matchSearch =
@@ -253,7 +259,11 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
               className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="Semua" className="bg-white text-slate-900">Semua Kelas</option>
-              {classes.map(c => <option key={c} value={c} className="bg-white text-slate-900">Kelas {c}</option>)}
+              {classes.map(c => (
+                <option key={c} value={c} className="bg-white text-slate-900">
+                  {formatClassLabel(c)}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -454,7 +464,11 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
                     }}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
-                    {classes.map(c => <option key={c} value={c} className="bg-white text-slate-900">Kelas {c}</option>)}
+                    {classes.map(c => (
+                      <option key={c} value={c} className="bg-white text-slate-900">
+                        {formatClassLabel(c)}
+                      </option>
+                    ))}
                     <option value="__CUSTOM__" className="bg-emerald-50 text-emerald-950 font-bold">
                       + Tulis Kelas Kustom Baru...
                     </option>
@@ -653,6 +667,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
         onUpdateStudents={onSaveStudents}
         onUpdateSchedules={onSaveSchedules}
         onUpdateTeachers={onSaveTeachers}
+        onClassesChange={() => setClassesVersion(v => v + 1)}
       />
 
     </div>

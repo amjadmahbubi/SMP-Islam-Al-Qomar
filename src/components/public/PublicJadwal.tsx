@@ -88,7 +88,7 @@ export const PublicJadwal: React.FC<PublicJadwalProps> = ({
                     : 'bg-slate-950/40 text-slate-300 hover:bg-white/10 border border-white/5'
                 }`}
               >
-                Kelas {cls}
+                {cls.toLowerCase().startsWith('kelas') ? cls : `Kelas ${cls}`}
               </button>
             ))}
           </div>

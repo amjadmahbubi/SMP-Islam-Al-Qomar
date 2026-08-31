@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
-import { Teacher } from '../../types';
+import { Teacher, Student, ScheduleItem } from '../../types';
 import { exportToCSV } from '../../services/storage';
 import { GraduationCap, Plus, Search, Download, Edit3, Trash2, X, Check, Filter, Key, ShieldCheck, Lock, AlertCircle, Sparkles, BookOpen } from 'lucide-react';
 import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
 
 interface DataGuruViewProps {
   teachers: Teacher[];
+  students?: Student[];
+  schedules?: ScheduleItem[];
   onSaveTeachers: (teachers: Teacher[]) => void;
 }
 
-export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeachers }) => {
-  const dynamicClasses = getAllClasses([], [], teachers);
+export const DataGuruView: React.FC<DataGuruViewProps> = ({
+  teachers,
+  students = [],
+  schedules = [],
+  onSaveTeachers
+}) => {
+  const dynamicClasses = getAllClasses(students, schedules, teachers);
+  const formatClassLabel = (c: string) => (c.toLowerCase().startsWith('kelas') ? c : `Kelas ${c}`);
   const mapelList = DEFAULT_MAPEL_LIST;
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -605,7 +613,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({ teachers, onSaveTeac
                     <option value="" className="bg-white text-slate-900">-- Bukan Wali Kelas --</option>
                     {dynamicClasses.map(c => (
                       <option key={c} value={c} className="bg-white text-slate-900">
-                        Kelas {c}
+                        {formatClassLabel(c)}
                       </option>
                     ))}
                   </select>

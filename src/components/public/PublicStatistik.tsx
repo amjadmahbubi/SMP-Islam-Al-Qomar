@@ -1,5 +1,6 @@
-import React from 'react';
-import { SchoolInfo, Student, Teacher, SarprasItem } from '../../types';
+import React, { useMemo } from 'react';
+import { SchoolInfo, Student, Teacher, SarprasItem, ScheduleItem, AttendanceRecord, SubjectGradeRecord } from '../../types';
+import { getAllClasses } from '../../data/constants';
 import { Users, GraduationCap, Building2, Award, BookOpen, HeartHandshake, CheckCircle, MapPin, Phone, Mail, Globe, ShieldCheck } from 'lucide-react';
 
 interface PublicStatistikProps {
@@ -7,15 +8,29 @@ interface PublicStatistikProps {
   students: Student[];
   teachers: Teacher[];
   sarpras: SarprasItem[];
+  schedules?: ScheduleItem[];
+  attendance?: AttendanceRecord[];
+  grades?: SubjectGradeRecord[];
 }
 
 export const PublicStatistik: React.FC<PublicStatistikProps> = ({
   schoolInfo,
   students,
   teachers,
-  sarpras
+  sarpras,
+  schedules = []
 }) => {
   const activeStudents = students.filter(s => s.status === 'Aktif');
+
+  const dynamicClasses = useMemo(
+    () => getAllClasses(students, schedules, teachers),
+    [students, schedules, teachers]
+  );
+  const formatClassLabel = (c: string) => (c.toLowerCase().startsWith('kelas') ? c : `Kelas ${c}`);
+
+  const rombelSubText = dynamicClasses.length > 0 
+    ? dynamicClasses.map(c => formatClassLabel(c)).join(', ') 
+    : 'Semua Rombel';
 
   const statsCards = [
     {
@@ -38,12 +53,12 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
     },
     {
       title: 'Rombongan Belajar (Rombel)',
-      value: 6,
+      value: dynamicClasses.length,
       unit: 'Kelas',
-      sub: '7A, 7B, 8A, 8B, 9A, 9B',
+      sub: rombelSubText,
       icon: Building2,
       color: 'from-amber-700 to-amber-600',
-      badge: 'Ruang Multimedia'
+      badge: 'Aktif Terdata'
     },
     {
       title: 'Status Akreditasi BAN-S/M',
