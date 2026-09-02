@@ -23,6 +23,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
+  const [genderFilter, setGenderFilter] = useState('Semua');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
 
@@ -62,7 +63,8 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
       t.nuptk.includes(searchTerm) ||
       t.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = statusFilter === 'Semua' || t.statusPegawai === statusFilter;
-    return matchSearch && matchStatus;
+    const matchGender = genderFilter === 'Semua' || t.gender === genderFilter;
+    return matchSearch && matchStatus && matchGender;
   });
 
   const handleOpenAdd = () => {
@@ -251,19 +253,34 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <span className="text-xs text-slate-700 font-bold whitespace-nowrap">Status Pegawai:</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            <option value="Semua" className="bg-white text-slate-900">Semua Status</option>
-            <option value="PNS" className="bg-white text-slate-900">PNS</option>
-            <option value="GTY" className="bg-white text-slate-900">GTY (Guru Tetap Yayasan)</option>
-            <option value="GTT" className="bg-white text-slate-900">GTT (Guru Tidak Tetap)</option>
-            <option value="Honor" className="bg-white text-slate-900">Honor</option>
-          </select>
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-700 font-bold whitespace-nowrap">Status:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="Semua" className="bg-white text-slate-900">Semua Status</option>
+              <option value="PNS" className="bg-white text-slate-900">PNS</option>
+              <option value="GTY" className="bg-white text-slate-900">GTY (Guru Tetap Yayasan)</option>
+              <option value="GTT" className="bg-white text-slate-900">GTT (Guru Tidak Tetap)</option>
+              <option value="Honor" className="bg-white text-slate-900">Honor</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-700 font-bold whitespace-nowrap">Gender:</span>
+            <select
+              value={genderFilter}
+              onChange={(e) => setGenderFilter(e.target.value)}
+              className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="Semua" className="bg-white text-slate-900">Semua (L & P)</option>
+              <option value="L" className="bg-white text-slate-900">Laki-Laki (Ustadz)</option>
+              <option value="P" className="bg-white text-slate-900">Perempuan (Ustadzah)</option>
+            </select>
+          </div>
         </div>
 
       </div>
@@ -275,6 +292,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
                 <th className="p-3.5">Nama & NUPTK</th>
+                <th className="p-3.5">L/P</th>
                 <th className="p-3.5">Mata Pelajaran Diampu</th>
                 <th className="p-3.5">Jabatan / Wali Kelas</th>
                 <th className="p-3.5">Status Pegawai</th>
@@ -290,6 +308,16 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
                     <div className="text-[11px] font-mono text-slate-500">
                       NUPTK: {teacher.nuptk} {(teacher.nigy || teacher.nip) ? `| NIGY: ${teacher.nigy || teacher.nip}` : ''}
                     </div>
+                  </td>
+                  <td className="p-3.5 font-bold text-slate-700">
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold border ${
+                      teacher.gender === 'P'
+                        ? 'bg-pink-50 text-pink-700 border-pink-200'
+                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}>
+                      <span>{teacher.gender === 'P' ? '👩 P' : '👨 L'}</span>
+                      <span className="hidden sm:inline">({teacher.gender === 'P' ? 'Ustadzah' : 'Ustadz'})</span>
+                    </span>
                   </td>
                   <td className="p-3.5">
                     <div className="font-semibold text-emerald-900 flex items-center gap-1.5 flex-wrap">
@@ -395,9 +423,37 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
                   value={form.nama}
                   onChange={(e) => setForm({ ...form, nama: e.target.value })}
                   required
-                  placeholder="Ustadz / Ustadzah..."
+                  placeholder="Contoh: Ustadz H. Ahmad Basuki, M.Pd. / Ustadzah Siti Fatimah, S.Pd."
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Jenis Kelamin</label>
+                  <select
+                    value={form.gender || 'L'}
+                    onChange={(e) => setForm({ ...form, gender: e.target.value as 'L' | 'P' })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  >
+                    <option value="L" className="bg-white text-slate-900">👨 Laki-Laki (Ustadz)</option>
+                    <option value="P" className="bg-white text-slate-900">👩 Perempuan (Ustadzah)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Status Kepegawaian</label>
+                  <select
+                    value={form.statusPegawai}
+                    onChange={(e) => setForm({ ...form, statusPegawai: e.target.value as any })}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  >
+                    <option value="GTY" className="bg-white text-slate-900">GTY (Guru Tetap Yayasan)</option>
+                    <option value="PNS" className="bg-white text-slate-900">PNS</option>
+                    <option value="GTT" className="bg-white text-slate-900">GTT (Guru Tidak Tetap)</option>
+                    <option value="Honor" className="bg-white text-slate-900">Honor</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -423,66 +479,50 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-bold text-slate-700">Mata Pelajaran Utama</label>
-                    <button
-                      type="button"
-                      onClick={() => setIsCustomMapel(!isCustomMapel)}
-                      className="text-[11px] font-bold text-emerald-800 hover:underline"
-                    >
-                      {isCustomMapel ? 'Daftar' : '+ Kustom'}
-                    </button>
-                  </div>
-                  {isCustomMapel ? (
-                    <input
-                      type="text"
-                      required
-                      value={customMapelInput}
-                      onChange={(e) => setCustomMapelInput(e.target.value)}
-                      placeholder="Ketik nama mapel kustom..."
-                      className="w-full px-3 py-2 bg-white border border-emerald-500 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    />
-                  ) : (
-                    <select
-                      value={form.mapelUtama}
-                      onChange={(e) => {
-                        if (e.target.value === '__CUSTOM__') {
-                          setIsCustomMapel(true);
-                          setCustomMapelInput('');
-                        } else {
-                          setForm({ ...form, mapelUtama: e.target.value });
-                        }
-                      }}
-                      required
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    >
-                      {mapelList.map(m => (
-                        <option key={m} value={m} className="bg-white text-slate-900">
-                          {m} {(m === 'Bahasa Jawa' || m === "Imla'") ? '★' : ''}
-                        </option>
-                      ))}
-                      <option value="__CUSTOM__" className="bg-emerald-50 text-emerald-950 font-bold">
-                        + Ketik Mapel Kustom...
-                      </option>
-                    </select>
-                  )}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-700">Mata Pelajaran Utama</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsCustomMapel(!isCustomMapel)}
+                    className="text-[11px] font-bold text-emerald-800 hover:underline"
+                  >
+                    {isCustomMapel ? 'Daftar' : '+ Kustom'}
+                  </button>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Status Kepegawaian</label>
+                {isCustomMapel ? (
+                  <input
+                    type="text"
+                    required
+                    value={customMapelInput}
+                    onChange={(e) => setCustomMapelInput(e.target.value)}
+                    placeholder="Ketik nama mapel kustom..."
+                    className="w-full px-3 py-2 bg-white border border-emerald-500 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                ) : (
                   <select
-                    value={form.statusPegawai}
-                    onChange={(e) => setForm({ ...form, statusPegawai: e.target.value as any })}
+                    value={form.mapelUtama}
+                    onChange={(e) => {
+                      if (e.target.value === '__CUSTOM__') {
+                        setIsCustomMapel(true);
+                        setCustomMapelInput('');
+                      } else {
+                        setForm({ ...form, mapelUtama: e.target.value });
+                      }
+                    }}
+                    required
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
-                    <option value="GTY" className="bg-white text-slate-900">GTY (Guru Tetap Yayasan)</option>
-                    <option value="PNS" className="bg-white text-slate-900">PNS</option>
-                    <option value="GTT" className="bg-white text-slate-900">GTT (Guru Tidak Tetap)</option>
-                    <option value="Honor" className="bg-white text-slate-900">Honor</option>
+                    {mapelList.map(m => (
+                      <option key={m} value={m} className="bg-white text-slate-900">
+                        {m} {(m === 'Bahasa Jawa' || m === "Imla'") ? '★' : ''}
+                      </option>
+                    ))}
+                    <option value="__CUSTOM__" className="bg-emerald-50 text-emerald-950 font-bold">
+                      + Ketik Mapel Kustom...
+                    </option>
                   </select>
-                </div>
+                )}
               </div>
 
               {/* Mata Pelajaran Tambahan / Ke-2 (Opsional) */}

@@ -40,6 +40,37 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
 
   const formatClassLabel = (c: string) => (c.toLowerCase().startsWith('kelas') ? c : `Kelas ${c}`);
 
+  // Helper to ensure date has no day of week and no time (e.g. outputs "12 April 2011" or "2011-04-12")
+  const sanitizeDateOnly = (val?: string): string => {
+    if (!val) return '2011-01-01';
+    // Remove any ISO timestamp or space timestamp
+    const clean = val.split('T')[0].split(' ')[0].trim();
+    return clean || '2011-01-01';
+  };
+
+  const formatBirthDateClean = (dateStr?: string): string => {
+    if (!dateStr) return '-';
+    // Strip any day names (e.g. "Senin, ", "Selasa, ") and times (e.g. " 00:00:00")
+    const cleanDate = dateStr.split('T')[0].split(' ')[0].replace(/^(Senin|Selasa|Rabu|Kamis|Jum'?at|Sabtu|Minggu|Ahad)[,\s]+/gi, '').trim();
+    
+    // Parse YYYY-MM-DD
+    const parts = cleanDate.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      const year = parseInt(parts[0], 10);
+      const monthIndex = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      
+      const monthNames = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      if (monthIndex >= 0 && monthIndex < 12 && !isNaN(day) && !isNaN(year)) {
+        return `${day} ${monthNames[monthIndex]} ${year}`;
+      }
+    }
+    return cleanDate;
+  };
+
   const [form, setForm] = useState<Partial<Student>>({
     nisn: '',
     nis: '',
@@ -138,6 +169,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
       const updated = students.map(s => (s.id === editingStudent.id ? ({
         ...(form as Student),
         kelas: finalKelas,
+        tanggalLahir: sanitizeDateOnly(form.tanggalLahir),
         namaOrangTua: form.namaOrangTua || autoParentSummary,
         statusAyah: form.statusAyah || 'Masih Hidup',
         statusIbu: form.statusIbu || 'Masih Hidup'
@@ -152,7 +184,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
         gender: (form.gender as 'L' | 'P') || 'L',
         kelas: finalKelas,
         tempatLahir: form.tempatLahir || 'Banyuwangi',
-        tanggalLahir: form.tanggalLahir || '2011-01-01',
+        tanggalLahir: sanitizeDateOnly(form.tanggalLahir),
         namaOrangTua: form.namaOrangTua || autoParentSummary,
         noHpOrangTua: form.noHpOrangTua || '08123456789',
         namaAyah: form.namaAyah,
@@ -316,9 +348,11 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
                   <td className="p-3.5 font-bold text-slate-700">
                     {student.gender}
                   </td>
-                  <td className="p-3.5 text-slate-600">
-                    <div>{student.tempatLahir}</div>
-                    <div className="text-[11px] text-slate-400 font-mono">{student.tanggalLahir}</div>
+                  <td className="p-3.5 text-slate-700">
+                    <div className="font-semibold text-slate-900">{student.tempatLahir}</div>
+                    <div className="text-[11px] text-slate-500 font-medium">
+                      {formatBirthDateClean(student.tanggalLahir)}
+                    </div>
                   </td>
                   <td className="p-3.5 text-slate-700">
                     <div className="font-semibold">{student.namaOrangTua}</div>
@@ -518,10 +552,11 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
                   <label className="block text-xs font-bold text-slate-700 mb-1">Tanggal Lahir</label>
                   <input
                     type="date"
-                    value={form.tanggalLahir}
-                    onChange={(e) => setForm({ ...form, tanggalLahir: e.target.value })}
+                    value={sanitizeDateOnly(form.tanggalLahir)}
+                    onChange={(e) => setForm({ ...form, tanggalLahir: sanitizeDateOnly(e.target.value) })}
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1">Format tanggal lahir murni (tanpa nama hari &amp; tanpa jam)</p>
                 </div>
               </div>
 
