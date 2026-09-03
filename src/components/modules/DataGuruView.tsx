@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Teacher, Student, ScheduleItem } from '../../types';
+import { Teacher, Student, ScheduleItem, SchoolInfo } from '../../types';
 import { exportToCSV } from '../../services/storage';
-import { GraduationCap, Plus, Search, Download, Edit3, Trash2, X, Check, Filter, Key, ShieldCheck, Lock, AlertCircle, Sparkles, BookOpen } from 'lucide-react';
+import { GraduationCap, Plus, Search, Download, Edit3, Trash2, X, Check, Filter, Key, ShieldCheck, Lock, AlertCircle, Sparkles, BookOpen, Crown } from 'lucide-react';
 import { DEFAULT_MAPEL_LIST, getAllClasses } from '../../data/constants';
 
 interface DataGuruViewProps {
   teachers: Teacher[];
   students?: Student[];
   schedules?: ScheduleItem[];
+  schoolInfo?: SchoolInfo;
   onSaveTeachers: (teachers: Teacher[]) => void;
 }
 
@@ -15,6 +16,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
   teachers,
   students = [],
   schedules = [],
+  schoolInfo,
   onSaveTeachers
 }) => {
   const dynamicClasses = getAllClasses(students, schedules, teachers);
@@ -342,9 +344,17 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
                     )}
                   </td>
                   <td className="p-3.5 text-slate-700">
-                    <div>{teacher.jabatan}</div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-semibold">{teacher.jabatan}</span>
+                      {(teacher.jabatan === 'Kepala Sekolah' || teacher.nama.trim().toLowerCase() === (schoolInfo?.kepalaSekolah || '').trim().toLowerCase()) && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                          <Crown className="w-3 h-3 text-amber-600" />
+                          <span>Kepala Sekolah</span>
+                        </span>
+                      )}
+                    </div>
                     {teacher.waliKelasDi && (
-                      <span className="inline-block mt-0.5 bg-amber-100 text-amber-900 font-bold text-[10px] px-2 py-0.5 rounded border border-amber-300">
+                      <span className="inline-block mt-1 bg-amber-50 text-amber-900 font-bold text-[10px] px-2 py-0.5 rounded border border-amber-300">
                         Wali Kelas {teacher.waliKelasDi}
                       </span>
                     )}
@@ -634,13 +644,35 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Jabatan Tambahan</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">Jabatan Tambahan / Struktural</label>
+                    {form.jabatan === 'Kepala Sekolah' && (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded border border-amber-300">
+                        ⚡ Sync Profil
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
+                    list="jabatanPresetsList"
                     value={form.jabatan}
                     onChange={(e) => setForm({ ...form, jabatan: e.target.value })}
+                    placeholder="Contoh: Kepala Sekolah / Waka Kurikulum..."
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
+                  <datalist id="jabatanPresetsList">
+                    <option value="Kepala Sekolah">Kepala Sekolah (Tersinkronisasi dengan Profil)</option>
+                    <option value="Waka Kurikulum">Waka Kurikulum</option>
+                    <option value="Waka Kesiswaan">Waka Kesiswaan</option>
+                    <option value="Waka Sarpras & Humas">Waka Sarpras & Humas</option>
+                    <option value="Koordinator Ummi & Tahfidz">Koordinator Ummi & Tahfidz</option>
+                    <option value="Guru Mata Pelajaran">Guru Mata Pelajaran</option>
+                  </datalist>
+                  {form.jabatan === 'Kepala Sekolah' && (
+                    <p className="text-[11px] text-emerald-800 font-semibold mt-1 bg-emerald-50 p-1.5 rounded border border-emerald-200">
+                      ⭐ Guru ini akan otomatis menjadi <strong>Kepala Sekolah</strong> pada Profil Sekolah dan seluruh Kop Rapor.
+                    </p>
+                  )}
                 </div>
 
                 <div>

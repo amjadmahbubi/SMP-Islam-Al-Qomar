@@ -1,15 +1,33 @@
 import React, { useState } from 'react';
-import { SchoolInfo } from '../../types';
-import { Save, School, Check, Upload, Image as ImageIcon, Trash2, Eye, FileText } from 'lucide-react';
+import { SchoolInfo, Teacher } from '../../types';
+import { Save, School, Check, Upload, Image as ImageIcon, Trash2, Eye, FileText, UserCheck, RefreshCw } from 'lucide-react';
 
 interface DataSekolahViewProps {
   schoolInfo: SchoolInfo;
+  teachers?: Teacher[];
   onSave: (info: SchoolInfo) => void;
 }
 
-export const DataSekolahView: React.FC<DataSekolahViewProps> = ({ schoolInfo, onSave }) => {
+export const DataSekolahView: React.FC<DataSekolahViewProps> = ({ schoolInfo, teachers = [], onSave }) => {
   const [formData, setFormData] = useState<SchoolInfo>(schoolInfo);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Find teacher currently assigned as Kepala Sekolah or matching the name
+  const kepsekTeacher = teachers.find(
+    t => t.jabatan === 'Kepala Sekolah' || t.nama.trim().toLowerCase() === formData.kepalaSekolah.trim().toLowerCase()
+  );
+
+  const handleSelectTeacherKepsek = (teacherId: string) => {
+    const selected = teachers.find(t => t.id === teacherId);
+    if (selected) {
+      setFormData(prev => ({
+        ...prev,
+        kepalaSekolah: selected.nama,
+        nigyKepalaSekolah: selected.nigy || selected.nip || prev.nigyKepalaSekolah,
+        nipKepalaSekolah: selected.nip || selected.nigy || prev.nipKepalaSekolah
+      }));
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -348,33 +366,99 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({ schoolInfo, on
 
         {/* Pimpinan & Kontak */}
         <div>
-          <h3 className="text-sm font-bold font-serif text-white border-b border-white/10 pb-2 mb-4">
-            2. Pimpinan & Kontak Komunikasi
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-2 mb-4 gap-2">
+            <h3 className="text-sm font-bold font-serif text-white">
+              2. Pimpinan & Kontak Komunikasi
+            </h3>
+            {kepsekTeacher && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30">
+                <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Tersinkronisasi Data Guru: {kepsekTeacher.nama}</span>
+              </span>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">Nama Kepala Sekolah</label>
-              <input
-                type="text"
-                name="kepalaSekolah"
-                value={formData.kepalaSekolah}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              />
+            <div className="md:col-span-2 lg:col-span-1 bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-500/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-emerald-300">
+                  Nama Kepala Sekolah
+                </label>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                  ⚡ Auto-Sync Guru
+                </span>
+              </div>
+
+              {teachers.length > 0 ? (
+                <div className="space-y-1.5">
+                  <select
+                    value={kepsekTeacher?.id || ''}
+                    onChange={(e) => {
+                      if (e.target.value === '__manual__') {
+                        // Keep current name and allow typing
+                        return;
+                      }
+                      handleSelectTeacherKepsek(e.target.value);
+                    }}
+                    className="w-full px-3 py-2 bg-slate-900 border border-emerald-400/60 rounded-lg text-xs font-semibold text-emerald-100 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  >
+                    <option value="" className="bg-slate-900 text-slate-300">
+                      -- Pilih Guru Penanggung Jawab Kepala Sekolah --
+                    </option>
+                    {teachers.map((t) => (
+                      <option key={t.id} value={t.id} className="bg-slate-900 text-white">
+                        {t.nama} {t.jabatan ? `(${t.jabatan})` : ''}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="text"
+                    name="kepalaSekolah"
+                    value={formData.kepalaSekolah}
+                    onChange={handleChange}
+                    required
+                    placeholder="Nama Lengkap Kepala Sekolah beserta Gelar"
+                    className="w-full px-3 py-2 bg-white border border-emerald-400 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
+                  />
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  name="kepalaSekolah"
+                  value={formData.kepalaSekolah}
+                  onChange={handleChange}
+                  required
+                  placeholder="Nama Lengkap Kepala Sekolah beserta Gelar"
+                  className="w-full px-3 py-2 bg-white border border-emerald-400 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
+                />
+              )}
+
+              <p className="text-[11px] text-emerald-200/90 leading-tight">
+                Nama ini otomatis disinkronkan ke data guru, Kop Rapor, SK, Legalisir, dan Portal Informasi.
+              </p>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">NIGY Kepala Sekolah (Yayasan)</label>
+            <div className="bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-500/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-emerald-300">
+                  NIGY / NIP Kepala Sekolah
+                </label>
+                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                  ⚡ Auto-Sync Guru
+                </span>
+              </div>
               <input
                 type="text"
                 name="nigyKepalaSekolah"
                 value={formData.nigyKepalaSekolah || formData.nipKepalaSekolah || ''}
                 onChange={(e) => setFormData(prev => ({ ...prev, nigyKepalaSekolah: e.target.value, nipKepalaSekolah: e.target.value }))}
                 placeholder="Contoh: NIGY.200501.004"
-                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                className="w-full px-3 py-2 bg-white border border-emerald-400 rounded-lg text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
               />
+              <p className="text-[11px] text-emerald-200/90 leading-tight">
+                Nomor identitas yayasan / dinas kepala sekolah untuk tanda tangan rapor dan sertifikat.
+              </p>
             </div>
 
             <div>

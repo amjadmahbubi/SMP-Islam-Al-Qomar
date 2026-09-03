@@ -422,12 +422,12 @@ function doGet(e) {
     if (rows.length <= 1) return null;
     var info = {};
     for (var i = 1; i < rows.length; i++) {
-      var key = String(rows[i][0]).toLowerCase();
-      var val = String(rows[i][1]);
-      if (key.indexOf("nama") !== -1) info.nama = val;
+      var key = String(rows[i][0] || "").toLowerCase().trim();
+      var val = String(rows[i][1] || "").trim();
+      if (key.indexOf("nama") !== -1 && key.indexOf("kepala") === -1) info.nama = val;
       if (key.indexOf("npsn") !== -1) info.npsn = val;
       if (key.indexOf("alamat") !== -1) info.alamat = val;
-      if (key.indexOf("kepala") !== -1) info.kepalaSekolah = val;
+      if (key.indexOf("kepala") !== -1 && key.indexOf("nigy") === -1 && key.indexOf("nip") === -1) info.kepalaSekolah = val;
       if (key.indexOf("nigy") !== -1 || key.indexOf("nip") !== -1) { info.nigyKepalaSekolah = val; info.nipKepalaSekolah = val; }
       if (key.indexOf("akreditasi") !== -1) info.akreditasi = val;
       if (key.indexOf("email") !== -1) info.email = val;
@@ -435,6 +435,12 @@ function doGet(e) {
       if (key.indexOf("telepon") !== -1) info.telepon = val;
       if (key.indexOf("tahun") !== -1 || key.indexOf("ajaran") !== -1) info.tahunAjaran = val;
       if (key.indexOf("semester") !== -1) info.semesterAktif = val;
+      if (key.indexOf("visi") !== -1) info.visi = val;
+      if (key.indexOf("misi") !== -1) {
+        info.misi = val.split("\n")
+          .map(function(m) { return m.replace(/^[0-9]+[\.\)\-]\s*/, "").trim(); })
+          .filter(Boolean);
+      }
     }
     return info;
   }
@@ -528,6 +534,14 @@ function doPost(e) {
 
     if (payload.schoolInfo) {
       var s = payload.schoolInfo;
+      var visiText = s.visi || "";
+      var misiText = "";
+      if (Array.isArray(s.misi) && s.misi.length > 0) {
+        misiText = s.misi.map(function(m, idx) { return (idx + 1) + ". " + m; }).join("\n");
+      } else if (typeof s.misi === "string") {
+        misiText = s.misi;
+      }
+
       updateTab("Profil_Sekolah", 
         ["Atribut / Parameter", "Nilai Informasi"], 
         [
@@ -541,7 +555,9 @@ function doPost(e) {
           ["Akreditasi", s.akreditasi || ""],
           ["Email Sekolah", s.email || ""],
           ["Website Resmi", s.website || ""],
-          ["No Telepon", s.telepon || ""]
+          ["No Telepon", s.telepon || ""],
+          ["Visi Sekolah", visiText],
+          ["Misi Sekolah", misiText]
         ]
       );
     }
@@ -1371,6 +1387,27 @@ function doPost(e) {
             </div>
           </div>
 
+          <div className="glass backdrop-blur-xl bg-slate-900/60 p-5 rounded-2xl border border-white/10 shadow-xl space-y-3 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold font-serif text-sm text-white flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-purple-400" />
+                  Tab: Profil_Sekolah
+                </span>
+                <span className="bg-purple-500/20 text-purple-300 border border-purple-400/30 font-bold text-xs px-2 py-0.5 rounded">
+                  Visi &amp; Misi Termasuk
+                </span>
+              </div>
+              <p className="text-xs text-slate-300">
+                Identitas Sekolah, NPSN, Akreditasi, Kepala Sekolah, serta butir Visi &amp; Misi (tersinkron 2-arah).
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium pt-2 border-t border-white/5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Dapat Ditarik &amp; Dikirim</span>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1473,12 +1510,30 @@ function doPost(e) {
               )}
 
               {pulledData.schoolInfo && (
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-purple-900">Profil &amp; Informasi Sekolah</p>
-                    <p className="text-[11px] text-purple-700">{pulledData.schoolInfo.nama} ({pulledData.schoolInfo.kepalaSekolah})</p>
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-purple-900">Profil &amp; Informasi Sekolah</p>
+                      <p className="text-[11px] text-purple-700">{pulledData.schoolInfo.nama} • Kepala Sekolah: {pulledData.schoolInfo.kepalaSekolah}</p>
+                    </div>
+                    <span className="text-[10px] font-bold bg-purple-200 text-purple-900 px-2 py-1 rounded">Siap Diimpor</span>
                   </div>
-                  <span className="text-[10px] font-bold bg-purple-200 text-purple-900 px-2 py-1 rounded">Siap Diimpor</span>
+                  {pulledData.schoolInfo.visi && (
+                    <div className="bg-white/80 p-2 rounded-lg border border-purple-100 text-[11px] text-purple-950">
+                      <span className="font-bold text-purple-800">Visi: </span>
+                      <span>{pulledData.schoolInfo.visi}</span>
+                    </div>
+                  )}
+                  {pulledData.schoolInfo.misi && pulledData.schoolInfo.misi.length > 0 && (
+                    <div className="bg-white/80 p-2 rounded-lg border border-purple-100 text-[11px] text-purple-950">
+                      <span className="font-bold text-purple-800">Misi ({pulledData.schoolInfo.misi.length} butir):</span>
+                      <ol className="list-decimal list-inside mt-0.5 space-y-0.5 text-[10px] text-slate-700">
+                        {pulledData.schoolInfo.misi.map((m, i) => (
+                          <li key={i}>{m}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
                 </div>
               )}
 

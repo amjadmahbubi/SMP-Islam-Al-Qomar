@@ -102,9 +102,61 @@ export function App() {
     const oldSem = schoolInfo.semesterAktif;
     const isTaChanged = oldTa !== info.tahunAjaran;
     const isSemChanged = oldSem !== info.semesterAktif;
+    const isKepsekChanged =
+      schoolInfo.kepalaSekolah !== info.kepalaSekolah ||
+      schoolInfo.nigyKepalaSekolah !== info.nigyKepalaSekolah ||
+      schoolInfo.nipKepalaSekolah !== info.nipKepalaSekolah;
 
     setSchoolInfo(info);
     StorageService.setSchoolInfo(info);
+
+    // Auto-synchronize Kepala Sekolah to Data Guru
+    if (isKepsekChanged && info.kepalaSekolah) {
+      const cleanKepsekName = info.kepalaSekolah.trim().toLowerCase();
+      let teacherUpdated = false;
+
+      let updatedTeachers = teachers.map(t => {
+        const matchName = t.nama.trim().toLowerCase() === cleanKepsekName;
+        if (matchName) {
+          teacherUpdated = true;
+          return {
+            ...t,
+            jabatan: 'Kepala Sekolah',
+            nigy: info.nigyKepalaSekolah || info.nipKepalaSekolah || t.nigy,
+            nip: info.nipKepalaSekolah || info.nigyKepalaSekolah || t.nip
+          };
+        }
+        // If someone else was previous Kepala Sekolah, revert their jabatan to 'Guru Mata Pelajaran'
+        if (t.jabatan === 'Kepala Sekolah' && !matchName) {
+          return {
+            ...t,
+            jabatan: 'Guru Mata Pelajaran'
+          };
+        }
+        return t;
+      });
+
+      // If no teacher matched by name, but we have a teacher with jabatan === 'Kepala Sekolah', update that teacher's name
+      if (!teacherUpdated) {
+        const existingKepsekIdx = teachers.findIndex(t => t.jabatan === 'Kepala Sekolah');
+        if (existingKepsekIdx >= 0) {
+          updatedTeachers = updatedTeachers.map((t, idx) => {
+            if (idx === existingKepsekIdx) {
+              return {
+                ...t,
+                nama: info.kepalaSekolah,
+                nigy: info.nigyKepalaSekolah || info.nipKepalaSekolah || t.nigy,
+                nip: info.nipKepalaSekolah || info.nigyKepalaSekolah || t.nip
+              };
+            }
+            return t;
+          });
+        }
+      }
+
+      setTeachers(updatedTeachers);
+      StorageService.setTeachers(updatedTeachers);
+    }
 
     // Auto-synchronize dependent modules when Master Tahun Ajaran or Semester is updated
     if (isTaChanged || isSemChanged) {
@@ -177,6 +229,28 @@ export function App() {
   const handleSaveTeachers = (updated: Teacher[]) => {
     setTeachers(updated);
     StorageService.setTeachers(updated);
+
+    // Synchronize Kepala Sekolah from Data Guru to School Info
+    const kepsekTeacher = updated.find(
+      t => t.jabatan === 'Kepala Sekolah' || t.jabatan.toLowerCase().trim() === 'kepala sekolah'
+    );
+    if (kepsekTeacher) {
+      const isKepsekDifferent =
+        schoolInfo.kepalaSekolah !== kepsekTeacher.nama ||
+        (kepsekTeacher.nigy && schoolInfo.nigyKepalaSekolah !== kepsekTeacher.nigy) ||
+        (kepsekTeacher.nip && schoolInfo.nipKepalaSekolah !== kepsekTeacher.nip);
+
+      if (isKepsekDifferent) {
+        const updatedSchoolInfo: SchoolInfo = {
+          ...schoolInfo,
+          kepalaSekolah: kepsekTeacher.nama,
+          nigyKepalaSekolah: kepsekTeacher.nigy || kepsekTeacher.nip || schoolInfo.nigyKepalaSekolah,
+          nipKepalaSekolah: kepsekTeacher.nip || kepsekTeacher.nigy || schoolInfo.nipKepalaSekolah
+        };
+        setSchoolInfo(updatedSchoolInfo);
+        StorageService.setSchoolInfo(updatedSchoolInfo);
+      }
+    }
   };
 
   const handleSaveStudents = (updated: Student[]) => {
@@ -400,6 +474,7 @@ export function App() {
           {activeTab === 'data-sekolah' && (
             <DataSekolahView
               schoolInfo={schoolInfo}
+              teachers={teachers}
               onSave={handleSaveSchoolInfo}
             />
           )}
@@ -409,6 +484,7 @@ export function App() {
               teachers={teachers}
               students={students}
               schedules={schedules}
+              schoolInfo={schoolInfo}
               onSaveTeachers={handleSaveTeachers}
             />
           )}
