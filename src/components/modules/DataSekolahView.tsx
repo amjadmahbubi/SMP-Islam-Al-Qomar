@@ -1,33 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SchoolInfo, Teacher } from '../../types';
-import { Save, School, Check, Upload, Image as ImageIcon, Trash2, Eye, FileText, UserCheck, RefreshCw } from 'lucide-react';
+import { Save, School, Check, Upload, Image as ImageIcon, Trash2, Eye, FileText, UserCheck, ShieldCheck, Crown, ArrowRight, Lock } from 'lucide-react';
 
 interface DataSekolahViewProps {
   schoolInfo: SchoolInfo;
   teachers?: Teacher[];
   onSave: (info: SchoolInfo) => void;
+  onNavigateToTeachers?: () => void;
 }
 
-export const DataSekolahView: React.FC<DataSekolahViewProps> = ({ schoolInfo, teachers = [], onSave }) => {
-  const [formData, setFormData] = useState<SchoolInfo>(schoolInfo);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-
-  // Find teacher currently assigned as Kepala Sekolah or matching the name
-  const kepsekTeacher = teachers.find(
-    t => t.jabatan === 'Kepala Sekolah' || t.nama.trim().toLowerCase() === formData.kepalaSekolah.trim().toLowerCase()
+export const DataSekolahView: React.FC<DataSekolahViewProps> = ({ 
+  schoolInfo, 
+  teachers = [], 
+  onSave,
+  onNavigateToTeachers 
+}) => {
+  // Tetapkan guru Kepala Sekolah resmi langsung dari Master Data Guru
+  const officialKepsekTeacher = teachers.find(
+    t => t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().trim() === 'kepala sekolah'
+  ) || teachers.find(
+    t => t.nama.trim().toLowerCase() === (schoolInfo.kepalaSekolah || '').trim().toLowerCase()
   );
 
-  const handleSelectTeacherKepsek = (teacherId: string) => {
-    const selected = teachers.find(t => t.id === teacherId);
-    if (selected) {
-      setFormData(prev => ({
-        ...prev,
-        kepalaSekolah: selected.nama,
-        nigyKepalaSekolah: selected.nigy || selected.nip || prev.nigyKepalaSekolah,
-        nipKepalaSekolah: selected.nip || selected.nigy || prev.nipKepalaSekolah
-      }));
-    }
-  };
+  const officialKepsekNama = officialKepsekTeacher ? officialKepsekTeacher.nama : schoolInfo.kepalaSekolah;
+  const officialKepsekNigy = officialKepsekTeacher 
+    ? (officialKepsekTeacher.nigy || officialKepsekTeacher.nip || schoolInfo.nigyKepalaSekolah) 
+    : schoolInfo.nigyKepalaSekolah;
+  const officialKepsekNuptk = officialKepsekTeacher?.nuptk;
+
+  const [formData, setFormData] = useState<SchoolInfo>(() => ({
+    ...schoolInfo,
+    kepalaSekolah: officialKepsekNama,
+    nigyKepalaSekolah: officialKepsekNigy,
+    nipKepalaSekolah: officialKepsekNigy
+  }));
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Otomatis sinkronkan formData jika data guru Kepala Sekolah mengalami perubahan
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      kepalaSekolah: officialKepsekNama,
+      nigyKepalaSekolah: officialKepsekNigy,
+      nipKepalaSekolah: officialKepsekNigy
+    }));
+  }, [officialKepsekNama, officialKepsekNigy]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -69,7 +86,13 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({ schoolInfo, te
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    const finalizedInfo: SchoolInfo = {
+      ...formData,
+      kepalaSekolah: officialKepsekNama,
+      nigyKepalaSekolah: officialKepsekNigy,
+      nipKepalaSekolah: officialKepsekNigy
+    };
+    onSave(finalizedInfo);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
   };
@@ -367,100 +390,84 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({ schoolInfo, te
         {/* Pimpinan & Kontak */}
         <div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-2 mb-4 gap-2">
-            <h3 className="text-sm font-bold font-serif text-white">
-              2. Pimpinan & Kontak Komunikasi
-            </h3>
-            {kepsekTeacher && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30">
-                <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Tersinkronisasi Data Guru: {kepsekTeacher.nama}</span>
-              </span>
-            )}
+            <div>
+              <h3 className="text-sm font-bold font-serif text-white">
+                2. Pimpinan Sekolah &amp; Kontak Komunikasi
+              </h3>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Identitas pimpinan sekolah ditetapkan secara otomatis &amp; terpusat dari Master Data Guru
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Satu Sumber Data (Master Data Guru)</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="md:col-span-2 lg:col-span-1 bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-500/30 space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-emerald-300">
-                  Nama Kepala Sekolah
-                </label>
-                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">
-                  ⚡ Auto-Sync Guru
-                </span>
-              </div>
-
-              {teachers.length > 0 ? (
-                <div className="space-y-1.5">
-                  <select
-                    value={kepsekTeacher?.id || ''}
-                    onChange={(e) => {
-                      if (e.target.value === '__manual__') {
-                        // Keep current name and allow typing
-                        return;
-                      }
-                      handleSelectTeacherKepsek(e.target.value);
-                    }}
-                    className="w-full px-3 py-2 bg-slate-900 border border-emerald-400/60 rounded-lg text-xs font-semibold text-emerald-100 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  >
-                    <option value="" className="bg-slate-900 text-slate-300">
-                      -- Pilih Guru Penanggung Jawab Kepala Sekolah --
-                    </option>
-                    {teachers.map((t) => (
-                      <option key={t.id} value={t.id} className="bg-slate-900 text-white">
-                        {t.nama} {t.jabatan ? `(${t.jabatan})` : ''}
-                      </option>
-                    ))}
-                  </select>
-
-                  <input
-                    type="text"
-                    name="kepalaSekolah"
-                    value={formData.kepalaSekolah}
-                    onChange={handleChange}
-                    required
-                    placeholder="Nama Lengkap Kepala Sekolah beserta Gelar"
-                    className="w-full px-3 py-2 bg-white border border-emerald-400 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
-                  />
+          {/* Kartu Khusus Pimpinan (Kepala Sekolah) - Terkunci Otomatis dari Master Data Guru */}
+          <div className="mb-5 bg-gradient-to-br from-emerald-950/50 via-slate-900/80 to-slate-950 p-5 rounded-2xl border border-emerald-500/40 shadow-xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center text-emerald-300 shrink-0 shadow-inner">
+                  <Crown className="w-6 h-6 text-emerald-400" />
                 </div>
-              ) : (
-                <input
-                  type="text"
-                  name="kepalaSekolah"
-                  value={formData.kepalaSekolah}
-                  onChange={handleChange}
-                  required
-                  placeholder="Nama Lengkap Kepala Sekolah beserta Gelar"
-                  className="w-full px-3 py-2 bg-white border border-emerald-400 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
-                />
-              )}
-
-              <p className="text-[11px] text-emerald-200/90 leading-tight">
-                Nama ini otomatis disinkronkan ke data guru, Kop Rapor, SK, Legalisir, dan Portal Informasi.
-              </p>
-            </div>
-
-            <div className="bg-emerald-950/30 p-3.5 rounded-xl border border-emerald-500/30 space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-emerald-300">
-                  NIGY / NIP Kepala Sekolah
-                </label>
-                <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">
-                  ⚡ Auto-Sync Guru
-                </span>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-400/30">
+                      Kepala Sekolah Resmi
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-300 bg-slate-800/90 px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+                      <Lock className="w-3 h-3 text-emerald-400" />
+                      <span>Terkunci dari Data Guru</span>
+                    </span>
+                  </div>
+                  <h4 className="text-base sm:text-lg font-bold font-serif text-white mt-1">
+                    {officialKepsekNama || 'Belum Ditentukan di Data Guru'}
+                  </h4>
+                  <p className="text-xs text-emerald-200/80">
+                    Penanggung jawab resmi akademik, legalitas, tanda tangan rapor, dan administrasi sekolah
+                  </p>
+                </div>
               </div>
-              <input
-                type="text"
-                name="nigyKepalaSekolah"
-                value={formData.nigyKepalaSekolah || formData.nipKepalaSekolah || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, nigyKepalaSekolah: e.target.value, nipKepalaSekolah: e.target.value }))}
-                placeholder="Contoh: NIGY.200501.004"
-                className="w-full px-3 py-2 bg-white border border-emerald-400 rounded-lg text-sm font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-sm"
-              />
-              <p className="text-[11px] text-emerald-200/90 leading-tight">
-                Nomor identitas yayasan / dinas kepala sekolah untuk tanda tangan rapor dan sertifikat.
-              </p>
+
+              {onNavigateToTeachers && (
+                <button
+                  type="button"
+                  onClick={onNavigateToTeachers}
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 text-xs font-bold transition-all shrink-0 hover:scale-[1.02] shadow-sm"
+                  title="Buka Data Guru untuk menetapkan atau mengedit identitas Kepala Sekolah"
+                >
+                  <UserCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Ubah / Edit di Data Guru</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-slate-900/70 p-3 rounded-xl border border-white/10">
+                <span className="text-[11px] text-slate-400 block mb-0.5 font-medium">Nama Lengkap &amp; Gelar</span>
+                <span className="text-sm font-bold text-white block truncate">{officialKepsekNama}</span>
+              </div>
+              <div className="bg-slate-900/70 p-3 rounded-xl border border-white/10">
+                <span className="text-[11px] text-slate-400 block mb-0.5 font-medium">NIGY / NIP (Tanda Tangan Rapor)</span>
+                <span className="text-sm font-bold font-mono text-emerald-300 block">{officialKepsekNigy || '-'}</span>
+              </div>
+              <div className="bg-slate-900/70 p-3 rounded-xl border border-white/10">
+                <span className="text-[11px] text-slate-400 block mb-0.5 font-medium">NUPTK Nasional</span>
+                <span className="text-sm font-bold font-mono text-slate-200 block">{officialKepsekNuptk || '-'}</span>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-emerald-200/90 bg-emerald-950/40 p-3 rounded-xl border border-emerald-500/20 flex items-center gap-2.5">
+              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>
+                Nama dan NIGY Kepala Sekolah di atas terkunci otomatis dari guru yang memiliki jabatan <strong>Kepala Sekolah</strong> di menu <strong>Data Guru</strong>. Tidak ada pilihan manual di sini untuk mencegah kesalahan input atau data tertukar.
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1">Nomor Telepon Sekolah</label>
               <input

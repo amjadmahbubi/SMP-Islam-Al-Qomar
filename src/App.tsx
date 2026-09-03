@@ -96,19 +96,55 @@ export function App() {
   const [sheetsConfig, setSheetsConfig] = useState<GoogleSheetsConfig>(() => StorageService.getSheetsConfig());
   const [hasSheetsMismatch, setHasSheetsMismatch] = useState<boolean>(false);
 
+  // Pastikan identitas Kepala Sekolah di Profil Sekolah selalu 100% selaras dengan guru berjabatan 'Kepala Sekolah'
+  useEffect(() => {
+    const kepsek = teachers.find(
+      t => t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().trim() === 'kepala sekolah'
+    );
+    if (kepsek) {
+      const expectedNigy = kepsek.nigy || kepsek.nip || schoolInfo.nigyKepalaSekolah;
+      if (
+        schoolInfo.kepalaSekolah !== kepsek.nama ||
+        schoolInfo.nigyKepalaSekolah !== expectedNigy ||
+        schoolInfo.nipKepalaSekolah !== expectedNigy
+      ) {
+        const synced: SchoolInfo = {
+          ...schoolInfo,
+          kepalaSekolah: kepsek.nama,
+          nigyKepalaSekolah: expectedNigy,
+          nipKepalaSekolah: expectedNigy
+        };
+        setSchoolInfo(synced);
+        StorageService.setSchoolInfo(synced);
+      }
+    }
+  }, [teachers]);
+
   // Save Handlers
   const handleSaveSchoolInfo = (info: SchoolInfo) => {
     const oldTa = schoolInfo.tahunAjaran;
     const oldSem = schoolInfo.semesterAktif;
     const isTaChanged = oldTa !== info.tahunAjaran;
     const isSemChanged = oldSem !== info.semesterAktif;
-    const isKepsekChanged =
-      schoolInfo.kepalaSekolah !== info.kepalaSekolah ||
-      schoolInfo.nigyKepalaSekolah !== info.nigyKepalaSekolah ||
-      schoolInfo.nipKepalaSekolah !== info.nipKepalaSekolah;
 
-    setSchoolInfo(info);
-    StorageService.setSchoolInfo(info);
+    // Tetapkan identitas Kepala Sekolah resmi dari Master Data Guru
+    const officialKepsek = teachers.find(
+      t => t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().trim() === 'kepala sekolah'
+    );
+    const finalizedInfo: SchoolInfo = {
+      ...info,
+      kepalaSekolah: officialKepsek ? officialKepsek.nama : info.kepalaSekolah,
+      nigyKepalaSekolah: officialKepsek ? (officialKepsek.nigy || officialKepsek.nip || info.nigyKepalaSekolah) : info.nigyKepalaSekolah,
+      nipKepalaSekolah: officialKepsek ? (officialKepsek.nip || officialKepsek.nigy || info.nipKepalaSekolah) : info.nipKepalaSekolah,
+    };
+
+    const isKepsekChanged =
+      schoolInfo.kepalaSekolah !== finalizedInfo.kepalaSekolah ||
+      schoolInfo.nigyKepalaSekolah !== finalizedInfo.nigyKepalaSekolah ||
+      schoolInfo.nipKepalaSekolah !== finalizedInfo.nipKepalaSekolah;
+
+    setSchoolInfo(finalizedInfo);
+    StorageService.setSchoolInfo(finalizedInfo);
 
     // Auto-synchronize Kepala Sekolah to Data Guru
     if (isKepsekChanged && info.kepalaSekolah) {
@@ -476,6 +512,7 @@ export function App() {
               schoolInfo={schoolInfo}
               teachers={teachers}
               onSave={handleSaveSchoolInfo}
+              onNavigateToTeachers={() => setActiveTab('data-guru')}
             />
           )}
 

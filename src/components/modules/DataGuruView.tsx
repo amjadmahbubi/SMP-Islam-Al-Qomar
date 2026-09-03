@@ -154,23 +154,37 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
       m => m && m.trim().toLowerCase() !== finalMapel.trim().toLowerCase()
     );
 
+    const isSettingKepsek = form.jabatan?.trim().toLowerCase() === 'kepala sekolah';
+    const formNigy = form.nigy || form.nip || '';
+
     if (editingTeacher) {
-      const updated = teachers.map(t =>
-        t.id === editingTeacher.id
-          ? ({
-              ...(form as Teacher),
-              mapelUtama: finalMapel,
-              mapelTambahan: cleanedAdditionalMapels
-            } as Teacher)
-          : t
-      );
+      const updated = teachers.map(t => {
+        if (t.id === editingTeacher.id) {
+          return {
+            ...(form as Teacher),
+            mapelUtama: finalMapel,
+            mapelTambahan: cleanedAdditionalMapels,
+            nigy: formNigy,
+            nip: formNigy
+          } as Teacher;
+        }
+        // Jika guru ini ditetapkan sebagai Kepala Sekolah, guru lain yang sebelumnya Kepala Sekolah diturunkan jabatannya
+        if (isSettingKepsek && (t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().trim() === 'kepala sekolah')) {
+          return {
+            ...t,
+            jabatan: 'Guru Mata Pelajaran'
+          };
+        }
+        return t;
+      });
       onSaveTeachers(updated);
     } else {
       const newTeacher: Teacher = {
         id: form.id || `T${Date.now().toString().slice(-4)}`,
         nuptk: form.nuptk || '1234567890123456',
         nama: form.nama!,
-        nip: form.nip,
+        nigy: formNigy,
+        nip: formNigy,
         gender: (form.gender as 'L' | 'P') || 'L',
         mapelUtama: finalMapel,
         mapelTambahan: cleanedAdditionalMapels,
@@ -180,7 +194,12 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
         statusPegawai: (form.statusPegawai as any) || 'GTY',
         waliKelasDi: form.waliKelasDi
       };
-      onSaveTeachers([...teachers, newTeacher]);
+
+      const updatedList = isSettingKepsek
+        ? teachers.map(t => (t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().trim() === 'kepala sekolah') ? { ...t, jabatan: 'Guru Mata Pelajaran' } : t).concat(newTeacher)
+        : [...teachers, newTeacher];
+
+      onSaveTeachers(updatedList);
     }
 
     setIsModalOpen(false);
@@ -668,9 +687,27 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
                     <option value="Koordinator Ummi & Tahfidz">Koordinator Ummi & Tahfidz</option>
                     <option value="Guru Mata Pelajaran">Guru Mata Pelajaran</option>
                   </datalist>
+                  <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, jabatan: 'Kepala Sekolah' })}
+                      className="text-[10px] font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded border border-amber-300 transition-colors flex items-center gap-1"
+                    >
+                      👑 Tetapkan Sebagai Kepala Sekolah
+                    </button>
+                    {form.jabatan === 'Kepala Sekolah' && (
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, jabatan: 'Guru Mata Pelajaran' })}
+                        className="text-[10px] font-medium text-slate-600 hover:text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200"
+                      >
+                        Batal
+                      </button>
+                    )}
+                  </div>
                   {form.jabatan === 'Kepala Sekolah' && (
-                    <p className="text-[11px] text-emerald-800 font-semibold mt-1 bg-emerald-50 p-1.5 rounded border border-emerald-200">
-                      ⭐ Guru ini akan otomatis menjadi <strong>Kepala Sekolah</strong> pada Profil Sekolah dan seluruh Kop Rapor.
+                    <p className="text-[11px] text-emerald-800 font-semibold mt-1.5 bg-emerald-50 p-2 rounded-lg border border-emerald-200 leading-relaxed">
+                      ⭐ Guru ini secara otomatis menjadi <strong>Kepala Sekolah</strong> pada Profil Sekolah dan identitasnya (Nama &amp; NIGY/NIP) akan mengunci seluruh Kop &amp; Tanda Tangan Rapor.
                     </p>
                   )}
                 </div>
