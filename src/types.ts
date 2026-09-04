@@ -71,7 +71,7 @@ export interface SarprasItem {
   kondisiRusakRingan: number;
   kondisiRusakBerat: number;
   lokasi: string;
-  keterangan: string;
+  keterangan?: string;
 }
 
 export interface TeacherDoc {

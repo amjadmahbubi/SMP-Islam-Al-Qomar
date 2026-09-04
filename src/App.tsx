@@ -49,6 +49,7 @@ import { AbsensiSiswaView } from './components/modules/AbsensiSiswaView';
 import { InputNilaiView } from './components/modules/InputNilaiView';
 import { LaporanRaporView } from './components/modules/LaporanRaporView';
 import { GoogleSheetsIntegration } from './components/modules/GoogleSheetsIntegration';
+import { MasterDataBackupView } from './components/modules/MasterDataBackupView';
 import { WAGatewayModal } from './components/modules/WAGatewayModal';
 import { PWAOfflineBanner } from './components/PWAOfflineBanner';
 
@@ -348,6 +349,24 @@ export function App() {
     StorageService.setSheetsConfig(updated);
   };
 
+  const handleRefreshAllData = () => {
+    setSchoolInfo(StorageService.getSchoolInfo());
+    setTeachers(StorageService.getTeachers());
+    setStudents(StorageService.getStudents());
+    setSarpras(StorageService.getSarpras());
+    setTeacherDocs(StorageService.getTeacherDocs());
+    setSchedules(StorageService.getSchedules());
+    setEvents(StorageService.getCalendarEvents());
+    setAgendas(StorageService.getAgendas());
+    setAttendance(StorageService.getAttendance());
+    setGrades(StorageService.getGrades());
+    setAchievements(StorageService.getAchievements());
+    setPpdbRegistrations(StorageService.getPpdbRegistrations());
+    setPpdbSettings(StorageService.getPpdbSettings());
+    setGalleryItems(StorageService.getGalleryItems());
+    setSheetsConfig(StorageService.getSheetsConfig());
+  };
+
   // Auto-Sync on Load: State & Background Engine
   const [autoSyncStatus, setAutoSyncStatus] = useState<{
     status: 'idle' | 'checking' | 'synced' | 'offline';
@@ -443,7 +462,7 @@ export function App() {
       return;
     }
 
-    const targetUrl = sheetsConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec';
+    const targetUrl = sheetsConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec';
     setAutoSyncStatus(prev => ({ ...prev, status: 'checking' }));
 
     const res = await fetchFromGoogleSheets(targetUrl, 7000);
@@ -462,7 +481,7 @@ export function App() {
   useEffect(() => {
     if (sheetsConfig.autoSyncOnLoad === false) return;
 
-    const targetUrl = sheetsConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec';
+    const targetUrl = sheetsConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec';
     const validation = validateSheetsUrl(targetUrl);
     if (!validation.isValid) return;
 
@@ -796,6 +815,19 @@ export function App() {
               onImportSchoolInfo={handleSaveSchoolInfo}
               autoSyncStatus={autoSyncStatus}
               onTriggerAutoSync={triggerManualAutoSync}
+            />
+          )}
+
+          {(activeTab === 'master-backup' || activeTab === 'backup') && (
+            <MasterDataBackupView
+              schoolInfo={schoolInfo}
+              students={students}
+              teachers={teachers}
+              schedules={schedules}
+              sarpras={sarpras}
+              sheetsConfig={sheetsConfig}
+              onRefreshAllData={handleRefreshAllData}
+              onNavigateToSheets={() => setActiveTab('google-sheets')}
             />
           )}
 

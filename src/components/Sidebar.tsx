@@ -20,7 +20,8 @@ import {
   UserPlus,
   Image as ImageIcon,
   MessageSquare,
-  ShieldCheck
+  ShieldCheck,
+  Database
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -89,7 +90,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'agenda', label: 'Agenda Kegiatan', icon: Calendar },
     { id: 'kalender', label: 'Kalender Akademik', icon: CalendarDays },
     { id: 'portal-rapor', label: 'Cek Nilai & Rapor', icon: Search },
-    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet }
+    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet },
+    { id: 'master-backup', label: 'Cadangkan & Data Master', icon: Database }
   ];
 
   const guruNav = [
@@ -97,7 +99,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'absensi-siswa', label: 'Absensi Siswa (WA)', icon: CheckSquare },
     { id: 'input-nilai', label: 'Input Nilai Asesmen', icon: BookOpen },
     { id: 'laporan-rapor', label: 'Laporan Rapor Digital', icon: Award },
-    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet }
+    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet },
+    { id: 'master-backup', label: 'Cadangkan & Data Master', icon: Database }
   ];
 
   const adminNav = [
@@ -110,6 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'kelola-jadwal', label: 'Kelola Jadwal Kelas', icon: Clock },
     { id: 'kelola-kalender', label: 'Kelola Kalender & Agenda', icon: CalendarDays },
     { id: 'google-sheets', label: 'Integrasi Google Sheets', icon: FileSpreadsheet },
+    { id: 'master-backup', label: 'Cadangkan & Data Master', icon: Database },
     { id: 'wa-gateway', label: 'WhatsApp Gateway & Log', icon: MessageSquare }
   ];
 

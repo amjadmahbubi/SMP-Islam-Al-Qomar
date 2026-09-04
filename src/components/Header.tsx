@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserSession, SchoolInfo, GoogleSheetsConfig, Teacher } from '../types';
-import { School, LogIn, LogOut, ShieldCheck, UserCheck, Eye, FileSpreadsheet, Menu, X, Sun, Moon, AlertTriangle, RefreshCw } from 'lucide-react';
+import { School, LogIn, LogOut, ShieldCheck, UserCheck, Eye, FileSpreadsheet, Menu, X, Sun, Moon, AlertTriangle, RefreshCw, Database } from 'lucide-react';
 
 interface HeaderProps {
   schoolInfo: SchoolInfo;
@@ -178,6 +178,21 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </button>
             )}
+
+            {/* Master Data / Backup Button */}
+            <button
+              onClick={() => setActiveTab('master-backup')}
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border shadow-sm ${
+                activeTab === 'master-backup'
+                  ? 'bg-blue-500/30 text-blue-200 border-blue-400/60'
+                  : 'bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border-blue-400/30'
+              }`}
+              title="Cadangkan Data Sekolah & Jadikan Data Bawaan Permanen di Vercel"
+            >
+              <Database className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+              <span className="hidden sm:inline">Data Master</span>
+              <span className="sm:hidden font-bold">Data</span>
+            </button>
 
             {/* Light/Dark Mode Toggle */}
             <button

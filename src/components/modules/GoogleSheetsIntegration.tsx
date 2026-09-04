@@ -168,7 +168,7 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   const initialConfig = sheetsConfig || StorageService.getSheetsConfig();
 
   const [sheetUrl, setSheetUrl] = useState<string>(() => {
-    return initialConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec';
+    return initialConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec';
   });
 
   // Keep URL locked by default if it was configured/locked previously
@@ -359,7 +359,7 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
     );
     if (!confirmReset) return;
 
-    const defaultUrl = 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec';
+    const defaultUrl = 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec';
     setSheetUrl(defaultUrl);
     setIsLocked(false);
     setValidationError(null);

@@ -96,9 +96,13 @@ export const StorageService = {
   // School Info (deep merge with initialSchoolInfo to ensure misi is always array)
   getSchoolInfo: (): SchoolInfo => {
     const stored = getStored<Partial<SchoolInfo>>(KEYS.SCHOOL, initialSchoolInfo);
-    // If stored contains obsolete placeholder (npsn 20348912 or old template visi), upgrade to real school info
-    const isOldPlaceholder = stored.npsn === '20348912' || (stored.visi && stored.visi.includes("Generasi Qur'ani, Berakhlak Mulia, Berprestasi"));
-    const base = isOldPlaceholder ? { ...initialSchoolInfo, ...stored, npsn: initialSchoolInfo.npsn, visi: initialSchoolInfo.visi } : { ...initialSchoolInfo, ...stored };
+    // If stored contains obsolete placeholder, upgrade to real school info
+    const isOldPlaceholder = !stored.nama ||
+      stored.npsn === '20348912' ||
+      stored.kepalaSekolah === 'Ustadz H. Ahmad Basuki, M.Pd.' ||
+      (stored.alamat && stored.alamat.includes('No. 45')) ||
+      (stored.visi && stored.visi.includes("Generasi Qur'ani, Berakhlak Mulia, Berprestasi"));
+    const base = isOldPlaceholder ? { ...initialSchoolInfo } : { ...initialSchoolInfo, ...stored };
     return {
       ...base,
       misi: Array.isArray(base.misi) && base.misi.length ? base.misi : initialSchoolInfo.misi
@@ -110,7 +114,10 @@ export const StorageService = {
   // Teachers
   getTeachers: (): Teacher[] => {
     const data = getStored(KEYS.TEACHERS, initialTeachers);
-    return Array.isArray(data) ? data : initialTeachers;
+    if (!Array.isArray(data) || data.length < 12 || data.some(t => t.nama?.includes('Ahmad Basuki') || t.nama?.includes('Siti Fatimah'))) {
+      return initialTeachers;
+    }
+    return data;
   },
   saveTeachers: (data: Teacher[]): void => setStored(KEYS.TEACHERS, data),
   setTeachers: (data: Teacher[]): void => setStored(KEYS.TEACHERS, data),
@@ -118,7 +125,10 @@ export const StorageService = {
   // Students
   getStudents: (): Student[] => {
     const data = getStored(KEYS.STUDENTS, initialStudents);
-    return Array.isArray(data) ? data : initialStudents;
+    if (!Array.isArray(data) || data.length < 29 || data.some(s => s.nama === 'Ahmad Zaki Mubarak')) {
+      return initialStudents;
+    }
+    return data;
   },
   saveStudents: (data: Student[]): void => setStored(KEYS.STUDENTS, data),
   setStudents: (data: Student[]): void => setStored(KEYS.STUDENTS, data),
@@ -142,7 +152,10 @@ export const StorageService = {
   // Schedules
   getSchedules: (): ScheduleItem[] => {
     const data = getStored(KEYS.SCHEDULES, initialSchedules);
-    return Array.isArray(data) ? data : initialSchedules;
+    if (!Array.isArray(data) || data.length < 50) {
+      return initialSchedules;
+    }
+    return data;
   },
   saveSchedules: (data: ScheduleItem[]): void => setStored(KEYS.SCHEDULES, data),
   setSchedules: (data: ScheduleItem[]): void => setStored(KEYS.SCHEDULES, data),
@@ -182,10 +195,11 @@ export const StorageService = {
   // Google Sheets Config
   getSheetsConfig: (): GoogleSheetsConfig => {
     const stored = getStored<Partial<GoogleSheetsConfig>>(KEYS.SHEETS_CONFIG, initialSheetsConfig);
+    const isOldDummyUrl = !stored.webAppUrl || stored.webAppUrl.includes('SMP-Islam-Al-Qomar-Dapodik');
     return {
       ...initialSheetsConfig,
       ...stored,
-      webAppUrl: (stored.webAppUrl && stored.webAppUrl.trim() !== '') ? stored.webAppUrl : initialSheetsConfig.webAppUrl,
+      webAppUrl: isOldDummyUrl ? initialSheetsConfig.webAppUrl : stored.webAppUrl,
       autoSyncOnLoad: stored.autoSyncOnLoad !== undefined ? stored.autoSyncOnLoad : true
     };
   },
@@ -195,7 +209,10 @@ export const StorageService = {
   // Achievements
   getAchievements: (): StudentAchievement[] => {
     const data = getStored(KEYS.ACHIEVEMENTS, initialAchievements);
-    return Array.isArray(data) ? data : initialAchievements;
+    if (!Array.isArray(data) || !data.some(a => a.studentName?.includes('Hasna Auliyah'))) {
+      return initialAchievements;
+    }
+    return data;
   },
   saveAchievements: (data: StudentAchievement[]): void => setStored(KEYS.ACHIEVEMENTS, data),
   setAchievements: (data: StudentAchievement[]): void => setStored(KEYS.ACHIEVEMENTS, data),
@@ -290,23 +307,25 @@ export const StorageService = {
 
   // Export All Local Data to JSON (Backup / Transfer to another device like HP)
   exportAllDataJSON: (): string => {
-    const bundle: Record<string, any> = {};
-    Object.entries(KEYS).forEach(([name, key]) => {
-      if (name !== 'SESSION') {
-        const item = localStorage.getItem(key);
-        if (item) {
-          try {
-            bundle[key] = JSON.parse(item);
-          } catch {
-            bundle[key] = item;
-          }
-        }
-      }
-    });
     return JSON.stringify({
       appName: 'DAPODIK SMP Islam Al Qomar',
+      version: '2.0',
       exportedAt: new Date().toISOString(),
-      data: bundle
+      schoolInfo: StorageService.getSchoolInfo(),
+      teachers: StorageService.getTeachers(),
+      students: StorageService.getStudents(),
+      schedules: StorageService.getSchedules(),
+      sarpras: StorageService.getSarpras(),
+      teacherDocs: StorageService.getTeacherDocs(),
+      calendar: StorageService.getCalendarEvents(),
+      agenda: StorageService.getAgendas(),
+      attendance: StorageService.getAttendance(),
+      grades: StorageService.getGrades(),
+      achievements: StorageService.getAchievements(),
+      ppdbRegistrations: StorageService.getPpdbRegistrations(),
+      ppdbSettings: StorageService.getPpdbSettings(),
+      galleryItems: StorageService.getGalleryItems(),
+      sheetsConfig: StorageService.getSheetsConfig()
     }, null, 2);
   },
 
@@ -315,11 +334,30 @@ export const StorageService = {
     try {
       const parsed = JSON.parse(jsonStr);
       const data = parsed.data || parsed;
+      if (data.schoolInfo) setStored(KEYS.SCHOOL, data.schoolInfo);
+      if (data.teachers && Array.isArray(data.teachers)) setStored(KEYS.TEACHERS, data.teachers);
+      if (data.students && Array.isArray(data.students)) setStored(KEYS.STUDENTS, data.students);
+      if (data.schedules && Array.isArray(data.schedules)) setStored(KEYS.SCHEDULES, data.schedules);
+      if (data.sarpras && Array.isArray(data.sarpras)) setStored(KEYS.SARPRAS, data.sarpras);
+      if (data.teacherDocs && Array.isArray(data.teacherDocs)) setStored(KEYS.TEACHER_DOCS, data.teacherDocs);
+      if (data.calendar && Array.isArray(data.calendar)) setStored(KEYS.CALENDAR, data.calendar);
+      if (data.agenda && Array.isArray(data.agenda)) setStored(KEYS.AGENDA, data.agenda);
+      if (data.attendance && Array.isArray(data.attendance)) setStored(KEYS.ATTENDANCE, data.attendance);
+      if (data.grades && Array.isArray(data.grades)) setStored(KEYS.GRADES, data.grades);
+      if (data.achievements && Array.isArray(data.achievements)) setStored(KEYS.ACHIEVEMENTS, data.achievements);
+      if (data.ppdbRegistrations && Array.isArray(data.ppdbRegistrations)) setStored(KEYS.PPDB, data.ppdbRegistrations);
+      if (data.ppdbSettings) setStored(KEYS.PPDB_SETTINGS, data.ppdbSettings);
+      if (data.galleryItems && Array.isArray(data.galleryItems)) setStored(KEYS.GALLERY, data.galleryItems);
+      if (data.sheetsConfig) setStored(KEYS.SHEETS_CONFIG, data.sheetsConfig);
+
+      // Support legacy format with raw keys (e.g. alqomar_students)
       Object.keys(data).forEach(key => {
-        if (typeof data[key] === 'object') {
-          localStorage.setItem(key, JSON.stringify(data[key]));
-        } else {
-          localStorage.setItem(key, data[key]);
+        if (key.startsWith('alqomar_')) {
+          if (typeof data[key] === 'object') {
+            localStorage.setItem(key, JSON.stringify(data[key]));
+          } else {
+            localStorage.setItem(key, data[key]);
+          }
         }
       });
       return true;
