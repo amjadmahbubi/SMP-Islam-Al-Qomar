@@ -33,6 +33,29 @@ interface JadwalKelolaViewProps {
   onSaveTeachers?: (teachers: Teacher[]) => void;
 }
 
+const HOURS = ['06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
+const BASE_MINUTES = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+
+function parseTimeRange(waktu: string | undefined) {
+  if (!waktu) return { startH: '07', startM: '00', endH: '07', endM: '45', isCustom: false };
+  const parts = waktu.split(/[-–—]/).map(s => s.trim());
+  if (parts.length < 2) return { startH: '07', startM: '00', endH: '07', endM: '45', isCustom: true };
+
+  const mStart = parts[0].match(/^(\d{1,2})[:.](\d{1,2})$/);
+  const mEnd = parts[1].match(/^(\d{1,2})[:.](\d{1,2})$/);
+
+  if (!mStart || !mEnd) {
+    return { startH: '07', startM: '00', endH: '07', endM: '45', isCustom: true };
+  }
+
+  const startH = mStart[1].padStart(2, '0');
+  const startM = mStart[2].padStart(2, '0');
+  const endH = mEnd[1].padStart(2, '0');
+  const endM = mEnd[2].padStart(2, '0');
+
+  return { startH, startM, endH, endM, isCustom: false };
+}
+
 export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
   schedules,
   teachers,
@@ -85,6 +108,44 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
   const [customMapelInput, setCustomMapelInput] = useState('');
   const [isCustomClassInForm, setIsCustomClassInForm] = useState(false);
   const [customClassInput, setCustomClassInput] = useState('');
+
+  // Dropdown Waktu Pelajaran (Jam & Menit)
+  const [isManualTimeInput, setIsManualTimeInput] = useState(false);
+  const [timePicker, setTimePicker] = useState({
+    startH: '07',
+    startM: '30',
+    endH: '08',
+    endM: '10'
+  });
+
+  const handleTimePickerChange = (field: 'startH' | 'startM' | 'endH' | 'endM', val: string) => {
+    const next = { ...timePicker, [field]: val };
+    setTimePicker(next);
+    setForm(prev => ({
+      ...prev,
+      waktu: `${next.startH}:${next.startM} - ${next.endH}:${next.endM}`
+    }));
+  };
+
+  const handleApplyDuration = (minutesToAdd: number) => {
+    const startTotal = parseInt(timePicker.startH, 10) * 60 + parseInt(timePicker.startM, 10);
+    const endTotal = (startTotal + minutesToAdd) % (24 * 60);
+    const newEndH = String(Math.floor(endTotal / 60)).padStart(2, '0');
+    const newEndM = String(endTotal % 60).padStart(2, '0');
+    const next = { ...timePicker, endH: newEndH, endM: newEndM };
+    setTimePicker(next);
+    setForm(prev => ({
+      ...prev,
+      waktu: `${next.startH}:${next.startM} - ${newEndH}:${newEndM}`
+    }));
+  };
+
+  const startMinutesCount = parseInt(timePicker.startH, 10) * 60 + parseInt(timePicker.startM, 10);
+  const endMinutesCount = parseInt(timePicker.endH, 10) * 60 + parseInt(timePicker.endM, 10);
+  const calculatedDuration = endMinutesCount - startMinutesCount;
+
+  const startMinutesOptions = Array.from(new Set([...BASE_MINUTES, timePicker.startM])).sort();
+  const endMinutesOptions = Array.from(new Set([...BASE_MINUTES, timePicker.endM])).sort();
 
   const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
@@ -215,12 +276,35 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
     const initialMapel = 'Matematika';
     const initialTeacher = findTeacherForMapel(initialMapel)?.nama || teachers[1]?.nama || 'Tim Guru';
 
+    let initialWaktu = nextJam === 1 ? '07:00 - 07:45' : '07:45 - 08:30';
+    if (filtered.length > 0) {
+      const lastSlot = filtered[filtered.length - 1];
+      const parsed = parseTimeRange(lastSlot.waktu);
+      if (!parsed.isCustom) {
+        const startH = parsed.endH;
+        const startM = parsed.endM;
+        const endTotal = (parseInt(startH, 10) * 60 + parseInt(startM, 10) + 40) % (24 * 60);
+        const endH = String(Math.floor(endTotal / 60)).padStart(2, '0');
+        const endM = String(endTotal % 60).padStart(2, '0');
+        initialWaktu = `${startH}:${startM} - ${endH}:${endM}`;
+      }
+    }
+
+    const parsedTime = parseTimeRange(initialWaktu);
+    setTimePicker({
+      startH: parsedTime.startH,
+      startM: parsedTime.startM,
+      endH: parsedTime.endH,
+      endM: parsedTime.endM
+    });
+    setIsManualTimeInput(parsedTime.isCustom);
+
     setForm({
       id: `SCH${Date.now().toString().slice(-4)}`,
       hari: selectedDay as any,
       kelas: selectedClass,
       jamKe: nextJam,
-      waktu: nextJam === 1 ? '07:00 - 07:45' : '07:45 - 08:30',
+      waktu: initialWaktu,
       mapel: initialMapel,
       guruNama: initialTeacher,
       ruang: `Kelas ${selectedClass}`
@@ -250,6 +334,15 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
       setIsCustomClassInForm(false);
       setCustomClassInput('');
     }
+
+    const parsedTime = parseTimeRange(item.waktu);
+    setTimePicker({
+      startH: parsedTime.startH,
+      startM: parsedTime.startM,
+      endH: parsedTime.endH,
+      endM: parsedTime.endM
+    });
+    setIsManualTimeInput(parsedTime.isCustom);
 
     setForm({ ...item });
     setIsModalOpen(true);
@@ -707,29 +800,206 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
               </div>
 
               {/* Jam Ke & Rentang Waktu */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Jam Ke-</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={form.jamKe}
-                    onChange={(e) => setForm({ ...form, jamKe: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-28 shrink-0">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Jam Ke-</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={form.jamKe}
+                      onChange={(e) => setForm({ ...form, jamKe: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none shadow-xs"
+                    />
+                  </div>
+
+                  <div className="flex-1 pt-4">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[11px] text-slate-500 font-medium">Preset Jam:</span>
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map(j => (
+                        <button
+                          key={j}
+                          type="button"
+                          onClick={() => setForm({ ...form, jamKe: j })}
+                          className={`px-2 py-0.5 text-[11px] font-mono font-bold rounded border transition-colors ${
+                            form.jamKe === j
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          Ke-{j}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Rentang Waktu</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.waktu}
-                    onChange={(e) => setForm({ ...form, waktu: e.target.value })}
-                    placeholder="07:30 - 08:10"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
+                {/* Dropdown Rentang Waktu */}
+                <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-3.5 space-y-3 shadow-2xs">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Rentang Waktu Pelajaran</span>
+                    </label>
+
+                    <div className="flex items-center gap-2">
+                      {!isManualTimeInput && (
+                        calculatedDuration > 0 ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                            <span>⏱️ {calculatedDuration} Menit</span>
+                            {calculatedDuration === 40 && <span className="text-emerald-700 font-semibold">• 1 JP</span>}
+                            {calculatedDuration === 80 && <span className="text-emerald-700 font-semibold">• 2 JP</span>}
+                            {calculatedDuration === 35 && <span className="text-emerald-700 font-semibold">• 1 JP (35m)</span>}
+                            {calculatedDuration === 45 && <span className="text-emerald-700 font-semibold">• 1 JP (45m)</span>}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300">
+                            ⚠️ Waktu selesai &le; waktu mulai
+                          </span>
+                        )
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isManualTimeInput) {
+                            const parsed = parseTimeRange(form.waktu);
+                            if (!parsed.isCustom) {
+                              setTimePicker({
+                                startH: parsed.startH,
+                                startM: parsed.startM,
+                                endH: parsed.endH,
+                                endM: parsed.endM
+                              });
+                            }
+                          }
+                          setIsManualTimeInput(!isManualTimeInput);
+                        }}
+                        className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 underline"
+                      >
+                        {isManualTimeInput ? 'Gunakan Dropdown Jam' : 'Mode Ketik Manual'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {!isManualTimeInput ? (
+                    <div className="space-y-2.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                        {/* Waktu Mulai */}
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
+                            Waktu Mulai
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex-1">
+                              <label className="text-[9px] text-slate-400 block font-semibold mb-0.5">Jam</label>
+                              <select
+                                value={timePicker.startH}
+                                onChange={(e) => handleTimePickerChange('startH', e.target.value)}
+                                className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                              >
+                                {HOURS.map(h => (
+                                  <option key={`sh-${h}`} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <span className="font-bold text-slate-400 self-end pb-2">:</span>
+                            <div className="flex-1">
+                              <label className="text-[9px] text-slate-400 block font-semibold mb-0.5">Menit</label>
+                              <select
+                                value={timePicker.startM}
+                                onChange={(e) => handleTimePickerChange('startM', e.target.value)}
+                                className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                              >
+                                {startMinutesOptions.map(m => (
+                                  <option key={`sm-${m}`} value={m}>{m}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 self-end pb-2 pl-1">WIB</span>
+                          </div>
+                        </div>
+
+                        {/* Waktu Selesai */}
+                        <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
+                            Waktu Selesai
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex-1">
+                              <label className="text-[9px] text-slate-400 block font-semibold mb-0.5">Jam</label>
+                              <select
+                                value={timePicker.endH}
+                                onChange={(e) => handleTimePickerChange('endH', e.target.value)}
+                                className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                              >
+                                {HOURS.map(h => (
+                                  <option key={`eh-${h}`} value={h}>{h}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <span className="font-bold text-slate-400 self-end pb-2">:</span>
+                            <div className="flex-1">
+                              <label className="text-[9px] text-slate-400 block font-semibold mb-0.5">Menit</label>
+                              <select
+                                value={timePicker.endM}
+                                onChange={(e) => handleTimePickerChange('endM', e.target.value)}
+                                className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                              >
+                                {endMinutesOptions.map(m => (
+                                  <option key={`em-${m}`} value={m}>{m}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 self-end pb-2 pl-1">WIB</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tombol Durasi Cepat */}
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-200/60">
+                        <span className="text-[10px] font-bold text-slate-500 mr-1">Durasi Cepat:</span>
+                        {[
+                          { label: '+35 mnt', mins: 35 },
+                          { label: '+40 mnt (1 JP)', mins: 40 },
+                          { label: '+45 mnt', mins: 45 },
+                          { label: '+60 mnt (1 Jam)', mins: 60 },
+                          { label: '+80 mnt (2 JP)', mins: 80 },
+                          { label: '+90 mnt (1.5 Jam)', mins: 90 }
+                        ].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => handleApplyDuration(preset.mins)}
+                            className="px-2 py-1 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 hover:border-emerald-400 rounded-md text-[10px] font-semibold transition-all shadow-2xs hover:scale-[1.02]"
+                            title={`Atur waktu selesai menjadi +${preset.mins} menit dari waktu mulai`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="text-[10px] text-slate-500 flex items-center justify-between">
+                        <span>Format tersimpan: <strong className="font-mono text-emerald-800">{form.waktu}</strong></span>
+                        <span className="text-slate-400">Sinkron otomatis dengan tabel jadwal</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        required
+                        value={form.waktu}
+                        onChange={(e) => setForm({ ...form, waktu: e.target.value })}
+                        placeholder="07:30 - 08:10"
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Format standar: <code>07:30 - 08:10</code>. Klik &quot;Gunakan Dropdown Jam&quot; di atas untuk memilih kembali via dropdown.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

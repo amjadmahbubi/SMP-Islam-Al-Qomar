@@ -437,8 +437,8 @@ function doGet(e) {
       if (key.indexOf("semester") !== -1) info.semesterAktif = val;
       if (key.indexOf("visi") !== -1) info.visi = val;
       if (key.indexOf("misi") !== -1) {
-        info.misi = val.split("\n")
-          .map(function(m) { return m.replace(/^[0-9]+[\.\)\-]\s*/, "").trim(); })
+        info.misi = val.split(/\\r?\\n/)
+          .map(function(m) { return m.replace(/^[0-9]+[.)-]\\s*/, "").trim(); })
           .filter(Boolean);
       }
     }
@@ -537,7 +537,7 @@ function doPost(e) {
       var visiText = s.visi || "";
       var misiText = "";
       if (Array.isArray(s.misi) && s.misi.length > 0) {
-        misiText = s.misi.map(function(m, idx) { return (idx + 1) + ". " + m; }).join("\n");
+        misiText = s.misi.map(function(m, idx) { return (idx + 1) + ". " + m; }).join("\\n");
       } else if (typeof s.misi === "string") {
         misiText = s.misi;
       }
