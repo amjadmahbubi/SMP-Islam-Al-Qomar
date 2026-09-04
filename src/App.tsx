@@ -18,6 +18,9 @@ import {
   GoogleSheetsConfig
 } from './types';
 import { StorageService } from './services/storage';
+import { initialSchoolInfo } from './data/initialData';
+import { fetchFromGoogleSheets, validateSheetsUrl } from './services/sheetsSyncService';
+import { RefreshCw, Zap, CheckCircle2 } from 'lucide-react';
 
 // Core Layout
 import { Header } from './components/Header';
@@ -110,6 +113,7 @@ export function App() {
       ) {
         const synced: SchoolInfo = {
           ...schoolInfo,
+          misi: Array.isArray(schoolInfo.misi) && schoolInfo.misi.length > 0 ? schoolInfo.misi : initialSchoolInfo.misi,
           kepalaSekolah: kepsek.nama,
           nigyKepalaSekolah: expectedNigy,
           nipKepalaSekolah: expectedNigy
@@ -132,10 +136,14 @@ export function App() {
       t => t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().trim() === 'kepala sekolah'
     );
     const finalizedInfo: SchoolInfo = {
+      ...schoolInfo,
       ...info,
-      kepalaSekolah: officialKepsek ? officialKepsek.nama : info.kepalaSekolah,
-      nigyKepalaSekolah: officialKepsek ? (officialKepsek.nigy || officialKepsek.nip || info.nigyKepalaSekolah) : info.nigyKepalaSekolah,
-      nipKepalaSekolah: officialKepsek ? (officialKepsek.nip || officialKepsek.nigy || info.nipKepalaSekolah) : info.nipKepalaSekolah,
+      misi: Array.isArray(info.misi) && info.misi.length > 0
+        ? info.misi
+        : (Array.isArray(schoolInfo.misi) && schoolInfo.misi.length > 0 ? schoolInfo.misi : initialSchoolInfo.misi),
+      kepalaSekolah: officialKepsek ? officialKepsek.nama : (info.kepalaSekolah || schoolInfo.kepalaSekolah),
+      nigyKepalaSekolah: officialKepsek ? (officialKepsek.nigy || officialKepsek.nip || info.nigyKepalaSekolah) : (info.nigyKepalaSekolah || schoolInfo.nigyKepalaSekolah),
+      nipKepalaSekolah: officialKepsek ? (officialKepsek.nip || officialKepsek.nigy || info.nipKepalaSekolah) : (info.nipKepalaSekolah || schoolInfo.nipKepalaSekolah),
     };
 
     const isKepsekChanged =
@@ -340,6 +348,154 @@ export function App() {
     StorageService.setSheetsConfig(updated);
   };
 
+  // Auto-Sync on Load: State & Background Engine
+  const [autoSyncStatus, setAutoSyncStatus] = useState<{
+    status: 'idle' | 'checking' | 'synced' | 'offline';
+    lastSyncTime?: string;
+    message?: string;
+  }>({
+    status: 'idle',
+    lastSyncTime: sheetsConfig.lastPulledAt
+  });
+
+  const [autoSyncToast, setAutoSyncToast] = useState<{
+    show: boolean;
+    message: string;
+    details?: string;
+  } | null>(null);
+
+  // Core auto-pull application helper
+  const applyPulledSheetsData = (data: any, isSimulated = false) => {
+    const updatedItems: string[] = [];
+
+    if (Array.isArray(data.schedules) && data.schedules.length > 0) {
+      handleSaveSchedules(data.schedules);
+      updatedItems.push(`${data.schedules.length} Jadwal Pelajaran`);
+    }
+    if (Array.isArray(data.events) && data.events.length > 0) {
+      handleSaveEvents(data.events);
+      updatedItems.push(`${data.events.length} Agenda Kalender`);
+    }
+    if (Array.isArray(data.teachers) && data.teachers.length > 0) {
+      handleSaveTeachers(data.teachers);
+      updatedItems.push(`${data.teachers.length} Data Guru`);
+    }
+    if (Array.isArray(data.students) && data.students.length > 0) {
+      handleSaveStudents(data.students);
+      updatedItems.push(`${data.students.length} Data Siswa`);
+    }
+    if (Array.isArray(data.sarpras) && data.sarpras.length > 0) {
+      handleSaveSarpras(data.sarpras);
+      updatedItems.push(`${data.sarpras.length} Sarpras`);
+    }
+    if (Array.isArray(data.ppdbRegistrations) && data.ppdbRegistrations.length > 0) {
+      handleSavePpdbRegistrations(data.ppdbRegistrations);
+      updatedItems.push(`${data.ppdbRegistrations.length} Data PPDB`);
+    }
+    if (data.schoolInfo && data.schoolInfo.nama) {
+      let normalizedMisi = Array.isArray(schoolInfo.misi) && schoolInfo.misi.length > 0 ? schoolInfo.misi : initialSchoolInfo.misi;
+      if (Array.isArray(data.schoolInfo.misi) && data.schoolInfo.misi.length > 0) {
+        normalizedMisi = data.schoolInfo.misi;
+      } else if (typeof data.schoolInfo.misi === 'string' && data.schoolInfo.misi.trim()) {
+        normalizedMisi = data.schoolInfo.misi.split(/[\r\n]+/).map((m: string) => m.replace(/^[0-9]+[.)-]\s*/, '').trim()).filter(Boolean);
+      }
+
+      handleSaveSchoolInfo({
+        ...data.schoolInfo,
+        misi: normalizedMisi
+      });
+      updatedItems.push('Profil Sekolah');
+    }
+
+    const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    const updatedConfig: GoogleSheetsConfig = {
+      ...sheetsConfig,
+      lastPulledAt: nowTime
+    };
+    setSheetsConfig(updatedConfig);
+    StorageService.setSheetsConfig(updatedConfig);
+
+    setAutoSyncStatus({
+      status: 'synced',
+      lastSyncTime: nowTime,
+      message: updatedItems.length > 0 ? `Sinkron otomatis: ${updatedItems.join(', ')}` : 'Data Sheets termutakhir'
+    });
+
+    if (updatedItems.length > 0 || isSimulated) {
+      setAutoSyncToast({
+        show: true,
+        message: isSimulated ? 'Simulasi Auto-Sync Berhasil Diterapkan' : 'Data Otomatis Diperbarui dari Google Sheets',
+        details: updatedItems.length > 0 ? updatedItems.join(' • ') : 'Data terbaru telah aktif di HP Anda'
+      });
+      setTimeout(() => {
+        setAutoSyncToast(null);
+      }, 5000);
+    }
+  };
+
+  // Manual or Test Trigger for Auto-Sync
+  const triggerManualAutoSync = async (simulatedData?: any) => {
+    if (simulatedData) {
+      setAutoSyncStatus(prev => ({ ...prev, status: 'checking' }));
+      setTimeout(() => {
+        applyPulledSheetsData(simulatedData, true);
+      }, 600);
+      return;
+    }
+
+    const targetUrl = sheetsConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec';
+    setAutoSyncStatus(prev => ({ ...prev, status: 'checking' }));
+
+    const res = await fetchFromGoogleSheets(targetUrl, 7000);
+    if (res.success && res.data) {
+      applyPulledSheetsData(res.data);
+    } else {
+      setAutoSyncStatus({
+        status: 'idle',
+        lastSyncTime: sheetsConfig.lastPulledAt,
+        message: 'Menggunakan data lokal tersimpan'
+      });
+    }
+  };
+
+  // Run Auto-Sync on initial app mount (background silent fetch)
+  useEffect(() => {
+    if (sheetsConfig.autoSyncOnLoad === false) return;
+
+    const targetUrl = sheetsConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec';
+    const validation = validateSheetsUrl(targetUrl);
+    if (!validation.isValid) return;
+
+    let isMounted = true;
+    setAutoSyncStatus(prev => ({ ...prev, status: 'checking' }));
+
+    fetchFromGoogleSheets(targetUrl, 7000)
+      .then(res => {
+        if (!isMounted) return;
+        if (res.success && res.data) {
+          applyPulledSheetsData(res.data);
+        } else {
+          setAutoSyncStatus({
+            status: 'idle',
+            lastSyncTime: sheetsConfig.lastPulledAt,
+            message: 'Menggunakan data lokal tersimpan'
+          });
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setAutoSyncStatus({
+          status: 'idle',
+          lastSyncTime: sheetsConfig.lastPulledAt,
+          message: 'Menggunakan data lokal tersimpan'
+        });
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   // Login / Logout Handlers
   const handleLogin = (user: UserSession) => {
     setSession(user);
@@ -377,7 +533,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950/80 font-sans text-slate-100 flex flex-col relative overflow-x-hidden">
+    <div className="min-h-screen bg-slate-950/80 font-sans text-slate-100 flex flex-col relative overflow-x-clip">
       {/* Frosted Glass Radial Gradient Background */}
       <div className="mesh-bg" />
       
@@ -396,6 +552,7 @@ export function App() {
         onToggleTheme={handleToggleTheme}
         sheetsConfig={sheetsConfig}
         hasSheetsMismatch={hasSheetsMismatch}
+        autoSyncStatus={autoSyncStatus}
       />
 
       {/* Main Layout Area */}
@@ -617,6 +774,7 @@ export function App() {
 
           {(activeTab === 'google-sheets' || activeTab === 'sheets') && (
             <GoogleSheetsIntegration
+              session={session}
               students={students}
               teachers={teachers}
               sarpras={sarpras}
@@ -636,12 +794,42 @@ export function App() {
               onImportEvents={handleSaveEvents}
               onImportPpdb={handleSavePpdbRegistrations}
               onImportSchoolInfo={handleSaveSchoolInfo}
+              autoSyncStatus={autoSyncStatus}
+              onTriggerAutoSync={triggerManualAutoSync}
             />
           )}
 
         </main>
 
       </div>
+
+      {/* Auto-Sync Live Toast Notification */}
+      {autoSyncToast && autoSyncToast.show && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm bg-slate-900/95 border border-emerald-500/50 shadow-2xl rounded-2xl p-4 text-white backdrop-blur-xl animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0 border border-emerald-400/40 mt-0.5">
+              <Zap className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <h4 className="text-xs font-bold text-emerald-300">{autoSyncToast.message}</h4>
+              </div>
+              {autoSyncToast.details && (
+                <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">{autoSyncToast.details}</p>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setAutoSyncToast(null)}
+              className="text-slate-400 hover:text-white text-xs p-1 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label="Tutup notifikasi"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Login Modal */}
       <LoginModal

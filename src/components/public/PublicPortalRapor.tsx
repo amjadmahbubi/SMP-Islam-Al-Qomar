@@ -12,11 +12,11 @@ interface PublicPortalRaporProps {
 }
 
 export const PublicPortalRapor: React.FC<PublicPortalRaporProps> = ({
-  students,
-  attendance,
-  grades,
+  students = [],
+  attendance = [],
+  grades = [],
   schoolInfo,
-  teachers,
+  teachers = [],
   onSelectStudentForRapor
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -139,7 +139,7 @@ export const PublicPortalRapor: React.FC<PublicPortalRaporProps> = ({
         {/* Demo Suggestion Chips */}
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
           <span className="text-slate-400">Contoh pencarian cepat:</span>
-          {students.slice(0, 3).map((s) => (
+          {(students || []).slice(0, 3).map((s) => (
             <button
               key={s.id}
               onClick={() => {
@@ -236,9 +236,9 @@ export const PublicPortalRapor: React.FC<PublicPortalRaporProps> = ({
                     <span className="text-xs text-slate-300">TA {schoolInfo.tahunAjaran}</span>
                   </div>
 
-                  {stGrades.length > 0 ? (
+                  {(stGrades || []).length > 0 ? (
                     <div className="space-y-3">
-                      {stGrades.map((g, idx) => (
+                      {(stGrades || []).map((g, idx) => (
                         <div key={idx} className="bg-slate-950/60 p-4 rounded-xl border border-white/10 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="font-bold text-sm text-white font-serif">{g.mapel}</span>

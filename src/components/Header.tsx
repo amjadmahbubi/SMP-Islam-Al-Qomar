@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserSession, SchoolInfo, GoogleSheetsConfig, Teacher } from '../types';
-import { School, LogIn, LogOut, ShieldCheck, UserCheck, Eye, FileSpreadsheet, Menu, X, Sun, Moon, AlertTriangle } from 'lucide-react';
+import { School, LogIn, LogOut, ShieldCheck, UserCheck, Eye, FileSpreadsheet, Menu, X, Sun, Moon, AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface HeaderProps {
   schoolInfo: SchoolInfo;
@@ -16,6 +16,11 @@ interface HeaderProps {
   onToggleTheme: () => void;
   sheetsConfig?: GoogleSheetsConfig;
   hasSheetsMismatch?: boolean;
+  autoSyncStatus?: {
+    status: 'idle' | 'checking' | 'synced' | 'offline';
+    lastSyncTime?: string;
+    message?: string;
+  };
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -31,7 +36,8 @@ export const Header: React.FC<HeaderProps> = ({
   theme,
   onToggleTheme,
   sheetsConfig,
-  hasSheetsMismatch = false
+  hasSheetsMismatch = false,
+  autoSyncStatus
 }) => {
   const loggedTeacher = teachers.find(
     t => (session.teacherId && t.id === session.teacherId) || t.nama === session.name
@@ -42,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
       loggedTeacher.jabatan?.toLowerCase().includes('kepsek'))
   );
   return (
-    <header className="bg-slate-900/70 backdrop-blur-xl text-white shadow-2xl sticky top-0 z-30 border-b border-white/10">
+    <header className="bg-slate-900/90 backdrop-blur-xl text-white shadow-xl sticky top-0 z-40 border-b border-white/10 transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           
@@ -122,30 +128,55 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* Google Sheets Status / Warning Indicator for Admin */}
-            {session.role === 'admin' && (
-              <>
-                {hasSheetsMismatch ? (
-                  <button
-                    onClick={() => setActiveTab('google-sheets')}
-                    className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/50 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md animate-pulse cursor-pointer"
-                    title="Peringatan: URL Web App Google Sheets yang aktif berbeda dengan database konfigurasi tersimpan. Klik untuk meninjau dan menyimpan."
-                  >
-                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span className="hidden md:inline">URL Sheets Berubah (Belum Simpan)</span>
-                    <span className="md:hidden">⚠️ Sheets</span>
-                  </button>
-                ) : sheetsConfig?.webAppUrl ? (
-                  <button
-                    onClick={() => setActiveTab('google-sheets')}
-                    className="hidden xl:flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer"
-                    title={`Google Sheets Terkunci & Siap: ${sheetsConfig.webAppUrl}`}
-                  >
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                    <span>Sheets Terhubung</span>
-                  </button>
-                ) : null}
-              </>
+            {/* Google Sheets Status & Quick Access Button for All Accounts */}
+            {session.role === 'admin' && hasSheetsMismatch ? (
+              <button
+                onClick={() => setActiveTab('google-sheets')}
+                className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/50 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md animate-pulse cursor-pointer"
+                title="Peringatan: URL Web App Google Sheets yang aktif berbeda dengan database konfigurasi tersimpan. Klik untuk meninjau dan menyimpan."
+              >
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="hidden md:inline">URL Sheets Berubah (Belum Simpan)</span>
+                <span className="md:hidden">⚠️ Sheets</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setActiveTab('google-sheets')}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border shadow-sm ${
+                  activeTab === 'google-sheets'
+                    ? 'bg-emerald-500/30 text-emerald-200 border-emerald-400/60'
+                    : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-400/30'
+                }`}
+                title={
+                  autoSyncStatus?.status === 'checking'
+                    ? "Sedang memeriksa pembaruan otomatis dari Google Sheets..."
+                    : autoSyncStatus?.lastSyncTime
+                    ? `Data tersinkron otomatis dari Google Sheets (${autoSyncStatus.lastSyncTime}). Klik untuk buka panel Sheets.`
+                    : "Pembaruan otomatis aktif. Klik untuk buka panel Sheets."
+                }
+              >
+                {autoSyncStatus?.status === 'checking' ? (
+                  <RefreshCw className="w-3.5 h-3.5 text-emerald-300 animate-spin shrink-0" />
+                ) : (
+                  <div className="relative flex items-center shrink-0">
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                  </div>
+                )}
+                <span className="hidden sm:inline">
+                  {autoSyncStatus?.status === 'checking' 
+                    ? 'Sinkron Sheets...' 
+                    : autoSyncStatus?.lastSyncTime 
+                    ? `Sheets: ${autoSyncStatus.lastSyncTime}`
+                    : 'Sheets Terupdate'}
+                </span>
+                <span className="sm:hidden font-bold">
+                  {autoSyncStatus?.status === 'checking' ? 'Sync...' : 'Sheets'}
+                </span>
+              </button>
             )}
 
             {/* Light/Dark Mode Toggle */}

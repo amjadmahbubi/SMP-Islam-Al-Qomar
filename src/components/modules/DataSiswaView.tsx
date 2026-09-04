@@ -15,7 +15,7 @@ interface DataSiswaViewProps {
 }
 
 export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
-  students,
+  students = [],
   onSaveStudents,
   schedules = [],
   onSaveSchedules = () => {},
@@ -166,7 +166,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
       : ayahText || ibuText || form.namaOrangTua || 'Orang Tua Siswa';
 
     if (editingStudent) {
-      const updated = students.map(s => (s.id === editingStudent.id ? ({
+      const updated = (students || []).map(s => (s.id === editingStudent.id ? ({
         ...(form as Student),
         kelas: finalKelas,
         tanggalLahir: sanitizeDateOnly(form.tanggalLahir),
@@ -194,14 +194,14 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
         alamat: form.alamat || 'Banyuwangi',
         status: (form.status as any) || 'Aktif'
       };
-      onSaveStudents([...students, newStudent]);
+      onSaveStudents([...(students || []), newStudent]);
     }
 
     setIsModalOpen(false);
   };
 
   const handleExportCSV = () => {
-    const csvData = students.map(s => ({
+    const csvData = (students || []).map(s => ({
       ID: s.id,
       NISN: s.nisn,
       NIS: s.nis,

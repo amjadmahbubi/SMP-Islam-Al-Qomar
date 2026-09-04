@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SchoolInfo, Teacher } from '../../types';
+import { initialSchoolInfo } from '../../data/initialData';
 import { Save, School, Check, Upload, Image as ImageIcon, Trash2, Eye, FileText, UserCheck, ShieldCheck, Crown, ArrowRight, Lock } from 'lucide-react';
 
 interface DataSekolahViewProps {
@@ -30,6 +31,7 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({
 
   const [formData, setFormData] = useState<SchoolInfo>(() => ({
     ...schoolInfo,
+    misi: Array.isArray(schoolInfo?.misi) && schoolInfo.misi.length > 0 ? schoolInfo.misi : (initialSchoolInfo.misi || []),
     kepalaSekolah: officialKepsekNama,
     nigyKepalaSekolah: officialKepsekNigy,
     nipKepalaSekolah: officialKepsekNigy
@@ -40,6 +42,7 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
+      misi: Array.isArray(prev.misi) && prev.misi.length > 0 ? prev.misi : (initialSchoolInfo.misi || []),
       kepalaSekolah: officialKepsekNama,
       nigyKepalaSekolah: officialKepsekNigy,
       nipKepalaSekolah: officialKepsekNigy
@@ -71,17 +74,20 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({
   };
 
   const handleMisiChange = (index: number, val: string) => {
-    const updated = [...formData.misi];
+    const currentMisi = Array.isArray(formData.misi) ? formData.misi : (initialSchoolInfo.misi || []);
+    const updated = [...currentMisi];
     updated[index] = val;
     setFormData(prev => ({ ...prev, misi: updated }));
   };
 
   const addMisi = () => {
-    setFormData(prev => ({ ...prev, misi: [...prev.misi, ''] }));
+    const currentMisi = Array.isArray(formData.misi) ? formData.misi : (initialSchoolInfo.misi || []);
+    setFormData(prev => ({ ...prev, misi: [...currentMisi, ''] }));
   };
 
   const removeMisi = (index: number) => {
-    setFormData(prev => ({ ...prev, misi: prev.misi.filter((_, i) => i !== index) }));
+    const currentMisi = Array.isArray(formData.misi) ? formData.misi : (initialSchoolInfo.misi || []);
+    setFormData(prev => ({ ...prev, misi: currentMisi.filter((_, i) => i !== index) }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -545,7 +551,7 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({
               </div>
 
               <div className="space-y-2">
-                {formData.misi.map((m, idx) => (
+                {(formData.misi || []).map((m, idx) => (
                   <div key={idx} className="flex items-center gap-2">
                     <span className="text-xs font-mono font-bold text-slate-400 w-6">{idx + 1}.</span>
                     <input
@@ -554,7 +560,7 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({
                       onChange={(e) => handleMisiChange(idx, e.target.value)}
                       className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
-                    {formData.misi.length > 1 && (
+                    {(formData.misi || []).length > 1 && (
                       <button
                         type="button"
                         onClick={() => removeMisi(idx)}

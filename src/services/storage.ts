@@ -182,7 +182,9 @@ export const StorageService = {
     const stored = getStored<Partial<GoogleSheetsConfig>>(KEYS.SHEETS_CONFIG, initialSheetsConfig);
     return {
       ...initialSheetsConfig,
-      ...stored
+      ...stored,
+      webAppUrl: (stored.webAppUrl && stored.webAppUrl.trim() !== '') ? stored.webAppUrl : initialSheetsConfig.webAppUrl,
+      autoSyncOnLoad: stored.autoSyncOnLoad !== undefined ? stored.autoSyncOnLoad : true
     };
   },
   saveSheetsConfig: (data: GoogleSheetsConfig): void => setStored(KEYS.SHEETS_CONFIG, data),
@@ -282,6 +284,47 @@ export const StorageService = {
     localStorage.removeItem(KEYS.GRADE_LOCKS);
     localStorage.removeItem(KEYS.AUDIT_LOGS);
     localStorage.removeItem(KEYS.CLASSES);
+  },
+
+  // Export All Local Data to JSON (Backup / Transfer to another device like HP)
+  exportAllDataJSON: (): string => {
+    const bundle: Record<string, any> = {};
+    Object.entries(KEYS).forEach(([name, key]) => {
+      if (name !== 'SESSION') {
+        const item = localStorage.getItem(key);
+        if (item) {
+          try {
+            bundle[key] = JSON.parse(item);
+          } catch {
+            bundle[key] = item;
+          }
+        }
+      }
+    });
+    return JSON.stringify({
+      appName: 'DAPODIK SMP Islam Al Qomar',
+      exportedAt: new Date().toISOString(),
+      data: bundle
+    }, null, 2);
+  },
+
+  // Import All Local Data from JSON
+  importAllDataJSON: (jsonStr: string): boolean => {
+    try {
+      const parsed = JSON.parse(jsonStr);
+      const data = parsed.data || parsed;
+      Object.keys(data).forEach(key => {
+        if (typeof data[key] === 'object') {
+          localStorage.setItem(key, JSON.stringify(data[key]));
+        } else {
+          localStorage.setItem(key, data[key]);
+        }
+      });
+      return true;
+    } catch (e) {
+      console.error('Failed to import data:', e);
+      return false;
+    }
   }
 };
 

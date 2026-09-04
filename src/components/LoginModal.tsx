@@ -14,11 +14,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   onClose,
   onLogin,
-  teachers,
+  teachers = [],
   schoolInfo
 }) => {
   const [selectedRole, setSelectedRole] = useState<'admin' | 'guru'>('admin');
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string>(teachers[1]?.id || teachers[0]?.id || 'T002');
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>(teachers?.[1]?.id || teachers?.[0]?.id || 'T002');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -230,8 +230,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   onChange={(e) => setSelectedTeacherId(e.target.value)}
                   className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 >
-                  {teachers.map((t) => {
-                    const allMapels = [t.mapelUtama, ...(t.mapelTambahan || [])].filter(Boolean).join(' & ');
+                  {(teachers || []).map((t) => {
+                    const allMapels = [t.mapelUtama, ...(Array.isArray(t.mapelTambahan) ? t.mapelTambahan : [])].filter(Boolean).join(' & ');
                     return (
                       <option key={t.id} value={t.id} className="bg-white text-slate-900">
                         {t.nama} — ({allMapels || 'Guru'}{t.jabatan && t.jabatan !== 'Guru Mata Pelajaran' ? ` • ${t.jabatan}` : ''})
@@ -248,7 +248,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       </span>
                     )}
                     <span className="text-emerald-400 font-semibold">
-                      {[selectedTeacher.mapelUtama, ...(selectedTeacher.mapelTambahan || [])].filter(Boolean).join(', ')}
+                      {[selectedTeacher.mapelUtama, ...(Array.isArray(selectedTeacher.mapelTambahan) ? selectedTeacher.mapelTambahan : [])].filter(Boolean).join(', ')}
                     </span>
                   </div>
                 )}

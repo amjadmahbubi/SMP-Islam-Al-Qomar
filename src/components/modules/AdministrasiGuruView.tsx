@@ -12,8 +12,8 @@ interface AdministrasiGuruViewProps {
 }
 
 export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
-  docs,
-  teachers,
+  docs = [],
+  teachers = [],
   session,
   schoolInfo,
   onSaveDocs
@@ -50,7 +50,7 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
     'Bahan Ajar'
   ];
 
-  const filteredDocs = docs.filter((d) => {
+  const filteredDocs = (docs || []).filter((d) => {
     const matchJenis = selectedJenis === 'Semua' || d.jenisDokumen === selectedJenis;
     if (session.role === 'guru' && session.teacherId) {
       return matchJenis && d.teacherId === session.teacherId;
@@ -77,13 +77,13 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
 
   const handleDelete = (id: string) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus berkas administrasi ini?')) {
-      const updated = docs.filter(d => d.id !== id);
+      const updated = (docs || []).filter(d => d.id !== id);
       onSaveDocs(updated);
     }
   };
 
   const handleVerifyStatus = (docId: string, newStatus: 'Disetujui' | 'Revisi', catatan?: string) => {
-    const updated = docs.map(d => {
+    const updated = (docs || []).map(d => {
       if (d.id === docId) {
         return {
           ...d,
@@ -101,7 +101,7 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
     if (!form.judul) return;
 
     if (editingDoc) {
-      const updated = docs.map(d => (d.id === editingDoc.id ? (form as TeacherDoc) : d));
+      const updated = (docs || []).map(d => (d.id === editingDoc.id ? (form as TeacherDoc) : d));
       onSaveDocs(updated);
     } else {
       const newDoc: TeacherDoc = {

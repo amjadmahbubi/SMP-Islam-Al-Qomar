@@ -16,7 +16,12 @@ import {
   UserCheck,
   ShieldCheck,
   Calendar,
-  Sparkle
+  Sparkle,
+  AlertTriangle,
+  AlertCircle,
+  ShieldAlert,
+  CheckCircle2,
+  Info
 } from 'lucide-react';
 import { DEFAULT_MAPEL_LIST, COMMON_SCHEDULE_ACTIVITIES, getAllClasses } from '../../data/constants';
 import { KelolaKelasModal } from './KelolaKelasModal';
@@ -56,9 +61,145 @@ function parseTimeRange(waktu: string | undefined) {
   return { startH, startM, endH, endM, isCustom: false };
 }
 
+export interface ScheduleConflict {
+  id: string;
+  type: 'guru' | 'ruang' | 'kelas';
+  severity: 'error' | 'warning';
+  title: string;
+  description: string;
+  conflictingSchedule: ScheduleItem;
+  day: string;
+  jamKe: number;
+  waktu: string;
+}
+
+function parseMinutesRange(waktu: string | undefined): { start: number; end: number } | null {
+  if (!waktu) return null;
+  const parts = waktu.split(/[-–—]/).map(s => s.trim());
+  if (parts.length < 2) return null;
+  const mStart = parts[0].match(/^(\d{1,2})[:.](\d{1,2})$/);
+  const mEnd = parts[1].match(/^(\d{1,2})[:.](\d{1,2})$/);
+  if (!mStart || !mEnd) return null;
+  const start = parseInt(mStart[1], 10) * 60 + parseInt(mStart[2], 10);
+  const end = parseInt(mEnd[1], 10) * 60 + parseInt(mEnd[2], 10);
+  return { start, end };
+}
+
+function checkTimeClash(timeA: string, jamKeA: number, timeB: string, jamKeB: number): boolean {
+  const rA = parseMinutesRange(timeA);
+  const rB = parseMinutesRange(timeB);
+
+  if (rA && rB) {
+    return rA.start < rB.end && rB.start < rA.end;
+  }
+  return jamKeA === jamKeB;
+}
+
+function isExemptTeacher(teacherName: string | undefined): boolean {
+  if (!teacherName) return true;
+  const t = teacherName.trim().toLowerCase();
+  if (
+    t === 'tim guru' ||
+    t === 'tim keagamaan' ||
+    t === 'tim kurikulum' ||
+    t === 'tim pembiasaan' ||
+    t === 'tim wali kelas' ||
+    t === '-' ||
+    t === ''
+  ) {
+    return true;
+  }
+  if (t.startsWith('tim ')) return true;
+  return false;
+}
+
+function isExemptRoom(roomName: string | undefined): boolean {
+  if (!roomName) return true;
+  const r = roomName.trim().toLowerCase();
+  if (r === 'ruang kelas' || r === 'ruang kelas masing-masing' || r === '-' || r === '') {
+    return true;
+  }
+  return false;
+}
+
+function findConflictsForSlot(
+  target: {
+    id?: string;
+    hari: string;
+    kelas: string;
+    jamKe: number;
+    waktu: string;
+    mapel: string;
+    guruNama: string;
+    ruang: string;
+  },
+  schedules: ScheduleItem[]
+): ScheduleConflict[] {
+  const conflicts: ScheduleConflict[] = [];
+  const cleanGuru = target.guruNama?.trim().toLowerCase() || '';
+  const cleanRuang = target.ruang?.trim().toLowerCase() || '';
+  const isTeacherExempt = isExemptTeacher(target.guruNama);
+  const isRoomExempt = isExemptRoom(target.ruang);
+
+  for (const s of schedules) {
+    if (target.id && s.id === target.id) continue;
+    if (s.hari !== target.hari) continue;
+
+    const hasClash = checkTimeClash(target.waktu, target.jamKe, s.waktu, s.jamKe);
+    if (!hasClash) continue;
+
+    // 1. Teacher Conflict: same teacher, different class
+    if (!isTeacherExempt && s.guruNama && s.guruNama.trim().toLowerCase() === cleanGuru && s.kelas !== target.kelas) {
+      conflicts.push({
+        id: `guru_${s.id}`,
+        type: 'guru',
+        severity: 'error',
+        title: 'Bentrok Guru Pengampu (Mengajar di 2 Kelas Bersamaan)',
+        description: `Ustadz/ah ${s.guruNama} sudah dijadwalkan mengajar di Kelas ${s.kelas} pada ${s.hari} ${s.waktu} (Jam Ke-${s.jamKe}) untuk Mapel "${s.mapel}".`,
+        conflictingSchedule: s,
+        day: s.hari,
+        jamKe: s.jamKe,
+        waktu: s.waktu
+      });
+    }
+
+    // 2. Class Conflict: same class has another schedule at this exact period
+    if (s.kelas === target.kelas) {
+      conflicts.push({
+        id: `kelas_${s.id}`,
+        type: 'kelas',
+        severity: 'error',
+        title: 'Bentrok Slot Kelas (Double Booking Jam)',
+        description: `Kelas ${target.kelas} pada ${s.hari} Jam Ke-${s.jamKe} (${s.waktu}) sudah terisi jadwal "${s.mapel}" (${s.guruNama || 'Tanpa Guru'}).`,
+        conflictingSchedule: s,
+        day: s.hari,
+        jamKe: s.jamKe,
+        waktu: s.waktu
+      });
+    }
+
+    // 3. Room Conflict: specific facility/room used by another class
+    if (!isRoomExempt && s.ruang && s.ruang.trim().toLowerCase() === cleanRuang && s.kelas !== target.kelas) {
+      conflicts.push({
+        id: `ruang_${s.id}`,
+        type: 'ruang',
+        severity: 'warning',
+        title: 'Bentrok Ruangan / Fasilitas Sarpras',
+        description: `Ruangan "${s.ruang}" sudah dialokasikan untuk Kelas ${s.kelas} (${s.mapel} - ${s.guruNama}) pada jam yang sama.`,
+        conflictingSchedule: s,
+        day: s.hari,
+        jamKe: s.jamKe,
+        waktu: s.waktu
+      });
+    }
+  }
+
+  return conflicts;
+}
+
 export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
-  schedules,
-  teachers,
+  schedules = [],
+  teachers = [],
   students = [],
   schoolInfo,
   sarpras = [],
@@ -173,6 +314,177 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
     s.namaBarangRuang.toLowerCase().includes('perpustakaan') ||
     s.namaBarangRuang.toLowerCase().includes('aula')
   );
+
+  // Audit Modal State & Filter
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditFilterDay, setAuditFilterDay] = useState<string>('Semua');
+
+  // Real-time conflicts for the currently active modal form
+  const activeConflicts = React.useMemo(() => {
+    if (!isModalOpen) return [];
+
+    const finalMapel = isCustomMapel ? customMapelInput.trim() : (form.mapel?.trim() || '');
+    const selectedClassVal = isCustomClassInForm
+      ? customClassInput.trim()
+      : (form.kelas?.trim() || selectedClass);
+
+    let targetClasses: string[] = [];
+    if (selectedClassVal === 'SEMUA_KELAS' || selectedClassVal === 'Semua Kelas') {
+      targetClasses = dynamicClasses;
+    } else {
+      targetClasses = [selectedClassVal];
+    }
+
+    let targetDays: string[] = [];
+    if (form.hari === 'Senin - Jumat') {
+      targetDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+    } else if (form.hari === 'Selasa - Kamis') {
+      targetDays = ['Selasa', 'Rabu', 'Kamis'];
+    } else if (form.hari === 'Senin - Kamis') {
+      targetDays = ['Senin', 'Selasa', 'Rabu', 'Kamis'];
+    } else {
+      targetDays = [(form.hari as string) || selectedDay];
+    }
+
+    const currentWaktu = form.waktu || '07:30 - 08:10';
+    const currentJamKe = Number(form.jamKe) || 1;
+    const currentGuru = form.guruNama || 'Tim Guru';
+    const currentRuang = form.ruang || `Kelas ${selectedClassVal}`;
+
+    const conflictsFound: ScheduleConflict[] = [];
+
+    targetClasses.forEach(cls => {
+      targetDays.forEach(day => {
+        const cList = findConflictsForSlot(
+          {
+            id: editingItem?.id,
+            hari: day,
+            kelas: cls,
+            jamKe: currentJamKe,
+            waktu: currentWaktu,
+            mapel: finalMapel,
+            guruNama: currentGuru,
+            ruang: currentRuang
+          },
+          schedules
+        );
+        cList.forEach(c => {
+          if (!conflictsFound.some(existing => existing.id === c.id)) {
+            conflictsFound.push(c);
+          }
+        });
+      });
+    });
+
+    return conflictsFound;
+  }, [
+    isModalOpen,
+    form,
+    isCustomMapel,
+    customMapelInput,
+    isCustomClassInForm,
+    customClassInput,
+    editingItem,
+    selectedClass,
+    selectedDay,
+    dynamicClasses,
+    schedules
+  ]);
+
+  // Global schedule conflicts across all classes and days
+  const allGlobalConflicts = React.useMemo(() => {
+    const list: {
+      id: string;
+      conflict: ScheduleConflict;
+      scheduleA: ScheduleItem;
+      scheduleB: ScheduleItem;
+    }[] = [];
+
+    for (let i = 0; i < schedules.length; i++) {
+      for (let j = i + 1; j < schedules.length; j++) {
+        const a = schedules[i];
+        const b = schedules[j];
+        if (a.hari !== b.hari) continue;
+        if (!checkTimeClash(a.waktu, a.jamKe, b.waktu, b.jamKe)) continue;
+
+        // 1. Teacher conflict: same teacher, different class
+        if (
+          !isExemptTeacher(a.guruNama) &&
+          a.guruNama.trim().toLowerCase() === b.guruNama.trim().toLowerCase() &&
+          a.kelas !== b.kelas
+        ) {
+          list.push({
+            id: `g_${a.id}_${b.id}`,
+            conflict: {
+              id: `g_${a.id}_${b.id}`,
+              type: 'guru',
+              severity: 'error',
+              title: `Bentrok Guru: ${a.guruNama}`,
+              description: `Mengajar di Kelas ${a.kelas} (${a.mapel}) dan Kelas ${b.kelas} (${b.mapel}) di saat bersamaan (${a.hari} Jam Ke-${a.jamKe}, ${a.waktu}).`,
+              conflictingSchedule: b,
+              day: a.hari,
+              jamKe: a.jamKe,
+              waktu: a.waktu
+            },
+            scheduleA: a,
+            scheduleB: b
+          });
+        }
+
+        // 2. Class conflict (double booking in same class)
+        if (a.kelas === b.kelas && a.id !== b.id) {
+          list.push({
+            id: `c_${a.id}_${b.id}`,
+            conflict: {
+              id: `c_${a.id}_${b.id}`,
+              type: 'kelas',
+              severity: 'error',
+              title: `Bentrok Kelas ${a.kelas}`,
+              description: `Memiliki 2 mata pelajaran di jam yang sama: "${a.mapel}" (${a.guruNama}) dan "${b.mapel}" (${b.guruNama}) pada ${a.hari} Jam Ke-${a.jamKe}.`,
+              conflictingSchedule: b,
+              day: a.hari,
+              jamKe: a.jamKe,
+              waktu: a.waktu
+            },
+            scheduleA: a,
+            scheduleB: b
+          });
+        }
+
+        // 3. Room conflict
+        if (
+          !isExemptRoom(a.ruang) &&
+          a.ruang.trim().toLowerCase() === b.ruang.trim().toLowerCase() &&
+          a.kelas !== b.kelas
+        ) {
+          list.push({
+            id: `r_${a.id}_${b.id}`,
+            conflict: {
+              id: `r_${a.id}_${b.id}`,
+              type: 'ruang',
+              severity: 'warning',
+              title: `Bentrok Ruangan: ${a.ruang}`,
+              description: `Digunakan bersamaan oleh Kelas ${a.kelas} (${a.mapel}) dan Kelas ${b.kelas} (${b.mapel}) pada ${a.hari} ${a.waktu}.`,
+              conflictingSchedule: b,
+              day: a.hari,
+              jamKe: a.jamKe,
+              waktu: a.waktu
+            },
+            scheduleA: a,
+            scheduleB: b
+          });
+        }
+      }
+    }
+    return list;
+  }, [schedules]);
+
+  // Helper to find conflicts for a specific item in the table
+  const getItemConflicts = (item: ScheduleItem) => {
+    return allGlobalConflicts.filter(
+      c => c.scheduleA.id === item.id || c.scheduleB.id === item.id
+    );
+  };
 
   const filtered = schedules
     .filter(s => s.kelas === selectedClass && s.hari === selectedDay)
@@ -391,6 +703,19 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
       targetDays = [(form.hari as string) || selectedDay];
     }
 
+    // Peringatan & Konfirmasi Bentrok Jadwal saat Submit
+    if (activeConflicts.length > 0) {
+      const summaryList = activeConflicts
+        .map((c, i) => `${i + 1}. [${c.type === 'guru' ? 'BENTROK GURU' : c.type === 'kelas' ? 'BENTROK KELAS' : 'BENTROK RUANGAN'}]\n   ${c.description}`)
+        .join('\n\n');
+
+      const confirmMsg = `⚠️ PERINGATAN BENTROK JADWAL TERDETEKSI!\n\n${summaryList}\n\nApakah Anda yakin tetap ingin menyimpan slot jadwal ini?\n• Klik "OK" jika jadwal ini disengaja (misal penggabungan kelas/kegiatan bersama).\n• Klik "Cancel" untuk membatalkan dan mengubah jam/guru pengampu.`;
+
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+    }
+
     if (editingItem) {
       const updatedItem: ScheduleItem = {
         ...editingItem,
@@ -484,6 +809,29 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Tombol Audit Bentrok Jadwal */}
+          <button
+            onClick={() => setIsAuditModalOpen(true)}
+            className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2.5 rounded-xl border transition-all shadow-sm ${
+              allGlobalConflicts.length > 0
+                ? 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300 ring-2 ring-rose-200'
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+            }`}
+            title="Periksa apakah ada guru atau ruangan yang bentrok di seluruh kelas"
+          >
+            {allGlobalConflicts.length > 0 ? (
+              <>
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 animate-bounce" />
+                <span>{allGlobalConflicts.length} Bentrok Jadwal</span>
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Cek Bentrok (Bebas)</span>
+              </>
+            )}
+          </button>
+
           <button
             onClick={() => setIsClassManagerOpen(true)}
             className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-emerald-500/30 transition-colors shadow-sm"
@@ -502,6 +850,32 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* School Global Conflict Warning Banner */}
+      {allGlobalConflicts.length > 0 && (
+        <div className="bg-rose-50/90 border-2 border-rose-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-950 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-rose-200 text-rose-800 flex items-center justify-center font-bold shrink-0">
+              <AlertTriangle className="w-5 h-5 text-rose-700" />
+            </div>
+            <div>
+              <p className="font-bold text-rose-900 text-sm">
+                Peringatan: Ditemukan {allGlobalConflicts.length} Konflik / Bentrok Jadwal di Sekolah
+              </p>
+              <p className="text-rose-700 text-xs mt-0.5">
+                Terdapat guru atau ruangan fasilitas yang terjadwal di lebih dari 1 kelas pada hari dan jam yang sama.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsAuditModalOpen(true)}
+            className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors shrink-0 shadow-sm flex items-center gap-1.5 self-start sm:self-center"
+          >
+            <ShieldAlert className="w-4 h-4" />
+            <span>Rincian & Perbaiki ({allGlobalConflicts.length})</span>
+          </button>
+        </div>
+      )}
 
       {/* Role Access Banner for Waka Kurikulum */}
       {isWakaKurikulum && (
@@ -615,8 +989,18 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
               <tbody className="divide-y divide-slate-100">
                 {filtered.map(s => {
                   const isActivity = COMMON_SCHEDULE_ACTIVITIES.includes(s.mapel);
+                  const itemConflicts = getItemConflicts(s);
+                  const hasConflict = itemConflicts.length > 0;
+
                   return (
-                    <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr
+                      key={s.id}
+                      className={`transition-colors ${
+                        hasConflict
+                          ? 'bg-rose-50/50 hover:bg-rose-100/50'
+                          : 'hover:bg-slate-50/80'
+                      }`}
+                    >
                       <td className="p-3.5 font-bold text-emerald-800 font-mono text-sm">
                         Jam {s.jamKe}
                       </td>
@@ -636,7 +1020,39 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
                           )}
                         </div>
                       </td>
-                      <td className="p-3.5 text-slate-800 font-semibold">{s.guruNama}</td>
+                      <td className="p-3.5 text-slate-800 font-semibold">
+                        <div className="flex flex-col gap-1">
+                          <span className={hasConflict ? 'text-rose-950 font-bold' : ''}>{s.guruNama}</span>
+                          {hasConflict && (
+                            <div className="flex flex-wrap gap-1">
+                              {itemConflicts.map((c, idx) => {
+                                const otherSchedule = c.scheduleA.id === s.id ? c.scheduleB : c.scheduleA;
+                                return (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedClass(otherSchedule.kelas);
+                                      setSelectedDay(otherSchedule.hari);
+                                    }}
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-rose-100 text-rose-900 border border-rose-300 hover:bg-rose-200 transition-colors text-left"
+                                    title={`Klik untuk lompat ke Kelas ${otherSchedule.kelas}: ${c.conflict.description}`}
+                                  >
+                                    <AlertTriangle className="w-3 h-3 text-rose-600 shrink-0" />
+                                    <span>
+                                      {c.conflict.type === 'guru'
+                                        ? `Bentrok dg Kelas ${otherSchedule.kelas} (${otherSchedule.mapel})`
+                                        : c.conflict.type === 'ruang'
+                                        ? `Ruang dipakai Kelas ${otherSchedule.kelas}`
+                                        : 'Bentrok slot'}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </td>
                       <td className="p-3.5 text-slate-600">
                         <span className="inline-flex items-center gap-1">
                           <Building2 className="w-3 h-3 text-slate-400" />
@@ -1217,6 +1633,58 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
                 </div>
               </div>
 
+              {/* Conflict Alert Box (Peringatan Bentrok Real-Time) */}
+              {activeConflicts.length > 0 ? (
+                <div className="bg-rose-50 border-2 border-rose-400 rounded-xl p-3.5 space-y-2.5 animate-in fade-in">
+                  <div className="flex items-center gap-2 text-rose-900 font-bold text-xs">
+                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>PERINGATAN: Terdeteksi {activeConflicts.length} Potensi Bentrok Jadwal!</span>
+                  </div>
+
+                  <p className="text-[11px] text-rose-800 leading-relaxed">
+                    Sistem mendeteksi jadwal yang Anda atur ini bertabrakan dengan jadwal lain yang sudah terdaftar di sekolah pada waktu yang sama:
+                  </p>
+
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {activeConflicts.map((c, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white/95 border border-rose-200 rounded-lg p-2.5 text-[11px] text-slate-800 space-y-1 shadow-2xs"
+                      >
+                        <div className="flex items-center justify-between gap-1 flex-wrap">
+                          <span className={`inline-flex items-center gap-1 font-bold px-1.5 py-0.5 rounded text-[10px] ${
+                            c.type === 'guru'
+                              ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                              : c.type === 'kelas'
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                              : 'bg-blue-100 text-blue-800 border border-blue-300'
+                          }`}>
+                            {c.type === 'guru' && '🔴 BENTROK GURU PENGAMPU'}
+                            {c.type === 'kelas' && '🟡 BENTROK JAM KELAS (DOUBLE BOOKING)'}
+                            {c.type === 'ruang' && '🟠 BENTROK RUANGAN / FASILITAS'}
+                          </span>
+                          <span className="font-mono font-bold text-slate-500 text-[10px]">
+                            {c.day} • Jam Ke-{c.jamKe} ({c.waktu})
+                          </span>
+                        </div>
+                        <p className="text-slate-700 text-[11px] leading-snug">
+                          {c.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-[10px] text-rose-700 italic">
+                    💡 Rekomendasi: Ubah jam pelajaran, pilih waktu lain, atau ganti guru pengampu untuk mencegah tabrakan jam KBM di sekolah.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50/70 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Jadwal aman! Tidak terdeteksi bentrok waktu dengan guru atau ruangan kelas lain.</span>
+                </div>
+              )}
+
               {/* Submit Buttons */}
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
@@ -1259,6 +1727,183 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
         onUpdateTeachers={onSaveTeachers}
         onClassesChange={() => setClassesVersion(v => v + 1)}
       />
+
+      {/* Modal Audit Bentrok Jadwal Seluruh Kelas */}
+      {isAuditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-2xl w-full border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {/* Modal Header */}
+            <div className="p-5 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/20 border border-rose-400/30 flex items-center justify-center text-rose-300">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold font-serif flex items-center gap-2">
+                    <span>Audit & Deteksi Bentrok Jadwal</span>
+                    <span className={`text-[11px] font-mono px-2 py-0.5 rounded-full ${
+                      allGlobalConflicts.length > 0 ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white'
+                    }`}>
+                      {allGlobalConflicts.length} Konflik
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Pemeriksaan bentrok otomatis guru pengampu, kelas, dan fasilitas sarpras di semua kelas.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsAuditModalOpen(false)}
+                className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Day Filter inside Audit Modal */}
+            <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center gap-1.5 overflow-x-auto">
+              <span className="text-xs font-bold text-slate-600 mr-1 shrink-0">Filter Hari:</span>
+              {['Semua', ...days].map(d => {
+                const countForDay = d === 'Semua'
+                  ? allGlobalConflicts.length
+                  : allGlobalConflicts.filter(c => c.scheduleA.hari === d).length;
+                return (
+                  <button
+                    key={d}
+                    onClick={() => setAuditFilterDay(d)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                      auditFilterDay === d
+                        ? 'bg-emerald-800 text-white shadow-xs'
+                        : 'bg-white text-slate-600 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    <span>{d}</span>
+                    {countForDay > 0 && (
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                        auditFilterDay === d ? 'bg-rose-500 text-white' : 'bg-rose-100 text-rose-700'
+                      }`}>
+                        {countForDay}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              {allGlobalConflicts.length === 0 ? (
+                <div className="p-8 text-center space-y-3 bg-emerald-50/50 rounded-2xl border border-emerald-200">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
+                  <h4 className="font-bold text-emerald-950 text-base">Alhamdulillah! Bebas Bentrok Jadwal</h4>
+                  <p className="text-xs text-emerald-800 max-w-md mx-auto leading-relaxed">
+                    Seluruh jadwal KBM di seluruh kelas (7A, 7B, 8A, 8B, 9A, 9B) telah sinkron sempurna. Tidak ditemukan guru atau ruangan yang tumpang tindih waktu.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {allGlobalConflicts
+                    .filter(c => auditFilterDay === 'Semua' || c.scheduleA.hari === auditFilterDay)
+                    .map((item, idx) => {
+                      return (
+                        <div
+                          key={idx}
+                          className="bg-white border-2 border-rose-200 hover:border-rose-400 rounded-2xl p-4 space-y-3 shadow-xs transition-all"
+                        >
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                                item.conflict.type === 'guru'
+                                  ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                                  : item.conflict.type === 'kelas'
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                  : 'bg-blue-100 text-blue-900 border border-blue-300'
+                              }`}>
+                                {item.conflict.type === 'guru' ? '🔴 BENTROK GURU' : item.conflict.type === 'kelas' ? '🟡 BENTROK KELAS' : '🟠 BENTROK FASILITAS'}
+                              </span>
+                              <span className="font-bold text-xs text-slate-800">
+                                {item.conflict.title}
+                              </span>
+                            </div>
+
+                            <span className="text-[11px] font-mono font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                              {item.scheduleA.hari} • Jam Ke-{item.scheduleA.jamKe} ({item.scheduleA.waktu})
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-slate-700">
+                            {item.conflict.description}
+                          </p>
+
+                          {/* Detail Dua Slot yang Bertabrakan */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-bold text-emerald-800">Slot A (Kelas {item.scheduleA.kelas})</span>
+                                <button
+                                  onClick={() => {
+                                    setIsAuditModalOpen(false);
+                                    setSelectedClass(item.scheduleA.kelas);
+                                    setSelectedDay(item.scheduleA.hari);
+                                    handleOpenEdit(item.scheduleA);
+                                  }}
+                                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 underline flex items-center gap-1"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>Edit Slot Ini</span>
+                                </button>
+                              </div>
+                              <p className="font-semibold text-slate-800">{item.scheduleA.mapel}</p>
+                              <p className="text-[11px] text-slate-500">Guru: {item.scheduleA.guruNama}</p>
+                              <p className="text-[11px] text-slate-500">Ruang: {item.scheduleA.ruang}</p>
+                            </div>
+
+                            <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-bold text-rose-800">Slot B (Kelas {item.scheduleB.kelas})</span>
+                                <button
+                                  onClick={() => {
+                                    setIsAuditModalOpen(false);
+                                    setSelectedClass(item.scheduleB.kelas);
+                                    setSelectedDay(item.scheduleB.hari);
+                                    handleOpenEdit(item.scheduleB);
+                                  }}
+                                  className="text-[10px] font-bold text-rose-700 hover:text-rose-900 underline flex items-center gap-1"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>Edit Slot Ini</span>
+                                </button>
+                              </div>
+                              <p className="font-semibold text-slate-800">{item.scheduleB.mapel}</p>
+                              <p className="text-[11px] text-slate-500">Guru: {item.scheduleB.guruNama}</p>
+                              <p className="text-[11px] text-slate-500">Ruang: {item.scheduleB.ruang}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-[11px] text-slate-500">
+                Sistem cerdas mendeteksi irisan menit waktu pelajaran & jam ke- antar kelas.
+              </span>
+              <button
+                onClick={() => setIsAuditModalOpen(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                Tutup
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

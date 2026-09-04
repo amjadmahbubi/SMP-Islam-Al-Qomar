@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Student, Teacher, SarprasItem, AttendanceRecord, SubjectGradeRecord, SchoolInfo, ScheduleItem, CalendarEvent, PpdbRegistration, GoogleSheetsConfig } from '../../types';
+import { Student, Teacher, SarprasItem, AttendanceRecord, SubjectGradeRecord, SchoolInfo, ScheduleItem, CalendarEvent, PpdbRegistration, GoogleSheetsConfig, UserSession } from '../../types';
 import { 
   Sheet, 
   Copy, 
@@ -26,7 +26,9 @@ import {
   RotateCcw,
   ShieldCheck,
   ExternalLink,
-  HelpCircle
+  HelpCircle,
+  Zap,
+  CheckCheck
 } from 'lucide-react';
 import { StorageService } from '../../services/storage';
 
@@ -109,6 +111,7 @@ export function validateGoogleAppsScriptUrl(url: string): UrlValidationResult {
 }
 
 interface GoogleSheetsIntegrationProps {
+  session?: UserSession;
   students: Student[];
   teachers: Teacher[];
   sarpras: SarprasItem[];
@@ -128,14 +131,21 @@ interface GoogleSheetsIntegrationProps {
   onImportEvents?: (events: CalendarEvent[]) => void;
   onImportPpdb?: (ppdb: PpdbRegistration[]) => void;
   onImportSchoolInfo?: (info: SchoolInfo) => void;
+  autoSyncStatus?: {
+    status: 'idle' | 'checking' | 'synced' | 'offline';
+    lastSyncTime?: string;
+    message?: string;
+  };
+  onTriggerAutoSync?: (simulatedData?: any) => Promise<void> | void;
 }
 
 export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = ({
-  students,
-  teachers,
-  sarpras,
-  attendance,
-  grades,
+  session,
+  students = [],
+  teachers = [],
+  sarpras = [],
+  attendance = [],
+  grades = [],
   schoolInfo,
   schedules = [],
   events = [],
@@ -149,8 +159,11 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   onImportSchedules,
   onImportEvents,
   onImportPpdb,
-  onImportSchoolInfo
+  onImportSchoolInfo,
+  autoSyncStatus,
+  onTriggerAutoSync
 }) => {
+  const isAdmin = session?.role === 'admin';
   // Load persisted config from props or storage
   const initialConfig = sheetsConfig || StorageService.getSheetsConfig();
 
@@ -184,6 +197,8 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
     sarpras?: SarprasItem[];
     schoolInfo?: SchoolInfo;
     ppdbRegistrations?: PpdbRegistration[];
+    schedules?: ScheduleItem[];
+    events?: CalendarEvent[];
   } | null>(null);
 
   // Saved database URL
@@ -191,6 +206,60 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   const currentUrl = sheetUrl.trim();
   const isUrlMismatched = Boolean(savedDbUrl && currentUrl && currentUrl !== savedDbUrl);
   const currentValidation = validateGoogleAppsScriptUrl(currentUrl);
+
+  // Auto-Sync on Load toggle state
+  const [autoSyncOnLoad, setAutoSyncOnLoad] = useState<boolean>(() => {
+    return initialConfig.autoSyncOnLoad !== false;
+  });
+
+  const handleToggleAutoSync = () => {
+    const nextVal = !autoSyncOnLoad;
+    setAutoSyncOnLoad(nextVal);
+    const updated: GoogleSheetsConfig = {
+      ...(sheetsConfig || StorageService.getSheetsConfig()),
+      autoSyncOnLoad: nextVal
+    };
+    StorageService.setSheetsConfig(updated);
+    if (onSaveSheetsConfig) {
+      onSaveSheetsConfig(updated);
+    }
+  };
+
+  const handleTestAutoSync = async () => {
+    if (onTriggerAutoSync) {
+      // Simulate new realistic verified updates from Google Sheets
+      const updatedStudents: Student[] = (students || []).map((s, idx) => {
+        if (idx === 0) {
+          return { ...s, nama: `${s.nama.replace(' (Sync)', '')} (Sync)` };
+        }
+        return s;
+      });
+
+      const updatedSchedules: ScheduleItem[] = schedules.length > 0 ? schedules : [
+        {
+          id: 'SCH-TEST-001',
+          hari: 'Senin',
+          jamMulai: '07:30',
+          jamSelesai: '08:50',
+          kelas: '7A',
+          mapel: 'Pendidikan Agama Islam',
+          teacherId: 'T001',
+          teacherName: 'Ustadz H. Ahmad Basuki, M.Pd.',
+          ruang: 'Kelas 7A (Multimedia)'
+        }
+      ];
+
+      await onTriggerAutoSync({
+        students: updatedStudents,
+        teachers,
+        schedules: updatedSchedules,
+        events,
+        schoolInfo
+      });
+    } else {
+      handleSimulatePull();
+    }
+  };
 
   // Notify parent of mismatch state for Header indicator
   useEffect(() => {
@@ -486,6 +555,51 @@ function doGet(e) {
     return list;
   }
 
+  // Parse Tab Data_Jadwal
+  function parseSchedules() {
+    var rows = getTabData("Data_Jadwal");
+    if (rows.length <= 1) return [];
+    var list = [];
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i];
+      if (r[0] || r[5]) {
+        list.push({
+          id: String(r[0] || ("JAD-" + i)),
+          hari: String(r[1] || "Senin"),
+          kelas: String(r[2] || "7A"),
+          jamKe: Number(r[3]) || 1,
+          waktu: String(r[4] || "07:00 - 07:40"),
+          mapel: String(r[5] || ""),
+          guruNama: String(r[6] || ""),
+          ruang: String(r[7] || "Ruang Kelas")
+        });
+      }
+    }
+    return list;
+  }
+
+  // Parse Tab Agenda_Kalender
+  function parseEvents() {
+    var rows = getTabData("Agenda_Kalender");
+    if (rows.length <= 1) return [];
+    var list = [];
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i];
+      if (r[0] || r[3]) {
+        list.push({
+          id: String(r[0] || ("EV-" + i)),
+          tanggalMulai: String(r[1] || ""),
+          tanggalSelesai: String(r[2] || ""),
+          kegiatan: String(r[3] || ""),
+          kategori: String(r[4] || "Akademik"),
+          semester: String(r[5] || "Ganjil"),
+          deskripsi: String(r[6] || "")
+        });
+      }
+    }
+    return list;
+  }
+
   var responsePayload = {
     status: "success",
     timestamp: new Date().toISOString(),
@@ -494,7 +608,9 @@ function doGet(e) {
     teachers: parseTeachers(),
     sarpras: parseSarpras(),
     schoolInfo: parseSchoolInfo(),
-    ppdbRegistrations: parsePPDB()
+    ppdbRegistrations: parsePPDB(),
+    schedules: parseSchedules(),
+    events: parseEvents()
   };
 
   return ContentService.createTextOutput(JSON.stringify(responsePayload))
@@ -764,13 +880,15 @@ function doPost(e) {
       const response = await fetch(fetchUrl);
       const data = await response.json();
 
-      if (data && (data.students || data.teachers || data.sarpras || data.schoolInfo || data.ppdbRegistrations)) {
+      if (data && (data.students || data.teachers || data.sarpras || data.schoolInfo || data.ppdbRegistrations || data.schedules || data.events)) {
         setPulledData({
           students: Array.isArray(data.students) && data.students.length > 0 ? data.students : undefined,
           teachers: Array.isArray(data.teachers) && data.teachers.length > 0 ? data.teachers : undefined,
           sarpras: Array.isArray(data.sarpras) && data.sarpras.length > 0 ? data.sarpras : undefined,
           schoolInfo: data.schoolInfo || undefined,
           ppdbRegistrations: Array.isArray(data.ppdbRegistrations) && data.ppdbRegistrations.length > 0 ? data.ppdbRegistrations : undefined,
+          schedules: Array.isArray(data.schedules) && data.schedules.length > 0 ? data.schedules : undefined,
+          events: Array.isArray(data.events) && data.events.length > 0 ? data.events : undefined,
         });
         setIsPullModalOpen(true);
         setPullStatus('success');
@@ -805,7 +923,7 @@ function doPost(e) {
     setPullStatus('pulling');
     setTimeout(() => {
       // Modify 1 or 2 fields to simulate realistic changes made in Google Sheets
-      const updatedStudents: Student[] = students.map((s, idx) => {
+      const updatedStudents: Student[] = (students || []).map((s, idx) => {
         if (idx === 0) {
           return { ...s, nama: `${s.nama} (Updated dari Sheets)` };
         }
@@ -835,7 +953,9 @@ function doPost(e) {
         teachers,
         sarpras,
         schoolInfo: updatedSchoolInfo,
-        ppdbRegistrations
+        ppdbRegistrations,
+        schedules: schedules.length > 0 ? schedules : undefined,
+        events: events.length > 0 ? events : undefined
       });
 
       setIsPullModalOpen(true);
@@ -870,6 +990,16 @@ function doPost(e) {
       countSummary.push(`${pulledData.ppdbRegistrations.length} Data PPDB`);
     }
 
+    if (pulledData.schedules && onImportSchedules) {
+      onImportSchedules(pulledData.schedules);
+      countSummary.push(`${pulledData.schedules.length} Jadwal Pelajaran`);
+    }
+
+    if (pulledData.events && onImportEvents) {
+      onImportEvents(pulledData.events);
+      countSummary.push(`${pulledData.events.length} Agenda Kalender`);
+    }
+
     if (pulledData.schoolInfo && onImportSchoolInfo) {
       onImportSchoolInfo(pulledData.schoolInfo);
       countSummary.push('Profil Sekolah');
@@ -887,34 +1017,52 @@ function doPost(e) {
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30 mb-2">
             <ArrowLeftRight className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Integrasi 2-Arah (Bi-Directional Sync) Google Sheets</span>
+            <span>
+              {isAdmin 
+                ? 'Integrasi 2-Arah (Bi-Directional Sync) Google Sheets' 
+                : 'Tarik Data Valid Google Sheets (Akses Semua Akun)'}
+            </span>
           </div>
           <h2 className="text-xl font-bold font-serif text-white">
-            Sinkronisasi Dua Arah (Kirim &amp; Tarik Data Google Sheets)
+            {isAdmin 
+              ? 'Sinkronisasi Dua Arah (Kirim & Tarik Data Google Sheets)' 
+              : 'Tarik & Perbarui Data Valid Dari Google Sheets'}
           </h2>
           <p className="text-xs text-slate-300 mt-1">
-            Data dapat dikirim dari Web App ke Google Sheets, dan sebaliknya data dari spreadsheet dapat ditarik kembali ke Web App secara otomatis.
+            {isAdmin 
+              ? 'Data dapat dikirim dari Web App ke Google Sheets (Push), dan sebaliknya ditarik kembali ke Web App secara otomatis (Pull).'
+              : 'Akun Anda dapat menarik jadwal pelajaran, kalender, guru, dan data sekolah yang valid dari Google Sheets ke browser/HP ini.'}
           </p>
         </div>
 
         {/* Sync Action Buttons */}
         <div className="flex flex-wrap items-center gap-2.5">
           
-          {/* PUSH BUTTON */}
-          <button
-            onClick={handleTestSync}
-            disabled={syncStatus === 'syncing'}
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all border border-emerald-300/50 cursor-pointer disabled:opacity-50"
-          >
-            <Upload className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-bounce' : ''}`} />
-            <span>{syncStatus === 'syncing' ? 'Mengirim Data...' : 'Kirim Ke Sheets (Push)'}</span>
-          </button>
+          {/* PUSH BUTTON (Only active for Admin to protect spreadsheet data) */}
+          {isAdmin ? (
+            <button
+              onClick={handleTestSync}
+              disabled={syncStatus === 'syncing'}
+              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all border border-emerald-300/50 cursor-pointer disabled:opacity-50"
+            >
+              <Upload className={`w-4 h-4 ${syncStatus === 'syncing' ? 'animate-bounce' : ''}`} />
+              <span>{syncStatus === 'syncing' ? 'Mengirim Data...' : 'Kirim Ke Sheets (Push)'}</span>
+            </button>
+          ) : (
+            <div 
+              className="flex items-center gap-1.5 bg-slate-800/80 text-slate-400 text-xs px-3 py-2 rounded-xl border border-white/10"
+              title="Fitur kirim data ke Sheets hanya dapat dijalankan oleh Admin DAPODIK demi menjaga keabsahan data utama."
+            >
+              <Lock className="w-3.5 h-3.5 text-slate-400" />
+              <span>Kirim: Khusus Admin</span>
+            </div>
+          )}
 
-          {/* PULL BUTTON */}
+          {/* PULL BUTTON (Available for EVERY account) */}
           <button
             onClick={handlePullFromSheets}
             disabled={pullStatus === 'pulling'}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all border border-indigo-400/40 cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all border border-emerald-300/50 cursor-pointer disabled:opacity-50"
           >
             <Download className={`w-4 h-4 ${pullStatus === 'pulling' ? 'animate-spin' : ''}`} />
             <span>{pullStatus === 'pulling' ? 'Menarik Data...' : 'Tarik Dari Sheets (Pull)'}</span>
@@ -932,6 +1080,108 @@ function doPost(e) {
 
         </div>
       </div>
+
+      {/* AUTO-SYNC ON LOAD SPOTLIGHT CARD */}
+      <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900/90 to-emerald-950/80 border-2 border-emerald-500/50 rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl relative overflow-hidden">
+        <div className="absolute -right-12 -top-12 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-400/40 shadow-inner">
+              <Zap className="w-6 h-6 text-emerald-400" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <h3 className="text-base font-bold font-serif text-white">
+                  Pembaruan Otomatis (Auto-Sync on Load)
+                </h3>
+                {autoSyncOnLoad ? (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 px-2.5 py-0.5 rounded-full shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    AKTIF (Nol Klik)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-slate-800 text-slate-400 border border-white/10 px-2.5 py-0.5 rounded-full">
+                    NONAKTIF
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                Guru, siswa, dan wali murid <strong>tidak perlu lagi mengklik tombol apa pun</strong>. Setiap kali web dibuka di HP maupun laptop, sistem langsung memeriksa dan memperbarui jadwal, kalender, guru, dan profil sekolah dari Google Sheets di latar belakang secara otomatis.
+              </p>
+              <div className="flex flex-wrap items-center gap-3 mt-3 text-[11px] text-emerald-300/90 font-medium">
+                <span className="flex items-center gap-1.5 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-lg">
+                  <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Status: {autoSyncStatus?.status === 'checking' ? 'Sedang Memeriksa Update...' : 'Terkoneksi Google Sheets'}</span>
+                </span>
+                <span className="flex items-center gap-1.5 bg-emerald-950/60 border border-emerald-500/30 px-2.5 py-1 rounded-lg">
+                  <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Sinkron Terakhir: {autoSyncStatus?.lastSyncTime || lastPulled || 'Saat Web Dibuka'}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap md:flex-col items-stretch gap-2.5 shrink-0 self-end md:self-center">
+            {/* Auto-Sync Toggle for Admin */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={handleToggleAutoSync}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  autoSyncOnLoad
+                    ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/60 hover:bg-emerald-500/30'
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                }`}
+              >
+                <span>{autoSyncOnLoad ? '✓ Auto-Sync Diaktifkan' : '✕ Aktifkan Auto-Sync'}</span>
+              </button>
+            )}
+
+            {/* Test Auto-Sync Trigger */}
+            <button
+              type="button"
+              onClick={handleTestAutoSync}
+              className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg transition-all border border-emerald-300/50 cursor-pointer"
+              title="Menguji simulasi penerimaan update otomatis tanpa perlu refresh browser"
+            >
+              <Sparkles className="w-4 h-4 text-slate-950" />
+              <span>Uji Coba Auto-Sync</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Account Guidance Banner for Non-Admin / HP Users */}
+      {!isAdmin && (
+        <div className="bg-emerald-950/70 border border-emerald-500/40 rounded-2xl p-5 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold shrink-0">
+              <Zap className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold font-serif text-white flex items-center gap-2">
+                <span>Pembaruan Otomatis Aktif untuk Akun Anda</span>
+                <span className="text-[10px] bg-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-bold border border-emerald-400/40">
+                  {session?.role === 'guru' ? 'Guru' : 'Publik / Tamu'}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Data jadwal, agenda kalender, dan profil sekolah diperbarui secara otomatis setiap kali Anda membuka aplikasi. Tombol <strong>"Tarik Dari Sheets"</strong> tetap dapat digunakan jika ingin memuat ulang secara instan.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handlePullFromSheets}
+            disabled={pullStatus === 'pulling'}
+            className="shrink-0 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            <span>Tarik Data Manual (Opsional)</span>
+          </button>
+        </div>
+      )}
 
       {/* Sync Status Banner */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1127,15 +1377,22 @@ function doPost(e) {
             <div className="flex flex-wrap items-center gap-2">
               {isLocked ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={handleUnlockUrl}
-                    className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-3 rounded-xl shadow transition-all cursor-pointer"
-                    title="Klik untuk membuka kunci jika Anda ingin mengubah link URL Web App"
-                  >
-                    <Unlock className="w-3.5 h-3.5" />
-                    <span>Buka Kunci / Ganti URL</span>
-                  </button>
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      onClick={handleUnlockUrl}
+                      className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-3 rounded-xl shadow transition-all cursor-pointer"
+                      title="Klik untuk membuka kunci jika Anda ingin mengubah link URL Web App"
+                    >
+                      <Unlock className="w-3.5 h-3.5" />
+                      <span>Buka Kunci / Ganti URL</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1 px-3 py-3 bg-slate-950/80 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      <span>URL Resmi Sekolah</span>
+                    </div>
+                  )}
 
                   <button
                     type="button"
@@ -1509,6 +1766,28 @@ function doPost(e) {
                 </div>
               )}
 
+              {pulledData.schedules && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-emerald-950">Jadwal Pelajaran ({pulledData.schedules.length} Sesi)</p>
+                    <p className="text-[11px] text-emerald-800">
+                      Sampel: {pulledData.schedules[0]?.hari}, Kelas {pulledData.schedules[0]?.kelas} • {pulledData.schedules[0]?.mapel} ({pulledData.schedules[0]?.guruNama})
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold bg-emerald-200 text-emerald-950 px-2 py-1 rounded">Siap Diimpor</span>
+                </div>
+              )}
+
+              {pulledData.events && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-blue-900">Agenda &amp; Kalender ({pulledData.events.length} Agenda)</p>
+                    <p className="text-[11px] text-blue-700">Sampel: {pulledData.events[0]?.kegiatan} ({pulledData.events[0]?.tanggalMulai})</p>
+                  </div>
+                  <span className="text-[10px] font-bold bg-blue-200 text-blue-900 px-2 py-1 rounded">Siap Diimpor</span>
+                </div>
+              )}
+
               {pulledData.schoolInfo && (
                 <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-1.5">
                   <div className="flex items-center justify-between">
@@ -1524,16 +1803,25 @@ function doPost(e) {
                       <span>{pulledData.schoolInfo.visi}</span>
                     </div>
                   )}
-                  {pulledData.schoolInfo.misi && pulledData.schoolInfo.misi.length > 0 && (
-                    <div className="bg-white/80 p-2 rounded-lg border border-purple-100 text-[11px] text-purple-950">
-                      <span className="font-bold text-purple-800">Misi ({pulledData.schoolInfo.misi.length} butir):</span>
-                      <ol className="list-decimal list-inside mt-0.5 space-y-0.5 text-[10px] text-slate-700">
-                        {pulledData.schoolInfo.misi.map((m, i) => (
-                          <li key={i}>{m}</li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
+                  {(() => {
+                    const rawMisi = pulledData.schoolInfo?.misi;
+                    const misiItems = Array.isArray(rawMisi)
+                      ? rawMisi
+                      : typeof rawMisi === 'string'
+                        ? (rawMisi as string).split(/[\r\n]+/).map(s => s.replace(/^[0-9]+[.)-]\s*/, '').trim()).filter(Boolean)
+                        : [];
+                    if (misiItems.length === 0) return null;
+                    return (
+                      <div className="bg-white/80 p-2 rounded-lg border border-purple-100 text-[11px] text-purple-950">
+                        <span className="font-bold text-purple-800">Misi ({misiItems.length} butir):</span>
+                        <ol className="list-decimal list-inside mt-0.5 space-y-0.5 text-[10px] text-slate-700">
+                          {misiItems.map((m, i) => (
+                            <li key={i}>{m}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

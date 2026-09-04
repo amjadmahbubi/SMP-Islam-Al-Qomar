@@ -199,6 +199,7 @@ export interface GoogleSheetsConfig {
   webAppUrl: string; // Apps Script Web App URL
   spreadsheetId: string;
   autoSync: boolean;
+  autoSyncOnLoad?: boolean; // Automatic background synchronization on app load
   isLocked?: boolean;
   lastSyncedAt?: string;
   lastPulledAt?: string;

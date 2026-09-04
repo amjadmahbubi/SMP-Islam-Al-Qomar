@@ -88,14 +88,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'jadwal', label: 'Jadwal Pelajaran', icon: Clock },
     { id: 'agenda', label: 'Agenda Kegiatan', icon: Calendar },
     { id: 'kalender', label: 'Kalender Akademik', icon: CalendarDays },
-    { id: 'portal-rapor', label: 'Cek Nilai & Rapor', icon: Search }
+    { id: 'portal-rapor', label: 'Cek Nilai & Rapor', icon: Search },
+    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet }
   ];
 
   const guruNav = [
     { id: 'administrasi-guru', label: 'Administrasi Guru', icon: FolderKanban },
     { id: 'absensi-siswa', label: 'Absensi Siswa (WA)', icon: CheckSquare },
     { id: 'input-nilai', label: 'Input Nilai Asesmen', icon: BookOpen },
-    { id: 'laporan-rapor', label: 'Laporan Rapor Digital', icon: Award }
+    { id: 'laporan-rapor', label: 'Laporan Rapor Digital', icon: Award },
+    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet }
   ];
 
   const adminNav = [

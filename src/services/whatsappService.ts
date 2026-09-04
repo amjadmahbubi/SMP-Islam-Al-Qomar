@@ -189,9 +189,9 @@ export class WAService {
       `• Izin: *${data.totalIzin} Siswa*\n` +
       `• Sakit: *${data.totalSakit} Siswa*\n` +
       `• Alpa: *${data.totalAlpa} Siswa*\n\n` +
-      (data.nonHadirNames.length > 0
+      ((data.nonHadirNames && data.nonHadirNames.length > 0)
         ? `📋 *Catatan Siswa Tidak Hadir / Izin / Sakit:*\n` +
-          data.nonHadirNames.map((n, i) => `${i + 1}. ${n}`).join('\n') +
+          (data.nonHadirNames || []).map((n, i) => `${i + 1}. ${n}`).join('\n') +
           `\n\n`
         : ` Alhamdulillaah seluruh siswa Kelas ${data.kelas} HADIR LENGKAP.\n\n`) +
       `_Disampaikan oleh Wali Kelas ${data.kelas} ${data.schoolName}_`

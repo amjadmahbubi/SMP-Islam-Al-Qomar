@@ -13,7 +13,7 @@ interface DataGuruViewProps {
 }
 
 export const DataGuruView: React.FC<DataGuruViewProps> = ({
-  teachers,
+  teachers = [],
   students = [],
   schedules = [],
   schoolInfo,
@@ -61,7 +61,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
     const matchSearch =
       t.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.mapelUtama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.mapelTambahan && t.mapelTambahan.some(m => m.toLowerCase().includes(searchTerm.toLowerCase()))) ||
+      (Array.isArray(t.mapelTambahan) && t.mapelTambahan.some(m => m.toLowerCase().includes(searchTerm.toLowerCase()))) ||
       t.nuptk.includes(searchTerm) ||
       t.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus = statusFilter === 'Semua' || t.statusPegawai === statusFilter;
@@ -343,13 +343,13 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
                   <td className="p-3.5">
                     <div className="font-semibold text-emerald-900 flex items-center gap-1.5 flex-wrap">
                       <span>{teacher.mapelUtama}</span>
-                      {teacher.mapelTambahan && teacher.mapelTambahan.length > 0 && (
+                      {Array.isArray(teacher.mapelTambahan) && teacher.mapelTambahan.length > 0 && (
                         <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded border border-emerald-300">
                           Mapel 1
                         </span>
                       )}
                     </div>
-                    {teacher.mapelTambahan && teacher.mapelTambahan.length > 0 && (
+                    {Array.isArray(teacher.mapelTambahan) && teacher.mapelTambahan.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1.5">
                         {teacher.mapelTambahan.map((m, idx) => (
                           <span
@@ -569,7 +569,7 @@ export const DataGuruView: React.FC<DataGuruViewProps> = ({
                 </div>
 
                 {/* List of currently assigned additional mapels */}
-                {form.mapelTambahan && form.mapelTambahan.length > 0 ? (
+                {Array.isArray(form.mapelTambahan) && form.mapelTambahan.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5 py-1">
                     {form.mapelTambahan.map((m, idx) => (
                       <span

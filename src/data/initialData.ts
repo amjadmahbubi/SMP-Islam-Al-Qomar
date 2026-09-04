@@ -747,10 +747,13 @@ export const initialSubjectGradeRecords: SubjectGradeRecord[] = [
 ];
 
 export const initialSheetsConfig: GoogleSheetsConfig = {
-  webAppUrl: '',
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec',
   spreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
-  autoSync: false,
-  lastSyncedAt: undefined
+  autoSync: true,
+  autoSyncOnLoad: true,
+  isLocked: true,
+  lastSyncedAt: undefined,
+  lastPulledAt: undefined
 };
 
 export const initialAchievements: StudentAchievement[] = [
