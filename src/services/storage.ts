@@ -96,10 +96,12 @@ export const StorageService = {
   // School Info (deep merge with initialSchoolInfo to ensure misi is always array)
   getSchoolInfo: (): SchoolInfo => {
     const stored = getStored<Partial<SchoolInfo>>(KEYS.SCHOOL, initialSchoolInfo);
+    // If stored contains obsolete placeholder (npsn 20348912 or old template visi), upgrade to real school info
+    const isOldPlaceholder = stored.npsn === '20348912' || (stored.visi && stored.visi.includes("Generasi Qur'ani, Berakhlak Mulia, Berprestasi"));
+    const base = isOldPlaceholder ? { ...initialSchoolInfo, ...stored, npsn: initialSchoolInfo.npsn, visi: initialSchoolInfo.visi } : { ...initialSchoolInfo, ...stored };
     return {
-      ...initialSchoolInfo,
-      ...stored,
-      misi: Array.isArray(stored.misi) && stored.misi.length ? stored.misi : initialSchoolInfo.misi
+      ...base,
+      misi: Array.isArray(base.misi) && base.misi.length ? base.misi : initialSchoolInfo.misi
     };
   },
   saveSchoolInfo: (data: SchoolInfo): void => setStored(KEYS.SCHOOL, data),

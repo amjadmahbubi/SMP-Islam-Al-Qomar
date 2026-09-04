@@ -26,7 +26,7 @@ const dynamicCurrentTA = currentMonth >= 6
 
 export const initialSchoolInfo: SchoolInfo = {
   nama: 'SMP Islam Al Qomar',
-  npsn: '20348912',
+  npsn: '70004839',
   akreditasi: 'A (Unggul)',
   alamat: 'Jl. Raya Masjid Al Qomar No. 45, Kecamatan Giri, Kabupaten Banyuwangi, Jawa Timur 68411',
   telepon: '(0333) 8291045',
@@ -35,15 +35,15 @@ export const initialSchoolInfo: SchoolInfo = {
   kepalaSekolah: 'Ustadz H. Ahmad Basuki, M.Pd.',
   nigyKepalaSekolah: 'NIGY.200501.004',
   nipKepalaSekolah: 'NIGY.200501.004',
-  visi: "Terwujudnya Generasi Qur'ani, Berakhlak Mulia, Berprestasi Akademik, dan Berwawasan Global.",
+  visi: 'Mewujudkan Generasi yang Cerdas, Berakhlaqul Karimah dan Berprestasi.',
   misi: [
     "Menyelenggarakan pendidikan berbasis Al-Qur'an, Hadits, dan Budi Pekerti Islam.",
     "Mengembangkan potensi sains, teknologi, dan kebahasaan (Indonesia, Arab, Inggris) siswa.",
     "Membentuk karakter disiplin, jujur, peduli lingkungan, dan berjiwa kepemimpinan.",
     "Menyediakan sarana pembelajaran modern berpadu dengan tradisi keislaman yang sejuk."
   ],
-  tahunAjaran: dynamicCurrentTA,
-  semesterAktif: currentMonth >= 6 && currentMonth <= 11 ? 'Ganjil' : 'Genap'
+  tahunAjaran: '2026/2027',
+  semesterAktif: 'Ganjil'
 };
 
 export const initialTeachers: Teacher[] = [
