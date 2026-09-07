@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Student, ScheduleItem, Teacher } from '../../types';
-import { Layers, Plus, Edit2, Trash2, Check, X, AlertTriangle, Users, Clock, ShieldAlert, ArrowRight, RotateCcw } from 'lucide-react';
+import { Layers, Plus, Edit2, Trash2, Check, X, AlertTriangle, Users, Clock, ShieldAlert, ArrowRight } from 'lucide-react';
 import { getAllClasses, DEFAULT_CLASSES } from '../../data/constants';
 import { StorageService } from '../../services/storage';
 
@@ -58,7 +58,7 @@ export const KelolaKelasModal: React.FC<KelolaKelasModalProps> = ({
       return;
     }
 
-    const updated = [...storedClasses, trimmed];
+    const updated = Array.from(new Set([...currentClasses, trimmed]));
     setStoredClasses(updated);
     StorageService.setClasses(updated);
     setNewClassName('');
@@ -90,7 +90,7 @@ export const KelolaKelasModal: React.FC<KelolaKelasModalProps> = ({
     }
 
     // 1. Update stored classes list
-    let updatedClassList = storedClasses.map(c => (c === oldName ? newName : c));
+    let updatedClassList = currentClasses.map(c => (c === oldName ? newName : c));
     if (!updatedClassList.includes(newName)) {
       updatedClassList.push(newName);
     }
@@ -136,32 +136,32 @@ export const KelolaKelasModal: React.FC<KelolaKelasModalProps> = ({
     const studentCount = students.filter(s => s.kelas === clsToDelete).length;
     const scheduleCount = schedules.filter(s => s.kelas === clsToDelete).length;
 
+    // Remaining classes list
+    const updatedClassList = currentClasses.filter(c => c !== clsToDelete);
+
     // If there are students or schedules, move them or unassign
-    if (studentCount > 0 && moveToClass) {
-      const updatedStudents = students.map(s => (s.kelas === clsToDelete ? { ...s, kelas: moveToClass } : s));
-      onUpdateStudents(updatedStudents);
-    } else if (studentCount > 0 && !moveToClass) {
-      // Unassign or keep default
-      const fallback = currentClasses.find(c => c !== clsToDelete) || '7A';
-      const updatedStudents = students.map(s => (s.kelas === clsToDelete ? { ...s, kelas: fallback } : s));
+    if (studentCount > 0) {
+      const fallbackTarget = moveToClass || updatedClassList[0] || '7';
+      const updatedStudents = students.map(s => (s.kelas === clsToDelete ? { ...s, kelas: fallbackTarget } : s));
       onUpdateStudents(updatedStudents);
     }
 
-    if (scheduleCount > 0 && moveToClass) {
-      const updatedSchedules = schedules.map(j => (j.kelas === clsToDelete ? { ...j, kelas: moveToClass } : j));
-      onUpdateSchedules(updatedSchedules);
-    } else if (scheduleCount > 0 && !moveToClass) {
-      // Remove schedule for deleted class
-      const updatedSchedules = schedules.filter(j => j.kelas !== clsToDelete);
-      onUpdateSchedules(updatedSchedules);
+    if (scheduleCount > 0) {
+      if (moveToClass) {
+        const updatedSchedules = schedules.map(j => (j.kelas === clsToDelete ? { ...j, kelas: moveToClass } : j));
+        onUpdateSchedules(updatedSchedules);
+      } else {
+        // Remove schedule for deleted class
+        const updatedSchedules = schedules.filter(j => j.kelas !== clsToDelete);
+        onUpdateSchedules(updatedSchedules);
+      }
     }
 
     // Update teachers wali kelas
     const updatedTeachers = teachers.map(t => (t.waliKelasDi === clsToDelete ? { ...t, waliKelasDi: '-' } : t));
     onUpdateTeachers(updatedTeachers);
 
-    // Update stored classes
-    const updatedClassList = storedClasses.filter(c => c !== clsToDelete);
+    // Update stored classes permanently
     setStoredClasses(updatedClassList);
     StorageService.setClasses(updatedClassList);
 
@@ -176,15 +176,6 @@ export const KelolaKelasModal: React.FC<KelolaKelasModalProps> = ({
     setDeletingClassName(null);
     showNotification(`Kelas "${clsToDelete}" berhasil dihapus.`);
     if (onClassesChange) onClassesChange();
-  };
-
-  const handleResetDefaultClasses = () => {
-    if (confirm('Kembalikan daftar kelas ke format standar (7A, 7B, 8A, 8B, 9A, 9B)?')) {
-      setStoredClasses(DEFAULT_CLASSES);
-      StorageService.setClasses(DEFAULT_CLASSES);
-      showNotification('Daftar kelas telah direset ke kelas standar.');
-      if (onClassesChange) onClassesChange();
-    }
   };
 
   return (
@@ -258,15 +249,6 @@ export const KelolaKelasModal: React.FC<KelolaKelasModalProps> = ({
               <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
                 Daftar Kelas Aktif ({currentClasses.length} Kelas)
               </h3>
-              <button
-                type="button"
-                onClick={handleResetDefaultClasses}
-                className="text-[11px] text-slate-400 hover:text-amber-300 flex items-center gap-1 transition-colors"
-                title="Kembalikan ke 7A - 9B"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>Reset Standar (7A-9B)</span>
-              </button>
             </div>
 
             <div className="divide-y divide-white/10 bg-slate-950/40 rounded-xl border border-white/10 overflow-hidden">

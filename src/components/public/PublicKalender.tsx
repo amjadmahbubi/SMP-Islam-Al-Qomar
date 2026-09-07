@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { CalendarEvent } from '../../types';
+import { CalendarEvent, SchoolInfo } from '../../types';
 import { CalendarDays, Filter, BookOpen, Clock, Tag, Flag } from 'lucide-react';
 
 interface PublicKalenderProps {
   events: CalendarEvent[];
+  schoolInfo?: SchoolInfo;
 }
 
-export const PublicKalender: React.FC<PublicKalenderProps> = ({ events }) => {
+export const PublicKalender: React.FC<PublicKalenderProps> = ({ events = [], schoolInfo }) => {
   const [selectedSemester, setSelectedSemester] = useState<'Semua' | 'Ganjil' | 'Genap'>('Semua');
   const [selectedKategori, setSelectedKategori] = useState<string>('Semua');
 

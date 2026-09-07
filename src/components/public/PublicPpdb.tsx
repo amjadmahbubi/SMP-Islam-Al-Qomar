@@ -98,14 +98,14 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
   );
 
   // Active School Year (Sync with Profil Sekolah)
-  const currentTahunAjaran = schoolInfo.tahunAjaran?.trim() || settings.tahunAjaran?.trim() || (new Date().getMonth() >= 6 ? `${new Date().getFullYear()}/${new Date().getFullYear() + 1}` : `${new Date().getFullYear() - 1}/${new Date().getFullYear()}`);
+  const currentTahunAjaran = schoolInfo?.tahunAjaran?.trim() || settings?.tahunAjaran?.trim() || (new Date().getMonth() >= 6 ? `${new Date().getFullYear()}/${new Date().getFullYear() + 1}` : `${new Date().getFullYear() - 1}/${new Date().getFullYear()}`);
   const currentRegYear = new Date().getFullYear().toString();
   const taStartYear = currentTahunAjaran.match(/\d{4}/)?.[0] || currentRegYear;
 
   // Active Gelombang from Settings
   const activeGelombang =
-    settings.gelombangList.find(g => g.status === 'Dibuka') ||
-    settings.gelombangList[0] || {
+    settings?.gelombangList?.find(g => g.status === 'Dibuka') ||
+    settings?.gelombangList?.[0] || {
       id: 'GEL-1',
       nama: 'Gelombang 1 (Inden)',
       tanggalMulai: '1 Nopember',
@@ -115,7 +115,7 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
     };
 
   // Active Contact Person from Settings
-  const primaryContact = settings.contactList[0] || {
+  const primaryContact = settings?.contactList?.[0] || {
     nama: 'Ustadz Faisal Rahman',
     jabatan: 'Humas PPDB',
     noHp: '0812-3456-7807',

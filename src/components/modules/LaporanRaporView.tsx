@@ -25,7 +25,7 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
   const availableClasses = Array.from(new Set(students.map(s => s.kelas))).sort();
 
   const [selectedKelas, setSelectedKelas] = useState<string>(
-    initialSelectedStudent ? initialSelectedStudent.kelas : (availableClasses[0] || '7A')
+    initialSelectedStudent ? initialSelectedStudent.kelas : (availableClasses[0] || '7')
   );
 
   const [viewMode, setViewMode] = useState<'individual' | 'bulk'>('individual');

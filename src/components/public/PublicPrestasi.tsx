@@ -54,7 +54,7 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
 
   const [formData, setFormData] = useState<Omit<StudentAchievement, 'id'>>({
     studentName: '',
-    kelas: dynamicClasses[0] || '7A',
+    kelas: dynamicClasses[0] || '7',
     judulPrestasi: '',
     kategori: "Tahfidz & Al-Qur'an",
     tingkat: 'Provinsi',
@@ -100,7 +100,7 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
     setEditingId(null);
     setFormData({
       studentName: '',
-      kelas: dynamicClasses[0] || '7A',
+      kelas: dynamicClasses[0] || '7',
       judulPrestasi: '',
       kategori: "Tahfidz & Al-Qur'an",
       tingkat: 'Provinsi',

@@ -124,12 +124,11 @@ export const MasterDataBackupView: React.FC<MasterDataBackupViewProps> = ({
                 <Database className="w-6 h-6" />
               </span>
               <h2 className="text-xl font-bold text-white font-serif tracking-wide">
-                Cadangkan & Bagikan Data Master Sekolah
+                Pusat Cadangan & Pemulihan Sistem (Arsip & Backup)
               </h2>
             </div>
             <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-              Jadikan data yang telah Anda input (<strong>{students.length} Siswa</strong>, <strong>{teachers.length} Guru</strong>, dan Profil Sekolah) sebagai 
-              <strong> Data Bawaan Permanen</strong> agar saat tautan Vercel dibagikan ke HP atau akun lain, data tidak kembali ke contoh awal!
+              Sistem sekolah menerapkan arsitektur hybrid cerdas: <strong>Auto-Sync Google Sheets</strong> menjaga data di semua perangkat selalu mutakhir secara otomatis, sementara cadangan data lokal (<strong>{students.length} Siswa</strong>, <strong>{teachers.length} Guru</strong>) memastikan aplikasi <strong>langsung terbuka instan dan tidak pernah blank</strong> meski saat sinyal lemah atau offline.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">

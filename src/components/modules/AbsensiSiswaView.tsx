@@ -32,7 +32,7 @@ export const AbsensiSiswaView: React.FC<AbsensiSiswaViewProps> = ({
 
   const teacherDefaultMapel = allowedMapels[0] || loggedTeacher?.mapelUtama || mapelList[0];
 
-  const [selectedClass, setSelectedClass] = useState(dynamicClasses[0] || '7A');
+  const [selectedClass, setSelectedClass] = useState(dynamicClasses[0] || '7');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedMapel, setSelectedMapel] = useState(teacherDefaultMapel);
   const [selectedTeacher, setSelectedTeacher] = useState(session.name || loggedTeacher?.nama || teachers[0]?.nama || 'Ustadz Amjad Mahbubi, S.Pd.');

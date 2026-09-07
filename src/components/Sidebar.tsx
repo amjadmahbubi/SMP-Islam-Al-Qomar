@@ -90,8 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'agenda', label: 'Agenda Kegiatan', icon: Calendar },
     { id: 'kalender', label: 'Kalender Akademik', icon: CalendarDays },
     { id: 'portal-rapor', label: 'Cek Nilai & Rapor', icon: Search },
-    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet },
-    { id: 'master-backup', label: 'Cadangkan & Data Master', icon: Database }
+    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet }
   ];
 
   const guruNav = [
@@ -99,21 +98,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'absensi-siswa', label: 'Absensi Siswa (WA)', icon: CheckSquare },
     { id: 'input-nilai', label: 'Input Nilai Asesmen', icon: BookOpen },
     { id: 'laporan-rapor', label: 'Laporan Rapor Digital', icon: Award },
-    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet },
-    { id: 'master-backup', label: 'Cadangkan & Data Master', icon: Database }
+    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet }
   ];
 
   const adminNav = [
     { id: 'data-sekolah', label: 'Data Profil Sekolah', icon: School },
     { id: 'data-guru', label: 'Data Guru & Tendik', icon: GraduationCap },
-    { id: 'data-siswa', label: 'Data Siswa Master', icon: Users },
+    { id: 'data-siswa', label: 'Data Induk Siswa', icon: Users },
     { id: 'data-sarpras', label: 'Data Sarpras Sekolah', icon: Package },
     { id: 'ppdb', label: 'Kelola PPDB / Pendaftaran Baru', icon: UserPlus },
     { id: 'galeri', label: 'Kelola Galeri Foto Sekolah', icon: ImageIcon },
     { id: 'kelola-jadwal', label: 'Kelola Jadwal Kelas', icon: Clock },
     { id: 'kelola-kalender', label: 'Kelola Kalender & Agenda', icon: CalendarDays },
     { id: 'google-sheets', label: 'Integrasi Google Sheets', icon: FileSpreadsheet },
-    { id: 'master-backup', label: 'Cadangkan & Data Master', icon: Database },
+    { id: 'master-backup', label: 'Cadangan & Pemulihan Sistem', icon: Database },
     { id: 'wa-gateway', label: 'WhatsApp Gateway & Log', icon: MessageSquare }
   ];
 

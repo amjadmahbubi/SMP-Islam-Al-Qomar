@@ -215,7 +215,7 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
   );
   const formatClassLabel = (c: string) => (c.toLowerCase().startsWith('kelas') ? c : `Kelas ${c}`);
 
-  const [selectedClass, setSelectedClass] = useState<string>(dynamicClasses[0] || '7A');
+  const [selectedClass, setSelectedClass] = useState<string>(dynamicClasses[0] || '7');
   const [selectedDay, setSelectedDay] = useState<string>('Senin');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isClassManagerOpen, setIsClassManagerOpen] = useState(false);
@@ -237,12 +237,12 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
   // Form State
   const [form, setForm] = useState<Partial<ScheduleItem> & { hariBatch?: string }>({
     hari: 'Senin',
-    kelas: '7A',
+    kelas: '7',
     jamKe: 1,
     waktu: '07:30 - 08:10',
     mapel: 'Matematika',
-    guruNama: teachers[1]?.nama || 'Ustadzah Siti Fatimah, S.Pd.',
-    ruang: 'Kelas 7A'
+    guruNama: teachers[1]?.nama || 'Tim Guru',
+    ruang: 'Kelas 7'
   });
 
   const [isCustomMapel, setIsCustomMapel] = useState(false);
@@ -336,14 +336,15 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
     }
 
     let targetDays: string[] = [];
-    if (form.hari === 'Senin - Jumat') {
+    const formHariStr1 = (form.hari as string) || '';
+    if (formHariStr1 === 'Senin - Jumat') {
       targetDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
-    } else if (form.hari === 'Selasa - Kamis') {
+    } else if (formHariStr1 === 'Selasa - Kamis') {
       targetDays = ['Selasa', 'Rabu', 'Kamis'];
-    } else if (form.hari === 'Senin - Kamis') {
+    } else if (formHariStr1 === 'Senin - Kamis') {
       targetDays = ['Senin', 'Selasa', 'Rabu', 'Kamis'];
     } else {
-      targetDays = [(form.hari as string) || selectedDay];
+      targetDays = [formHariStr1 || selectedDay];
     }
 
     const currentWaktu = form.waktu || '07:30 - 08:10';
@@ -693,14 +694,15 @@ export const JadwalKelolaView: React.FC<JadwalKelolaViewProps> = ({
 
     // Determine target days
     let targetDays: string[] = [];
-    if (form.hari === 'Senin - Jumat') {
+    const formHariStr2 = (form.hari as string) || '';
+    if (formHariStr2 === 'Senin - Jumat') {
       targetDays = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
-    } else if (form.hari === 'Selasa - Kamis') {
+    } else if (formHariStr2 === 'Selasa - Kamis') {
       targetDays = ['Selasa', 'Rabu', 'Kamis'];
-    } else if (form.hari === 'Senin - Kamis') {
+    } else if (formHariStr2 === 'Senin - Kamis') {
       targetDays = ['Senin', 'Selasa', 'Rabu', 'Kamis'];
     } else {
-      targetDays = [(form.hari as string) || selectedDay];
+      targetDays = [formHariStr2 || selectedDay];
     }
 
     // Peringatan & Konfirmasi Bentrok Jadwal saat Submit

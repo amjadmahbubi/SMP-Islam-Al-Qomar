@@ -25,15 +25,15 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
   const dynamicClasses = getAllClasses([], [], teachers);
   const mapelList = DEFAULT_MAPEL_LIST;
 
-  const loggedTeacher = teachers.find(
-    t => (session.teacherId && t.id === session.teacherId) || (session.name && t.nama.toLowerCase() === session.name.toLowerCase())
+  const loggedTeacher = (teachers || []).find(
+    t => (session?.teacherId && t?.id === session.teacherId) || (session?.name && t?.nama && t.nama.toLowerCase() === session.name.toLowerCase())
   );
   const teacherDefaultMapel = loggedTeacher?.mapelUtama || mapelList[0];
 
   const [form, setForm] = useState<Partial<TeacherDoc>>({
     jenisDokumen: 'Modul Ajar / RPP',
     mataPelajaran: teacherDefaultMapel,
-    kelas: dynamicClasses[0] || '7A',
+    kelas: dynamicClasses[0] || '7',
     tahunAjaran: schoolInfo?.tahunAjaran || '2024/2025',
     judul: '',
     linkFile: '',
@@ -66,7 +66,7 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
       teacherName: session.name || teachers[0]?.nama || 'Ustadzah Siti Fatimah, S.Pd.',
       jenisDokumen: 'Modul Ajar / RPP',
       mataPelajaran: teacherDefaultMapel,
-      kelas: '7A',
+      kelas: dynamicClasses[0] || '7',
       tahunAjaran: '2024/2025',
       judul: '',
       linkFile: 'https://docs.google.com/document/d/sample-link',
@@ -110,7 +110,7 @@ export const AdministrasiGuruView: React.FC<AdministrasiGuruViewProps> = ({
         teacherName: form.teacherName || 'Ustadzah Siti Fatimah, S.Pd.',
         jenisDokumen: (form.jenisDokumen as any) || 'Modul Ajar / RPP',
         mataPelajaran: form.mataPelajaran || 'Matematika',
-        kelas: form.kelas || '7A',
+        kelas: form.kelas || dynamicClasses[0] || '7',
         tahunAjaran: form.tahunAjaran || '2024/2025',
         judul: form.judul!,
         linkFile: form.linkFile || 'https://drive.google.com',

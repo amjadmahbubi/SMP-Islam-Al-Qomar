@@ -239,13 +239,12 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
         {
           id: 'SCH-TEST-001',
           hari: 'Senin',
-          jamMulai: '07:30',
-          jamSelesai: '08:50',
-          kelas: '7A',
+          jamKe: 1,
+          waktu: '07:30 - 08:50',
+          kelas: '7',
           mapel: 'Pendidikan Agama Islam',
-          teacherId: 'T001',
-          teacherName: 'Ustadz H. Ahmad Basuki, M.Pd.',
-          ruang: 'Kelas 7A (Multimedia)'
+          guruNama: 'Ustadz Faisal Rahman, S.Pd.',
+          ruang: 'Kelas 7'
         }
       ];
 

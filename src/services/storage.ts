@@ -90,7 +90,13 @@ function setStored<T>(key: string, value: T): void {
 
 export const StorageService = {
   // Session
-  getSession: (): UserSession => getStored(KEYS.SESSION, defaultSession),
+  getSession: (): UserSession => {
+    const session = getStored(KEYS.SESSION, defaultSession);
+    if (!session || typeof session !== 'object' || !session.role) {
+      return defaultSession;
+    }
+    return session;
+  },
   setSession: (session: UserSession): void => setStored(KEYS.SESSION, session),
 
   // School Info (deep merge with initialSchoolInfo to ensure misi is always array)
@@ -277,8 +283,15 @@ export const StorageService = {
 
   // Custom & Active Classes
   getClasses: (): string[] => {
-    const data = getStored(KEYS.CLASSES, ['7A', '7B', '8A', '8B', '9A', '9B']);
-    return Array.isArray(data) ? data : ['7A', '7B', '8A', '8B', '9A', '9B'];
+    const data = getStored(KEYS.CLASSES, ['7', '8', '9']);
+    const invalid = ['-', '--', 'none', 'tidak ada', 'null', 'undefined', '7A', '7B', '8A', '8B', '9A', '9B'];
+    if (Array.isArray(data)) {
+      const cleaned = data
+        .map(c => String(c).trim())
+        .filter(c => Boolean(c) && !invalid.includes(c));
+      return cleaned.length > 0 ? cleaned : ['7', '8', '9'];
+    }
+    return ['7', '8', '9'];
   },
   saveClasses: (data: string[]): void => setStored(KEYS.CLASSES, data),
   setClasses: (data: string[]): void => setStored(KEYS.CLASSES, data),

@@ -51,7 +51,7 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
 
   const teacherDefaultMapel = allowedMapels[0] || loggedTeacher?.mapelUtama || mapelList[0];
 
-  const [selectedClass, setSelectedClass] = useState(dynamicClasses[0] || '7A');
+  const [selectedClass, setSelectedClass] = useState(dynamicClasses[0] || '7');
   const [selectedMapel, setSelectedMapel] = useState(teacherDefaultMapel);
   const [selectedTeacher, setSelectedTeacher] = useState(session.name || loggedTeacher?.nama || teachers[0]?.nama || 'Ustadz Amjad Mahbubi, S.Pd.');
   const [semester, setSemester] = useState<'Ganjil' | 'Genap'>(schoolInfo?.semesterAktif || 'Ganjil');

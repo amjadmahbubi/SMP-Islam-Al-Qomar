@@ -76,7 +76,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
     nis: '',
     nama: '',
     gender: 'L',
-    kelas: classes[0] || '7A',
+    kelas: classes[0] || '7',
     tempatLahir: 'Banyuwangi',
     tanggalLahir: '2011-01-01',
     namaOrangTua: '',
@@ -113,7 +113,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
       nis: `${currYearShort}07${Math.floor(100 + Math.random() * 899)}`,
       nama: '',
       gender: 'L',
-      kelas: classes[0] || '7A',
+      kelas: classes[0] || '7',
       tempatLahir: 'Banyuwangi',
       tanggalLahir: `${new Date().getFullYear() - 13}-05-15`,
       namaOrangTua: '',
@@ -156,7 +156,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
     e.preventDefault();
     if (!form.nama || !form.nisn) return;
 
-    const finalKelas = isCustomClass ? (customClassInput.trim() || '7A') : (form.kelas || '7A');
+    const finalKelas = isCustomClass ? (customClassInput.trim() || '7') : (form.kelas || '7');
     
     // Auto format parent summary
     const ayahText = form.namaAyah ? `${form.namaAyah}${form.statusAyah === 'Meninggal' ? ' (Alm.)' : ''}` : '';

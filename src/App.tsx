@@ -387,6 +387,14 @@ export function App() {
   const applyPulledSheetsData = (data: any, isSimulated = false) => {
     const updatedItems: string[] = [];
 
+    if (Array.isArray(data.classes) && data.classes.length > 0) {
+      const cleanClasses = data.classes
+        .map((c: any) => String(c).trim())
+        .filter((c: string) => Boolean(c) && !['7A', '7B', '8A', '8B', '9A', '9B'].includes(c));
+      if (cleanClasses.length > 0) {
+        StorageService.setClasses(cleanClasses);
+      }
+    }
     if (Array.isArray(data.schedules) && data.schedules.length > 0) {
       handleSaveSchedules(data.schedules);
       updatedItems.push(`${data.schedules.length} Jadwal Pelajaran`);

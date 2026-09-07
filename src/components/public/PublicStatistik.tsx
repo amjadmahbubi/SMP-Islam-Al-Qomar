@@ -26,10 +26,14 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
     () => getAllClasses(students, schedules, teachers),
     [students, schedules, teachers]
   );
-  const formatClassLabel = (c: string) => (c.toLowerCase().startsWith('kelas') ? c : `Kelas ${c}`);
+  const formatClassLabel = (c: unknown) => {
+    const str = String(c || '').trim();
+    if (!str) return '';
+    return str.toLowerCase().startsWith('kelas') ? str : `Kelas ${str}`;
+  };
 
   const rombelSubText = dynamicClasses.length > 0 
-    ? dynamicClasses.map(c => formatClassLabel(c)).join(', ') 
+    ? dynamicClasses.map(formatClassLabel).filter(Boolean).join(', ') 
     : 'Semua Rombel';
 
   const statsCards = [

@@ -636,8 +636,8 @@ export const initialStudents: Student[] = [
 export const initialSarpras: SarprasItem[] = [
   {
     id: 'SRP001',
-    kode: 'R-7A',
-    namaBarangRuang: 'Gedung Ruang Kelas 7A (Multimedia)',
+    kode: 'R-7',
+    namaBarangRuang: 'Gedung Ruang Kelas 7 (Multimedia)',
     kategori: 'Ruang / Gedung',
     jumlah: 1,
     kondisiBaik: 1,
@@ -1419,7 +1419,7 @@ export const initialGalleryItems: GalleryItem[] = [
 
 export const initialGradeLocks: GradeLockRecord[] = [
   {
-    id: '7A-Pendidikan Agama Islam-Ganjil',
+    id: '7-Pendidikan Agama Islam-Ganjil',
     kelas: '7',
     mapel: 'Pendidikan Agama Islam',
     semester: 'Ganjil',

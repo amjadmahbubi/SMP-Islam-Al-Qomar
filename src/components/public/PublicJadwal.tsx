@@ -17,7 +17,7 @@ export const PublicJadwal: React.FC<PublicJadwalProps> = ({
   schoolInfo
 }) => {
   const dynamicClasses = getAllClasses(students, schedules, teachers);
-  const [selectedClass, setSelectedClass] = useState<string>(dynamicClasses[0] || '7A');
+  const [selectedClass, setSelectedClass] = useState<string>(dynamicClasses[0] || '7');
   const [selectedDay, setSelectedDay] = useState<string>('Senin');
   const [searchTerm, setSearchTerm] = useState<string>('');
 

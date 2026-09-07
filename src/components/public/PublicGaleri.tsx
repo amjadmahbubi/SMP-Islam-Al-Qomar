@@ -22,7 +22,7 @@ interface PublicGaleriProps {
 }
 
 export const PublicGaleri: React.FC<PublicGaleriProps> = ({
-  galleryItems,
+  galleryItems = [],
   session,
   onSaveGalleryItems
 }) => {
@@ -59,12 +59,15 @@ export const PublicGaleri: React.FC<PublicGaleriProps> = ({
     'Ekstrakurikuler'
   ];
 
+  const safeItems = Array.isArray(galleryItems) ? galleryItems : [];
+
   // Filter items
-  const filteredItems = galleryItems.filter(item => {
+  const filteredItems = safeItems.filter(item => {
+    if (!item) return false;
     const matchesCat = selectedCategory === 'Semua' || item.kategori === selectedCategory;
     const matchesSearch =
-      item.judul.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.deskripsi.toLowerCase().includes(searchQuery.toLowerCase());
+      (item.judul || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.deskripsi || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCat && matchesSearch;
   });
 

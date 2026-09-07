@@ -39,6 +39,18 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
+  // Never intercept Vite dev server internal assets, source files, or hot-reloads
+  if (
+    url.pathname.startsWith('/@') || 
+    url.pathname.startsWith('/src/') || 
+    url.pathname.includes('node_modules') || 
+    url.search.includes('t=') ||
+    url.pathname.endsWith('.ts') ||
+    url.pathname.endsWith('.tsx')
+  ) {
+    return;
+  }
+
   // Skip Google Sheets API / external API POST/GET requests from caching
   if (url.hostname.includes('script.google.com') || url.hostname.includes('googleapis.com')) {
     event.respondWith(

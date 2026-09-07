@@ -27,8 +27,8 @@ interface KalenderKelolaViewProps {
 }
 
 export const KalenderKelolaView: React.FC<KalenderKelolaViewProps> = ({
-  events,
-  agendas,
+  events = [],
+  agendas = [],
   session,
   teachers = [],
   onSaveEvents,
@@ -39,7 +39,7 @@ export const KalenderKelolaView: React.FC<KalenderKelolaViewProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
 
-  const loggedTeacher = teachers.find(
+  const loggedTeacher = (teachers || []).find(
     t => (session?.teacherId && t.id === session.teacherId) || t.nama === session?.name
   );
 
@@ -206,19 +206,28 @@ export const KalenderKelolaView: React.FC<KalenderKelolaViewProps> = ({
     setIsModalOpen(false);
   };
 
-  const filteredEvents = events.filter(e =>
-    e.kegiatan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (e.deskripsi && e.deskripsi.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    e.kategori.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const safeEvents = Array.isArray(events) ? events : [];
+  const safeAgendas = Array.isArray(agendas) ? agendas : [];
 
-  const filteredAgendas = agendas.filter(a =>
-    a.judul.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (a.deskripsi && a.deskripsi.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    a.lokasi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.penanggungJawab.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.kategori.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredEvents = safeEvents.filter(e => {
+    if (!e) return false;
+    return (
+      (e.kegiatan || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.deskripsi && e.deskripsi.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (e.kategori || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
+
+  const filteredAgendas = safeAgendas.filter(a => {
+    if (!a) return false;
+    return (
+      (a.judul || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (a.deskripsi && a.deskripsi.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (a.lokasi || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (a.penanggungJawab || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (a.kategori || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">

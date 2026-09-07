@@ -179,20 +179,22 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Master Data / Backup Button */}
-            <button
-              onClick={() => setActiveTab('master-backup')}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border shadow-sm ${
-                activeTab === 'master-backup'
-                  ? 'bg-blue-500/30 text-blue-200 border-blue-400/60'
-                  : 'bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border-blue-400/30'
-              }`}
-              title="Cadangkan Data Sekolah & Jadikan Data Bawaan Permanen di Vercel"
-            >
-              <Database className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span className="hidden sm:inline">Data Master</span>
-              <span className="sm:hidden font-bold">Data</span>
-            </button>
+            {/* Admin Only: Backup & Restore Quick Button */}
+            {session.role === 'admin' && (
+              <button
+                onClick={() => setActiveTab('master-backup')}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border shadow-sm ${
+                  activeTab === 'master-backup'
+                    ? 'bg-blue-500/30 text-blue-200 border-blue-400/60'
+                    : 'bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border-blue-400/30'
+                }`}
+                title="Cadangan & Pemulihan Sistem (Khusus Administrator)"
+              >
+                <Database className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span className="hidden sm:inline">Cadangan Data</span>
+                <span className="sm:hidden font-bold">Backup</span>
+              </button>
+            )}
 
             {/* Light/Dark Mode Toggle */}
             <button

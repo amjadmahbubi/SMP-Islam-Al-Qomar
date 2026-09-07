@@ -39,6 +39,7 @@ export interface Teacher {
   telepon: string;
   statusPegawai: 'PNS' | 'GTY' | 'GTT' | 'Honor';
   waliKelasDi?: string; // e.g. '7A'
+  password?: string;
 }
 
 export interface Student {
@@ -105,7 +106,7 @@ export interface CalendarEvent {
   tanggalMulai: string;
   tanggalSelesai: string;
   kegiatan: string;
-  kategori: 'KBM' | 'Ujian (PTS/PAS)' | 'Libur Sekolah' | 'Hari Besar Islam (PHBI)' | 'Kegiatan Ekstrakurikuler' | 'Pembagian Rapor';
+  kategori: 'KBM' | 'Ujian (PTS/PAS)' | 'Libur Sekolah' | 'Hari Besar Islam (PHBI)' | 'Kegiatan Ekstrakurikuler' | 'Pembagian Rapor' | 'Program & Ujian Metode Ummi / Tahfidz';
   deskripsi: string;
   semester: 'Ganjil' | 'Genap';
 }
@@ -117,7 +118,7 @@ export interface AgendaItem {
   waktu: string;
   lokasi: string;
   penanggungJawab: string;
-  kategori: 'Keagamaan' | 'Akademik' | 'Lomba / Prestasi' | 'Rapat Guru' | 'Parenting / Kemitraan';
+  kategori: 'Keagamaan' | 'Akademik' | 'Lomba / Prestasi' | 'Rapat Guru' | 'Parenting / Kemitraan' | 'Tahfidz & Metode Ummi' | 'Kesiswaan & Ekstrakurikuler';
   deskripsi: string;
   status: 'Akan Datang' | 'Berlangsung' | 'Selesai';
 }
@@ -127,6 +128,7 @@ export interface AttendanceEntry {
   studentName: string;
   status: 'H' | 'I' | 'S' | 'A'; // Hadir, Izin, Sakit, Alpa
   keterangan?: string;
+  catatan?: string;
 }
 
 export interface AttendanceRecord {

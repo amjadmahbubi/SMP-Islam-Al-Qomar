@@ -33,7 +33,16 @@ export const COMMON_SCHEDULE_ACTIVITIES = [
   'Senam Pagi & Kebersihan Lingkungan'
 ];
 
-export const DEFAULT_CLASSES = ['7A', '7B', '8A', '8B', '9A', '9B'];
+export const DEFAULT_CLASSES = ['7', '8', '9'];
+
+const INVALID_CLASS_NAMES = ['-', '--', 'none', 'tidak ada', 'null', 'undefined', '7A', '7B', '8A', '8B', '9A', '9B'];
+
+const isValidClass = (val: unknown): boolean => {
+  if (val === null || val === undefined) return false;
+  const str = String(val).trim();
+  if (!str || str === '-' || str === '--') return false;
+  return !INVALID_CLASS_NAMES.includes(str);
+};
 
 /**
  * Mengambil seluruh daftar rombongan belajar / kelas secara dinamis
@@ -60,17 +69,28 @@ export function getAllClasses(
     }
   }
 
-  if (!baseClasses || !Array.isArray(baseClasses) || baseClasses.length === 0) {
-    baseClasses = DEFAULT_CLASSES;
-  }
+  // Filter out any invalid / obsolete template dummy classes
+  const cleanBase = Array.isArray(baseClasses)
+    ? baseClasses.map(c => String(c).trim()).filter(isValidClass)
+    : [];
 
-  const fromStudents = (students || []).map(s => s?.kelas?.trim()).filter(Boolean);
-  const fromSchedules = (schedules || []).map(s => s?.kelas?.trim()).filter(Boolean);
-  const fromTeachers = (teachers || []).map(t => t?.waliKelasDi?.trim()).filter(Boolean);
+  const fromStudents = (students || [])
+    .map(s => String(s?.kelas || '').trim())
+    .filter(isValidClass);
+  const fromSchedules = (schedules || [])
+    .map(s => String(s?.kelas || '').trim())
+    .filter(isValidClass);
+  const fromTeachers = (teachers || [])
+    .map(t => String(t?.waliKelasDi || '').trim())
+    .filter(isValidClass);
 
   const merged = Array.from(
-    new Set([...baseClasses, ...fromStudents, ...fromSchedules, ...fromTeachers])
+    new Set([...cleanBase, ...fromStudents, ...fromSchedules, ...fromTeachers])
   );
+
+  if (merged.length === 0) {
+    return DEFAULT_CLASSES;
+  }
 
   return merged.sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })

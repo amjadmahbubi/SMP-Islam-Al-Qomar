@@ -6,18 +6,21 @@ interface PublicAgendaProps {
   agendas: AgendaItem[];
 }
 
-export const PublicAgenda: React.FC<PublicAgendaProps> = ({ agendas }) => {
+export const PublicAgenda: React.FC<PublicAgendaProps> = ({ agendas = [] }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [searchTerm, setSearchTerm] = useState<string>('');
 
   const categories = ['Semua', 'Keagamaan', 'Akademik', 'Lomba / Prestasi', 'Parenting / Kemitraan', 'Rapat Guru'];
 
-  const filteredAgendas = agendas.filter((item) => {
+  const safeAgendas = Array.isArray(agendas) ? agendas : [];
+
+  const filteredAgendas = safeAgendas.filter((item) => {
+    if (!item) return false;
     const matchCategory = selectedCategory === 'Semua' || item.kategori === selectedCategory;
     const matchSearch = searchTerm === '' ||
-      item.judul.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.lokasi.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.deskripsi.toLowerCase().includes(searchTerm.toLowerCase());
+      (item.judul || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.lokasi || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.deskripsi || '').toLowerCase().includes(searchTerm.toLowerCase());
     return matchCategory && matchSearch;
   });
 
