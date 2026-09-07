@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import {
   UserSession,
   SchoolInfo,
@@ -888,6 +889,9 @@ export function App() {
           Sistem Informasi Data Pokok Pendidikan & Asesmen Raport Kurikulum Merdeka Terintegrasi Google Sheets
         </p>
       </footer>
+
+      {/* Vercel Speed Insights */}
+      <SpeedInsights />
 
     </div>
   );
