@@ -95,149 +95,120 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Right Action Bar */}
           <div className="flex items-center gap-2 sm:gap-3">
 
-            {/* Role Badge */}
-            <div className="hidden sm:flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/10 text-xs backdrop-blur-md">
-              {session.role === 'admin' && (
-                <div className="flex items-center gap-1.5 text-amber-300 font-semibold">
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  <span>
-                    {isKepalaSekolah
-                      ? `Kepala Sekolah (${session.name.split(',')[0]})`
-                      : session.teacherId
-                      ? `Admin • ${session.name.split(',')[0]}`
-                      : 'Admin DAPODIK'}
-                  </span>
+            {/* KETIKA SUDAH LOGIN (GURU / ADMIN): TAMPILAN SEDERHANA & BERSIH */}
+            {session.role !== 'public' ? (
+              <>
+                {/* Info Pengguna & Role (Tampil pada tablet & layar lebih besar) */}
+                <div className="hidden md:flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-white/10 text-xs backdrop-blur-md">
+                  {session.role === 'admin' && (
+                    <div className="flex items-center gap-1.5 text-amber-300 font-semibold">
+                      <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+                      <span className="truncate max-w-[180px]">
+                        {isKepalaSekolah
+                          ? `Kepala Sekolah • ${session.name.split(',')[0]}`
+                          : session.teacherId
+                          ? `Admin • ${session.name.split(',')[0]}`
+                          : 'Admin DAPODIK'}
+                      </span>
+                    </div>
+                  )}
+                  {session.role === 'guru' && (
+                    <div className="flex items-center gap-1.5 text-emerald-300 font-semibold">
+                      <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span className="truncate max-w-[180px]">
+                        {session.name.split(',')[0]}
+                        {loggedTeacher?.jabatan && loggedTeacher.jabatan !== 'Guru Mata Pelajaran'
+                          ? ` (${loggedTeacher.jabatan.split('&')[0].trim()})`
+                          : ''}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-              {session.role === 'guru' && (
-                <div className="flex items-center gap-1.5 text-emerald-300 font-semibold">
-                  <UserCheck className="w-4 h-4 text-emerald-400" />
-                  <span className="truncate max-w-[150px]">
-                    {session.name.split(',')[0]}
-                    {loggedTeacher?.jabatan && loggedTeacher.jabatan !== 'Guru Mata Pelajaran'
-                      ? ` (${loggedTeacher.jabatan.split('&')[0].trim()})`
-                      : ''}
-                  </span>
-                </div>
-              )}
-              {session.role === 'public' && (
-                <div className="flex items-center gap-1.5 text-slate-300 font-medium">
-                  <Eye className="w-4 h-4 text-slate-400" />
-                  <span>Publik / Wali Murid</span>
-                </div>
-              )}
-            </div>
 
-            {/* Google Sheets Status & Quick Access Button for All Accounts */}
-            {session.role === 'admin' && hasSheetsMismatch ? (
-              <button
-                onClick={() => setActiveTab('google-sheets')}
-                className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/50 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md animate-pulse cursor-pointer"
-                title="Peringatan: URL Web App Google Sheets yang aktif berbeda dengan database konfigurasi tersimpan. Klik untuk meninjau dan menyimpan."
-              >
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="hidden md:inline">URL Sheets Berubah (Belum Simpan)</span>
-                <span className="md:hidden">⚠️ Sheets</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => setActiveTab('google-sheets')}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border shadow-sm ${
-                  activeTab === 'google-sheets'
-                    ? 'bg-emerald-500/30 text-emerald-200 border-emerald-400/60'
-                    : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-400/30'
-                }`}
-                title={
-                  autoSyncStatus?.status === 'checking'
-                    ? "Sedang memeriksa pembaruan otomatis dari Google Sheets..."
-                    : autoSyncStatus?.lastSyncTime
-                    ? `Data tersinkron otomatis dari Google Sheets (${autoSyncStatus.lastSyncTime}). Klik untuk buka panel Sheets.`
-                    : "Pembaruan otomatis aktif. Klik untuk buka panel Sheets."
-                }
-              >
-                {autoSyncStatus?.status === 'checking' ? (
-                  <RefreshCw className="w-3.5 h-3.5 text-emerald-300 animate-spin shrink-0" />
+                {/* Indikator Google Sheets Cepat (Khusus Desktop Lebar) */}
+                {session.role === 'admin' && hasSheetsMismatch ? (
+                  <button
+                    onClick={() => setActiveTab('google-sheets')}
+                    className="hidden xl:flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/50 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md animate-pulse cursor-pointer"
+                    title="Peringatan: URL Web App Google Sheets belum disimpan."
+                  >
+                    <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>URL Sheets Berubah</span>
+                  </button>
                 ) : (
-                  <div className="relative flex items-center shrink-0">
-                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                  </div>
+                  <button
+                    onClick={() => setActiveTab('google-sheets')}
+                    className={`hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border shadow-sm ${
+                      activeTab === 'google-sheets'
+                        ? 'bg-emerald-500/30 text-emerald-200 border-emerald-400/60'
+                        : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-400/30'
+                    }`}
+                    title={autoSyncStatus?.lastSyncTime ? `Sinkron Sheets (${autoSyncStatus.lastSyncTime})` : "Integrasi Google Sheets"}
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>Sheets</span>
+                  </button>
                 )}
-                <span className="hidden sm:inline">
-                  {autoSyncStatus?.status === 'checking' 
-                    ? 'Sinkron Sheets...' 
-                    : autoSyncStatus?.lastSyncTime 
-                    ? `Sheets: ${autoSyncStatus.lastSyncTime}`
-                    : 'Sheets Terupdate'}
-                </span>
-                <span className="sm:hidden font-bold">
-                  {autoSyncStatus?.status === 'checking' ? 'Sync...' : 'Sheets'}
-                </span>
-              </button>
-            )}
 
-            {/* Admin Only: Backup & Restore Quick Button */}
-            {session.role === 'admin' && (
-              <button
-                onClick={() => setActiveTab('master-backup')}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer border shadow-sm ${
-                  activeTab === 'master-backup'
-                    ? 'bg-blue-500/30 text-blue-200 border-blue-400/60'
-                    : 'bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border-blue-400/30'
-                }`}
-                title="Cadangan & Pemulihan Sistem (Khusus Administrator)"
-              >
-                <Database className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span className="hidden sm:inline">Cadangan Data</span>
-                <span className="sm:hidden font-bold">Backup</span>
-              </button>
-            )}
+                {/* Dark/Light Mode Toggle (Desktop) */}
+                <button
+                  onClick={onToggleTheme}
+                  className={`hidden sm:flex items-center p-2 rounded-xl text-xs font-semibold transition-all border shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 cursor-pointer ${
+                    theme === 'dark'
+                      ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-400/30'
+                      : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-indigo-200'
+                  }`}
+                  title={theme === 'dark' ? "Mode Terang" : "Mode Gelap"}
+                  aria-label="Toggle Theme"
+                >
+                  {theme === 'dark' ? (
+                    <Sun className="w-4 h-4 text-amber-400" />
+                  ) : (
+                    <Moon className="w-4 h-4 text-indigo-600" />
+                  )}
+                </button>
 
-            {/* Light/Dark Mode Toggle */}
-            <button
-              onClick={onToggleTheme}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-500/50 ${
-                theme === 'dark'
-                  ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-400/30'
-                  : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-indigo-200'
-              }`}
-              title={theme === 'dark' ? "Beralih ke Mode Terang (Light Mode)" : "Beralih ke Mode Gelap (Dark Mode)"}
-              aria-label="Toggle Light/Dark Theme"
-            >
-              {theme === 'dark' ? (
-                <>
-                  <Sun className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="hidden md:inline font-bold">Mode Terang</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="w-4 h-4 text-indigo-600 shrink-0" />
-                  <span className="hidden md:inline font-bold text-indigo-900">Mode Gelap</span>
-                </>
-              )}
-            </button>
-
-            {/* Login / Logout Button */}
-            {session.role === 'public' ? (
-              <button
-                onClick={onOpenLoginModal}
-                className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm px-3.5 sm:px-4 py-2 rounded-xl shadow-lg transition-all border border-emerald-300/50"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Masuk Petugas</span>
-              </button>
+                {/* HANYA TOMBOL KELUAR (Sesuai Permintaan User: Sederhana, Jelas, & Nyaman di HP) */}
+                <button
+                  onClick={onLogout}
+                  className="flex items-center gap-2 bg-rose-500/20 hover:bg-rose-500/30 active:bg-rose-600/40 text-rose-200 hover:text-white border border-rose-500/40 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all backdrop-blur-md shadow-md cursor-pointer active:scale-95"
+                  title="Keluar dari akun (Logout)"
+                >
+                  <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>Keluar</span>
+                </button>
+              </>
             ) : (
-              <button
-                onClick={onLogout}
-                className="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 font-medium text-xs sm:text-sm px-3 py-2 rounded-xl border border-rose-500/40 transition-all backdrop-blur-md"
-                title="Keluar akun"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Keluar</span>
-              </button>
+              /* KETIKA BELUM LOGIN (PUBLIK): TAMPILAN RINGKAS TANPA OVERFLOW DI HP */
+              <>
+                {/* Dark/Light Mode Toggle */}
+                <button
+                  onClick={onToggleTheme}
+                  className={`flex items-center p-2 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-semibold transition-all border shadow-sm cursor-pointer ${
+                    theme === 'dark'
+                      ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-400/30'
+                      : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border-indigo-200'
+                  }`}
+                  title={theme === 'dark' ? "Mode Terang" : "Mode Gelap"}
+                  aria-label="Toggle Theme"
+                >
+                  {theme === 'dark' ? (
+                    <Sun className="w-4 h-4 text-amber-400 shrink-0" />
+                  ) : (
+                    <Moon className="w-4 h-4 text-indigo-600 shrink-0" />
+                  )}
+                </button>
+
+                {/* Tombol Masuk Petugas (Ukuran Pas & Ringkas, Tidak Terpotong di Layar HP) */}
+                <button
+                  onClick={onOpenLoginModal}
+                  className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-bold text-xs sm:text-sm px-3 sm:px-4 py-2 rounded-xl shadow-lg transition-all border border-emerald-300/50 cursor-pointer shrink-0 active:scale-95"
+                  title="Masuk ke SIM Sekolah (Guru & Admin)"
+                >
+                  <LogIn className="w-4 h-4 shrink-0" />
+                  <span>Masuk</span>
+                </button>
+              </>
             )}
           </div>
 

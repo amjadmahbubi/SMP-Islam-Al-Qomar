@@ -21,7 +21,10 @@ import {
   Image as ImageIcon,
   MessageSquare,
   ShieldCheck,
-  Database
+  Database,
+  LogIn,
+  LogOut,
+  Lock
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,6 +33,8 @@ interface SidebarProps {
   session: UserSession;
   teachers?: Teacher[];
   onCloseMobile?: () => void;
+  onOpenLoginModal?: () => void;
+  onLogout?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -37,7 +42,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveTab,
   session,
   teachers = [],
-  onCloseMobile
+  onCloseMobile,
+  onOpenLoginModal,
+  onLogout
 }) => {
   const isGuru = session.role === 'guru' || session.role === 'admin';
   const isAdmin = session.role === 'admin';
@@ -137,6 +144,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
+      {/* LOGIN PROMPT CARD (Khusus Publik/Belum Login - Solusi Praktis untuk Mobile HP) */}
+      {session.role === 'public' && (
+        <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-950/80 via-slate-900/90 to-slate-950/90 border border-emerald-500/40 shadow-xl">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2 text-emerald-300">
+              <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-400/30">
+                <Lock className="w-3.5 h-3.5 text-emerald-300" />
+              </div>
+              <span className="text-xs font-bold">Akses SIM Sekolah</span>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-semibold">
+              Guru & Admin
+            </span>
+          </div>
+          <p className="text-xs text-slate-300 mb-3 leading-relaxed">
+            Silakan masuk untuk mengelola administrasi, input nilai rapor, absensi siswa, dan data sekolah.
+          </p>
+          <button
+            onClick={() => {
+              if (onCloseMobile) onCloseMobile();
+              if (onOpenLoginModal) onOpenLoginModal();
+            }}
+            className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 font-bold text-xs sm:text-sm py-2.5 px-4 rounded-xl shadow-lg transition-all cursor-pointer transform active:scale-98"
+          >
+            <LogIn className="w-4 h-4 text-slate-950" />
+            <span>Masuk / Login SIM</span>
+          </button>
+        </div>
+      )}
+
       {/* SECTION 1: PUBLIC VIEWS */}
       <div>
         <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 px-3">
@@ -168,8 +205,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               );
             })}
-        </nav>
-      </div>
+            {session.role === 'public' && (
+              <button
+                onClick={() => {
+                  if (onCloseMobile) onCloseMobile();
+                  if (onOpenLoginModal) onOpenLoginModal();
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/40 shadow-sm transition-all cursor-pointer mt-1"
+              >
+                <LogIn className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="truncate">Login Guru & Admin</span>
+              </button>
+            )}
+          </nav>
+        </div>
 
       {/* SECTION 2: GURU / AKADEMIK (Available to Guru & Admin) */}
       {isGuru && (
@@ -345,6 +394,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
               );
             })}
           </nav>
+        </div>
+      )}
+
+      {/* USER PROFILE & LOGOUT SECTION FOR LOGGED IN PTK (GURU / ADMIN) */}
+      {session.role !== 'public' && (
+        <div className="pt-4 border-t border-white/10 mt-auto">
+          <div className="p-3 rounded-xl bg-slate-900/90 border border-white/10 shadow-lg flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 border ${
+                session.role === 'admin'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+                  : 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+              }`}>
+                {session.role === 'admin' ? 'A' : 'G'}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate" title={session.name}>
+                  {session.name.split(',')[0]}
+                </p>
+                <p className="text-[10px] text-slate-400 capitalize truncate">
+                  {session.role === 'admin' ? 'Administrator' : 'Guru / PTK'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                if (onCloseMobile) onCloseMobile();
+                if (onLogout) onLogout();
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 rounded-lg transition-all shrink-0 cursor-pointer shadow-sm active:scale-95"
+              title="Keluar dari akun"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span>Keluar</span>
+            </button>
+          </div>
         </div>
       )}
 

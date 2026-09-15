@@ -602,6 +602,8 @@ export function App() {
                 activeTab={activeTab}
                 setActiveTab={handleSelectTab}
                 onCloseMobile={() => setIsSidebarOpen(false)}
+                onOpenLoginModal={() => setIsLoginOpen(true)}
+                onLogout={handleLogout}
               />
             </div>
           </>
