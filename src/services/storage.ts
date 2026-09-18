@@ -30,9 +30,28 @@ import {
   initialPpdbSettings,
   initialGalleryItems,
   initialGradeLocks,
-  initialAuditLogs
+  initialAuditLogs,
+  initialSarprasMutasi,
+  initialSarprasPerawatan,
+  initialSarprasPerencanaan,
+  initialSarprasAuditLogs,
+  initialSarprasGedung,
+  initialSarprasRuang
 } from '../data/initialData';
-import { StudentAchievement, PpdbRegistration, PpdbSettings, GalleryItem, GradeLockRecord, AuditLog } from '../types';
+import {
+  StudentAchievement,
+  PpdbRegistration,
+  PpdbSettings,
+  GalleryItem,
+  GradeLockRecord,
+  AuditLog,
+  SarprasMutasi,
+  SarprasPerawatan,
+  SarprasPerencanaan,
+  SarprasAuditLog,
+  SarprasGedung,
+  SarprasRuang
+} from '../types';
 
 const KEYS = {
   SESSION: 'alqomar_session',
@@ -40,6 +59,12 @@ const KEYS = {
   TEACHERS: 'alqomar_teachers',
   STUDENTS: 'alqomar_students',
   SARPRAS: 'alqomar_sarpras',
+  SARPRAS_GEDUNG: 'alqomar_sarpras_gedung',
+  SARPRAS_RUANG: 'alqomar_sarpras_ruang',
+  SARPRAS_MUTASI: 'alqomar_sarpras_mutasi',
+  SARPRAS_PERAWATAN: 'alqomar_sarpras_perawatan',
+  SARPRAS_PERENCANAAN: 'alqomar_sarpras_perencanaan',
+  SARPRAS_AUDIT: 'alqomar_sarpras_audit',
   TEACHER_DOCS: 'alqomar_teacher_docs',
   SCHEDULES: 'alqomar_schedules',
   CALENDAR: 'alqomar_calendar',
@@ -146,6 +171,57 @@ export const StorageService = {
   },
   saveSarpras: (data: SarprasItem[]): void => setStored(KEYS.SARPRAS, data),
   setSarpras: (data: SarprasItem[]): void => setStored(KEYS.SARPRAS, data),
+
+  // Sarpras Master Gedung
+  getSarprasGedung: (): SarprasGedung[] => {
+    const data = getStored(KEYS.SARPRAS_GEDUNG, initialSarprasGedung);
+    return Array.isArray(data) && data.length > 0 ? data : initialSarprasGedung;
+  },
+  saveSarprasGedung: (data: SarprasGedung[]): void => setStored(KEYS.SARPRAS_GEDUNG, data),
+
+  // Sarpras Master Ruang
+  getSarprasRuang: (): SarprasRuang[] => {
+    const data = getStored(KEYS.SARPRAS_RUANG, initialSarprasRuang);
+    return Array.isArray(data) && data.length > 0 ? data : initialSarprasRuang;
+  },
+  saveSarprasRuang: (data: SarprasRuang[]): void => setStored(KEYS.SARPRAS_RUANG, data),
+
+  // Sarpras Mutasi
+  getSarprasMutasi: (): SarprasMutasi[] => {
+    const data = getStored(KEYS.SARPRAS_MUTASI, initialSarprasMutasi);
+    return Array.isArray(data) ? data : initialSarprasMutasi;
+  },
+  saveSarprasMutasi: (data: SarprasMutasi[]): void => setStored(KEYS.SARPRAS_MUTASI, data),
+
+  // Sarpras Perawatan
+  getSarprasPerawatan: (): SarprasPerawatan[] => {
+    const data = getStored(KEYS.SARPRAS_PERAWATAN, initialSarprasPerawatan);
+    return Array.isArray(data) ? data : initialSarprasPerawatan;
+  },
+  saveSarprasPerawatan: (data: SarprasPerawatan[]): void => setStored(KEYS.SARPRAS_PERAWATAN, data),
+
+  // Sarpras Perencanaan
+  getSarprasPerencanaan: (): SarprasPerencanaan[] => {
+    const data = getStored(KEYS.SARPRAS_PERENCANAAN, initialSarprasPerencanaan);
+    return Array.isArray(data) ? data : initialSarprasPerencanaan;
+  },
+  saveSarprasPerencanaan: (data: SarprasPerencanaan[]): void => setStored(KEYS.SARPRAS_PERENCANAAN, data),
+
+  // Sarpras Audit Trail
+  getSarprasAuditLogs: (): SarprasAuditLog[] => {
+    const data = getStored(KEYS.SARPRAS_AUDIT, initialSarprasAuditLogs);
+    return Array.isArray(data) ? data : initialSarprasAuditLogs;
+  },
+  saveSarprasAuditLogs: (data: SarprasAuditLog[]): void => setStored(KEYS.SARPRAS_AUDIT, data),
+  addSarprasAuditLog: (entry: Omit<SarprasAuditLog, 'id' | 'timestamp'>): void => {
+    const logs = StorageService.getSarprasAuditLogs();
+    const newLog: SarprasAuditLog = {
+      id: `AUD-SRP-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      ...entry
+    };
+    StorageService.saveSarprasAuditLogs([newLog, ...logs].slice(0, 300));
+  },
 
   // Teacher Docs
   getTeacherDocs: (): TeacherDoc[] => {
@@ -303,6 +379,10 @@ export const StorageService = {
     localStorage.removeItem(KEYS.TEACHERS);
     localStorage.removeItem(KEYS.STUDENTS);
     localStorage.removeItem(KEYS.SARPRAS);
+    localStorage.removeItem(KEYS.SARPRAS_MUTASI);
+    localStorage.removeItem(KEYS.SARPRAS_PERAWATAN);
+    localStorage.removeItem(KEYS.SARPRAS_PERENCANAAN);
+    localStorage.removeItem(KEYS.SARPRAS_AUDIT);
     localStorage.removeItem(KEYS.TEACHER_DOCS);
     localStorage.removeItem(KEYS.SCHEDULES);
     localStorage.removeItem(KEYS.CALENDAR);
@@ -329,6 +409,10 @@ export const StorageService = {
       students: StorageService.getStudents(),
       schedules: StorageService.getSchedules(),
       sarpras: StorageService.getSarpras(),
+      sarprasMutasi: StorageService.getSarprasMutasi(),
+      sarprasPerawatan: StorageService.getSarprasPerawatan(),
+      sarprasPerencanaan: StorageService.getSarprasPerencanaan(),
+      sarprasAuditLogs: StorageService.getSarprasAuditLogs(),
       teacherDocs: StorageService.getTeacherDocs(),
       calendar: StorageService.getCalendarEvents(),
       agenda: StorageService.getAgendas(),
@@ -352,6 +436,10 @@ export const StorageService = {
       if (data.students && Array.isArray(data.students)) setStored(KEYS.STUDENTS, data.students);
       if (data.schedules && Array.isArray(data.schedules)) setStored(KEYS.SCHEDULES, data.schedules);
       if (data.sarpras && Array.isArray(data.sarpras)) setStored(KEYS.SARPRAS, data.sarpras);
+      if (data.sarprasMutasi && Array.isArray(data.sarprasMutasi)) setStored(KEYS.SARPRAS_MUTASI, data.sarprasMutasi);
+      if (data.sarprasPerawatan && Array.isArray(data.sarprasPerawatan)) setStored(KEYS.SARPRAS_PERAWATAN, data.sarprasPerawatan);
+      if (data.sarprasPerencanaan && Array.isArray(data.sarprasPerencanaan)) setStored(KEYS.SARPRAS_PERENCANAAN, data.sarprasPerencanaan);
+      if (data.sarprasAuditLogs && Array.isArray(data.sarprasAuditLogs)) setStored(KEYS.SARPRAS_AUDIT, data.sarprasAuditLogs);
       if (data.teacherDocs && Array.isArray(data.teacherDocs)) setStored(KEYS.TEACHER_DOCS, data.teacherDocs);
       if (data.calendar && Array.isArray(data.calendar)) setStored(KEYS.CALENDAR, data.calendar);
       if (data.agenda && Array.isArray(data.agenda)) setStored(KEYS.AGENDA, data.agenda);

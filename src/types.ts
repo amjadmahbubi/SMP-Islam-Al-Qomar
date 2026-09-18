@@ -61,11 +61,42 @@ export interface Student {
   statusIbu?: 'Masih Hidup' | 'Meninggal';
 }
 
+export interface SarprasGedung {
+  id: string;
+  kodeGedung: string; // e.g., 'GD-UTM', 'GD-B'
+  namaGedung: string; // e.g., 'Gedung Utama (Abu Bakar Ash-Shiddiq)'
+  jumlahLantai: number;
+  tahunDibangun?: number | string;
+  luasBangunanM2?: number;
+  kondisi: 'Sangat Baik' | 'Baik' | 'Rusak Ringan' | 'Rusak Sedang' | 'Rusak Berat';
+  penanggungJawab?: string;
+  fotoGedung?: string;
+  keterangan?: string;
+}
+
+export interface SarprasRuang {
+  id: string;
+  kodeRuang: string; // e.g., 'R-7', 'R-LAB-KOMP', 'R-PERPUS'
+  namaRuang: string; // e.g., 'Ruang Kelas 7 (Multimedia)', 'Laboratorium Komputer'
+  gedungId: string;  // Relation to SarprasGedung
+  namaGedung?: string; // Denormalized building name
+  lantai: number;
+  jenisRuang: 'Ruang Kelas / Teori' | 'Laboratorium / Praktik' | 'Perpustakaan' | 'Ruang Guru & TU' | 'Ruang Pimpinan' | 'Tempat Ibadah / Musholla' | 'Ruang UKS' | 'Gudang / Servis' | 'Lapangan / Terbuka' | 'Sanitasi / Toilet' | 'Lainnya';
+  panjangMeter?: number;
+  lebarMeter?: number;
+  luasM2?: number;
+  kapasitasOrang?: number;
+  penanggungJawabRuang?: string;
+  kondisiRuang: 'Baik' | 'Rusak Ringan' | 'Rusak Sedang' | 'Rusak Berat';
+  keterangan?: string;
+  fotoRuang?: string;
+}
+
 export interface SarprasItem {
   id: string;
   kode: string;
   namaBarangRuang: string;
-  kategori: 'Ruang / Gedung' | 'Peralatan Lab' | 'Elektronik' | 'Mebelair' | 'Olahraga & Seni' | 'Keagamaan';
+  kategori: 'Ruang / Gedung' | 'Peralatan Lab' | 'Elektronik' | 'Mebelair' | 'Olahraga & Seni' | 'Keagamaan' | 'Kendaraan' | 'Lainnya' | string;
   jumlah: number;
   satuan: string;
   kondisiBaik: number;
@@ -73,6 +104,88 @@ export interface SarprasItem {
   kondisiRusakBerat: number;
   lokasi: string;
   keterangan?: string;
+  
+  // Extended Fields for Integrated Asset Management:
+  nomorInventarisResmi?: string; // Standard code, e.g., SMP-IQ/INV/EL/2024/004
+  merkModel?: string;            // Merk/Brand, Model, Serial Number/Spesifikasi
+  sumberDana?: 'BOS Reguler' | 'BOS Kinerja' | 'Yayasan Al Qomar' | 'Komite / Infaq' | 'Hibah / Donatur' | 'Lainnya' | string;
+  tanggalPengadaan?: string;     // Format YYYY-MM-DD
+  hargaPerolehan?: number;       // Harga beli per unit (Rp)
+  masaManfaatTahun?: number;     // Masa ekonomis (Tahun)
+  nilaiResidu?: number;          // Estimasi nilai sisa (Rp)
+  penanggungJawab?: string;      // Nama Guru / Pengelola Ruang / Tendik
+  statusAset?: 'Aktif Digunakan' | 'Dalam Perawatan' | 'Dipinjam' | 'Rusak Total' | 'Dihapuskan / Mutasi Keluar';
+  qrBarcodeToken?: string;
+  fotoBarang?: string;           // Base64 data URL or image path for item photo
+  gedungId?: string;             // Optional link to Master Gedung
+  ruangId?: string;              // Optional link to Master Ruang
+}
+
+export interface SarprasMutasi {
+  id: string;
+  sarprasId: string;
+  kodeBarang: string;
+  namaBarang: string;
+  tanggalMutasi: string;
+  lokasiAsal: string;
+  lokasiTujuan: string;
+  penanggungJawabAsal: string;
+  penanggungJawabTujuan: string;
+  jenisMutasi: 'Pindah Lokasi' | 'Ganti Penanggung Jawab' | 'Alih Fungsi' | 'Penghapusan Aset' | 'Peminjaman Internal';
+  nomorBast?: string; // Berita Acara Serah Terima
+  alasan: string;
+  dicatatOleh: string;
+  status: 'Selesai' | 'Menunggu Konfirmasi';
+}
+
+export interface SarprasPerawatan {
+  id: string;
+  sarprasId: string;
+  kodeBarang: string;
+  namaBarang: string;
+  tanggalPengajuan: string;
+  tanggalSelesai?: string;
+  jenisPerawatan: 'Pemeliharaan Rutin' | 'Perbaikan Ringan' | 'Perbaikan Berat' | 'Penggantian Komponen';
+  deskripsiKerusakan: string;
+  tindakan?: string;
+  biaya: number;
+  sumberBiaya: string;
+  teknisiVendor: string;
+  status: 'Menunggu Jadwal' | 'Sedang Dikerjakan' | 'Selesai' | 'Dibatalkan';
+  pelapor: string;
+  catatanPetugas?: string;
+}
+
+export interface SarprasPerencanaan {
+  id: string;
+  tahunAnggaran: string;
+  namaBarang: string;
+  kategori: string;
+  spesifikasi?: string;
+  jumlah: number;
+  satuan: string;
+  estimasiHargaSatuan: number;
+  estimasiTotal: number;
+  sumberDanaUsulan: string;
+  alasanKebutuhan: string;
+  prioritas: 'Tinggi (Mendesak)' | 'Sedang (Prioritas)' | 'Rendah (Rencana)';
+  targetBulan: string;
+  status: 'Diajukan' | 'Disetujui' | 'Terealisasi' | 'Ditolak';
+  pengusul: string;
+  tanggalUsul: string;
+  catatanPersetujuan?: string;
+}
+
+export interface SarprasAuditLog {
+  id: string;
+  timestamp: string;
+  sarprasId?: string;
+  kodeBarang?: string;
+  namaBarang?: string;
+  aksi: 'TAMBAH_ASET' | 'UBAH_ASET' | 'HAPUS_ASET' | 'MUTASI' | 'PERAWATAN' | 'PERENCANAAN' | 'STATUS_KONDISI' | 'MASTER_GEDUNG' | 'MASTER_RUANG';
+  rincian: string;
+  pelaku: string;
+  role: string;
 }
 
 export interface TeacherDoc {

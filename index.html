@@ -4,11 +4,46 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <title>DAPODIK SMP Islam Al Qomar Banyuwangi</title>
+
+    <!-- Immediate Cache-Buster & Service Worker Purger -->
+    <script>
+      (function() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for (var i = 0; i < registrations.length; i++) {
+              registrations[i].unregister();
+            }
+          }).catch(function() {});
+        }
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            for (var i = 0; i < names.length; i++) {
+              caches.delete(names[i]);
+            }
+          }).catch(function() {});
+        }
+      })();
+    </script>
+
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #020617;
+        color: #f8fafc;
+        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      @keyframes spin-pulse {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
     
     <!-- PWA Manifest & Theme Color -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#065f46" />
-    <meta name="background-color" content="#0f172a" />
+    <meta name="background-color" content="#020617" />
     <meta name="description" content="Sistem Informasi DAPODIK & Manajemen Sekolah SMP Islam Al Qomar Banyuwangi - Akses Cepat & Offline untuk Guru dan Staff" />
 
     <!-- iOS / Safari PWA Web App Meta Tags -->
@@ -23,7 +58,13 @@
     <meta name="format-detection" content="telephone=no" />
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-slate-950">
-    <div id="root"></div>
+    <div id="root">
+      <div id="pre-loader" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;background:#020617;color:#34d399;text-align:center;padding:24px;">
+        <div style="width:40px;height:40px;border:3px solid rgba(52,211,153,0.2);border-top-color:#34d399;border-radius:50%;animation:spin-pulse 0.8s linear infinite;margin-bottom:16px;"></div>
+        <div style="font-size:15px;font-weight:700;color:#f8fafc;letter-spacing:0.02em;">SMP ISLAM AL QOMAR BANYUWANGI</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px;">Memuat Sistem Informasi DAPODIK Terpadu...</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

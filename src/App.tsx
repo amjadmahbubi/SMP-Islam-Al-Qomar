@@ -729,6 +729,7 @@ export function App() {
               onSaveSarpras={handleSaveSarpras}
               session={session}
               teachers={teachers}
+              schoolInfo={schoolInfo}
             />
           )}
 
