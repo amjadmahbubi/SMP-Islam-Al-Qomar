@@ -266,11 +266,15 @@ export const DataSarprasView: React.FC<DataSarprasViewProps> = ({
             gedungList={gedungList}
             ruangList={ruangList}
             sarpras={sarpras}
+            sarprasItems={sarpras}
             onSaveGedung={handleSaveGedung}
             onSaveRuang={handleSaveRuang}
             teachers={teachers}
             canEdit={canEdit}
             onAddAuditLog={(action, detail) => handleAddAuditLog(action, detail)}
+            onSelectRoomForAssets={() => {
+              setActiveSubTab('aset');
+            }}
           />
         )}
 

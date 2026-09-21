@@ -154,6 +154,8 @@ export interface SarprasPerawatan {
   status: 'Menunggu Jadwal' | 'Sedang Dikerjakan' | 'Selesai' | 'Dibatalkan';
   pelapor: string;
   catatanPetugas?: string;
+  fotoKerusakan?: string;
+  fotoPerbaikan?: string;
 }
 
 export interface SarprasPerencanaan {

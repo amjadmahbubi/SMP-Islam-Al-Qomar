@@ -38,8 +38,8 @@ interface SarprasMasterGedungRuangTabProps {
 }
 
 export const SarprasMasterGedungRuangTab: React.FC<SarprasMasterGedungRuangTabProps> = ({
-  gedungList,
-  ruangList,
+  gedungList = [],
+  ruangList = [],
   sarprasItems,
   sarpras = [],
   teachers = [],
@@ -49,7 +49,7 @@ export const SarprasMasterGedungRuangTab: React.FC<SarprasMasterGedungRuangTabPr
   onSelectRoomForAssets,
   onAddAuditLog
 }) => {
-  const allSarprasItems = sarprasItems || sarpras;
+  const allSarprasItems = sarprasItems || sarpras || [];
   const [activeSubTab, setActiveSubTab] = useState<'gedung' | 'ruang'>('gedung');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterGedungId, setFilterGedungId] = useState<string>('ALL');
@@ -118,16 +118,17 @@ export const SarprasMasterGedungRuangTab: React.FC<SarprasMasterGedungRuangTabPr
 
   // Summary Metrics
   const totalGedung = gedungList.length;
-  const totalLuasGedung = gedungList.reduce((acc, g) => acc + (Number(g.luasBangunanM2) || 0), 0);
+  const totalLuasGedung = gedungList.reduce((acc, g) => acc + (Number(g?.luasBangunanM2) || 0), 0);
   const totalRuang = ruangList.length;
-  const totalKapasitasSiswa = ruangList.reduce((acc, r) => acc + (Number(r.kapasitasOrang) || 0), 0);
-  const totalRuangBaik = ruangList.filter(r => r.kondisiRuang === 'Baik').length;
+  const totalKapasitasSiswa = ruangList.reduce((acc, r) => acc + (Number(r?.kapasitasOrang) || 0), 0);
+  const totalRuangBaik = ruangList.filter(r => r && r.kondisiRuang === 'Baik').length;
 
   // Filtered Gedung
   const filteredGedung = gedungList.filter(g => {
+    if (!g) return false;
     const matchSearch =
-      g.namaGedung.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      g.kodeGedung.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (g.namaGedung || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (g.kodeGedung || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (g.penanggungJawab || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchKondisi = filterKondisi === 'ALL' || g.kondisi === filterKondisi;
     return matchSearch && matchKondisi;
@@ -135,9 +136,10 @@ export const SarprasMasterGedungRuangTab: React.FC<SarprasMasterGedungRuangTabPr
 
   // Filtered Ruang
   const filteredRuang = ruangList.filter(r => {
+    if (!r) return false;
     const matchSearch =
-      r.namaRuang.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.kodeRuang.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.namaRuang || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.kodeRuang || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (r.penanggungJawabRuang || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchGedung = filterGedungId === 'ALL' || r.gedungId === filterGedungId;
     const matchJenis = filterJenisRuang === 'ALL' || r.jenisRuang === filterJenisRuang;
@@ -641,10 +643,10 @@ export const SarprasMasterGedungRuangTab: React.FC<SarprasMasterGedungRuangTabPr
       {activeSubTab === 'ruang' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredRuang.map(ruang => {
-            const linkedGedung = gedungList.find(g => g.id === ruang.gedungId);
+            const linkedGedung = (gedungList || []).find(g => g && g.id === ruang.gedungId);
             // Count inventory assets linked to this room
-            const assetsInRoom = sarprasItems.filter(
-              s => s.ruangId === ruang.id || s.lokasi === ruang.namaRuang
+            const assetsInRoom = (allSarprasItems || []).filter(
+              s => s && (s.ruangId === ruang.id || s.lokasi === ruang.namaRuang)
             );
 
             return (
