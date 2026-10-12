@@ -59,6 +59,12 @@ export interface Student {
   statusAyah?: 'Masih Hidup' | 'Meninggal';
   namaIbu?: string;
   statusIbu?: 'Masih Hidup' | 'Meninggal';
+  tahunLulus?: string;
+  tanggalLulus?: string;
+  nomorIjazah?: string;
+  nomorSkl?: string;
+  sekolahLanjutan?: string;
+  keteranganLulus?: string;
 }
 
 export interface SarprasGedung {
@@ -302,7 +308,7 @@ export interface AuditLog {
   timestamp: string;
   userName: string;
   userRole: string;
-  action: 'UPDATE_NILAI' | 'LOCK_DRAFT_NILAI' | 'UNLOCK_DRAFT_NILAI' | 'RESET_NILAI' | 'UPDATE_ADMINISTRASI' | 'SYNC_TAHUN_AJARAN' | 'LAINNYA';
+  action: 'UPDATE_NILAI' | 'LOCK_DRAFT_NILAI' | 'UNLOCK_DRAFT_NILAI' | 'RESET_NILAI' | 'UPDATE_ADMINISTRASI' | 'SYNC_TAHUN_AJARAN' | 'KELULUSAN_SISWA' | 'BATALKAN_KELULUSAN' | 'LAINNYA';
   module: string;
   kelas?: string;
   mapel?: string;

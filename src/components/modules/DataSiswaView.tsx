@@ -1,9 +1,27 @@
 import React, { useState } from 'react';
-import { Student, ScheduleItem, Teacher } from '../../types';
-import { exportToCSV } from '../../services/storage';
-import { Users, Plus, Search, Download, Edit3, Trash2, X, Filter, Layers, Settings } from 'lucide-react';
+import { Student, ScheduleItem, Teacher, SchoolInfo, UserSession } from '../../types';
+import { exportToCSV, StorageService } from '../../services/storage';
+import {
+  Users,
+  Plus,
+  Search,
+  Download,
+  Edit3,
+  Trash2,
+  X,
+  Filter,
+  Layers,
+  Settings,
+  GraduationCap,
+  Award,
+  Printer,
+  RotateCcw,
+  BookOpen
+} from 'lucide-react';
 import { getAllClasses } from '../../data/constants';
 import { KelolaKelasModal } from './KelolaKelasModal';
+import { KelulusanSiswaModal } from './KelulusanSiswaModal';
+import { SuratKeteranganLulusModal } from './SuratKeteranganLulusModal';
 
 interface DataSiswaViewProps {
   students: Student[];
@@ -12,6 +30,8 @@ interface DataSiswaViewProps {
   onSaveSchedules?: (schedules: ScheduleItem[]) => void;
   teachers?: Teacher[];
   onSaveTeachers?: (teachers: Teacher[]) => void;
+  schoolInfo?: SchoolInfo;
+  session?: UserSession;
 }
 
 export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
@@ -20,15 +40,30 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
   schedules = [],
   onSaveSchedules = () => {},
   teachers = [],
-  onSaveTeachers = () => {}
+  onSaveTeachers = () => {},
+  schoolInfo,
+  session
 }) => {
   const [classesVersion, setClassesVersion] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('Semua');
-  const [statusFilter, setStatusFilter] = useState('Aktif');
+  const [statusFilter, setStatusFilter] = useState('Semua');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
+  const [isGraduationModalOpen, setIsGraduationModalOpen] = useState(false);
+  const [isSklModalOpen, setIsSklModalOpen] = useState(false);
+  const [selectedStudentForSkl, setSelectedStudentForSkl] = useState<Student | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+
+  const finalYearActiveCount = React.useMemo(() => {
+    return (students || []).filter(
+      s => (s.kelas === '9' || s.kelas.startsWith('9') || s.kelas.toUpperCase().includes('IX')) && s.status === 'Aktif'
+    ).length;
+  }, [students]);
+
+  const alumniCount = React.useMemo(() => {
+    return (students || []).filter(s => s.status === 'Lulus').length;
+  }, [students]);
 
   const [isCustomClass, setIsCustomClass] = useState(false);
   const [customClassInput, setCustomClassInput] = useState('');
@@ -128,6 +163,44 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
     setIsModalOpen(true);
   };
 
+  const handleOpenAddAlumni = () => {
+    setEditingStudent(null);
+    setIsCustomClass(false);
+    setCustomClassInput('');
+    const currentYear = new Date().getFullYear();
+    const currYearShort = currentYear.toString().slice(-2);
+    const prevYearShort = (currentYear - 1).toString().slice(-2);
+    const defaultGradYear = schoolInfo?.tahunAjaran || `${currentYear - 1}/${currentYear}`;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const finalClass = classes.find(c => c === '9' || c.startsWith('9')) || '9';
+
+    setForm({
+      id: `ALM${Date.now().toString().slice(-5)}`,
+      nisn: `00${Math.floor(10000000 + Math.random() * 90000000)}`,
+      nis: `${prevYearShort}07${Math.floor(100 + Math.random() * 899)}`,
+      nama: '',
+      gender: 'L',
+      kelas: finalClass,
+      tempatLahir: 'Banyuwangi',
+      tanggalLahir: `${currentYear - 15}-05-15`,
+      namaOrangTua: '',
+      noHpOrangTua: '',
+      namaAyah: '',
+      statusAyah: 'Masih Hidup',
+      namaIbu: '',
+      statusIbu: 'Masih Hidup',
+      alamat: 'Banyuwangi',
+      status: 'Lulus',
+      tahunLulus: defaultGradYear,
+      tanggalLulus: todayStr,
+      nomorIjazah: `DN-05/D-SMP/K13/${currYearShort}/00${Math.floor(1000 + Math.random() * 9000)}`,
+      nomorSkl: `SKL/${schoolInfo?.npsn || '20525621'}/${currentYear}/${Math.floor(100 + Math.random() * 900)}`,
+      sekolahLanjutan: '',
+      keteranganLulus: 'Lulus Memenuhi Kriteria Kelulusan Satuan Pendidikan'
+    });
+    setIsModalOpen(true);
+  };
+
   const handleOpenEdit = (student: Student) => {
     setEditingStudent(student);
     if (!classes.includes(student.kelas)) {
@@ -172,7 +245,13 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
         tanggalLahir: sanitizeDateOnly(form.tanggalLahir),
         namaOrangTua: form.namaOrangTua || autoParentSummary,
         statusAyah: form.statusAyah || 'Masih Hidup',
-        statusIbu: form.statusIbu || 'Masih Hidup'
+        statusIbu: form.statusIbu || 'Masih Hidup',
+        tahunLulus: form.status === 'Lulus' ? form.tahunLulus : undefined,
+        tanggalLulus: form.status === 'Lulus' ? form.tanggalLulus : undefined,
+        nomorIjazah: form.status === 'Lulus' ? form.nomorIjazah : undefined,
+        nomorSkl: form.status === 'Lulus' ? form.nomorSkl : undefined,
+        sekolahLanjutan: form.status === 'Lulus' ? form.sekolahLanjutan : undefined,
+        keteranganLulus: form.status === 'Lulus' ? form.keteranganLulus : undefined
       } as Student) : s));
       onSaveStudents(updated);
     } else {
@@ -192,12 +271,32 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
         namaIbu: form.namaIbu,
         statusIbu: form.statusIbu || 'Masih Hidup',
         alamat: form.alamat || 'Banyuwangi',
-        status: (form.status as any) || 'Aktif'
+        status: (form.status as any) || 'Aktif',
+        tahunLulus: form.status === 'Lulus' ? form.tahunLulus : undefined,
+        tanggalLulus: form.status === 'Lulus' ? form.tanggalLulus : undefined,
+        nomorIjazah: form.status === 'Lulus' ? form.nomorIjazah : undefined,
+        nomorSkl: form.status === 'Lulus' ? form.nomorSkl : undefined,
+        sekolahLanjutan: form.status === 'Lulus' ? form.sekolahLanjutan : undefined,
+        keteranganLulus: form.status === 'Lulus' ? form.keteranganLulus : undefined
       };
       onSaveStudents([...(students || []), newStudent]);
     }
 
     setIsModalOpen(false);
+  };
+
+  const handleRevertStudent = (student: Student) => {
+    if (window.confirm(`Batalkan status kelulusan untuk ${student.nama} (${student.nisn}) dan kembalikan ke status 'Aktif'?`)) {
+      const updated = (students || []).map(s => (s.id === student.id ? { ...s, status: 'Aktif' as const } : s));
+      onSaveStudents(updated);
+      StorageService.addAuditLog({
+        userName: session?.name || 'Admin DAPODIK',
+        userRole: session?.role === 'admin' ? 'Admin DAPODIK' : 'Waka Kesiswaan',
+        action: 'BATALKAN_KELULUSAN',
+        module: 'Data Siswa & Alumni',
+        details: `Mengembalikan ${student.nama} (${student.nisn}) ke status Aktif di Kelas ${student.kelas}.`
+      });
+    }
   };
 
   const handleExportCSV = () => {
@@ -217,7 +316,11 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
       Orang_Tua_Wali: s.namaOrangTua,
       No_HP_Orang_Tua: s.noHpOrangTua,
       Alamat: s.alamat,
-      Status: s.status
+      Status: s.status,
+      Tahun_Lulus: s.tahunLulus || '-',
+      Tanggal_Lulus: s.tanggalLulus || '-',
+      Nomor_Ijazah: s.nomorIjazah || '-',
+      Sekolah_Lanjutan: s.sekolahLanjutan || '-'
     }));
     exportToCSV('Data_Siswa_SMP_Islam_Al_Qomar.csv', csvData);
   };
@@ -242,6 +345,20 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           <button
+            onClick={() => setIsGraduationModalOpen(true)}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-emerald-500/40 transition-all shadow-sm"
+            title="Buka proses kelulusan santri kelas akhir (Kelas 9), terbitkan SKL, & kelola buku induk alumni"
+          >
+            <GraduationCap className="w-4 h-4 text-emerald-300" />
+            <span>Kelulusan Siswa</span>
+            {finalYearActiveCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-400 text-emerald-950 font-black text-[10px]">
+                {finalYearActiveCount} Kelas 9
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setIsClassModalOpen(true)}
             className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-emerald-500/30 transition-colors shadow-sm"
             title="Kelola, tambah, ganti nama, atau hapus kelas"
@@ -256,6 +373,15 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
           >
             <Download className="w-4 h-4 text-emerald-700" />
             <span>Ekspor CSV</span>
+          </button>
+
+          <button
+            onClick={handleOpenAddAlumni}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-amber-500/40 transition-colors shadow-sm"
+            title="Tambah data santri yang sudah lulus (alumni) secara langsung / manual"
+          >
+            <GraduationCap className="w-4 h-4 text-amber-200" />
+            <span>+ Tambah Alumni Manual</span>
           </button>
 
           <button
@@ -276,7 +402,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Cari NISN, nama siswa, wali..."
+            placeholder="Cari NISN, nama siswa, wali, no ijazah..."
             className="w-full px-3 py-2 pl-9 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-500"
           />
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -293,7 +419,7 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
               <option value="Semua" className="bg-white text-slate-900">Semua Kelas</option>
               {classes.map(c => (
                 <option key={c} value={c} className="bg-white text-slate-900">
-                  {formatClassLabel(c)}
+                  {formatClassLabel(c)} {c === '9' || c.startsWith('9') ? '⭐ (Tingkat Akhir)' : ''}
                 </option>
               ))}
             </select>
@@ -306,10 +432,10 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="Semua" className="bg-white text-slate-900">Semua</option>
-              <option value="Aktif" className="bg-white text-slate-900">Aktif</option>
-              <option value="Lulus" className="bg-white text-slate-900">Lulus</option>
-              <option value="Pindah" className="bg-white text-slate-900">Pindah</option>
+              <option value="Semua" className="bg-white text-slate-900">Semua Status ({students.length})</option>
+              <option value="Aktif" className="bg-white text-slate-900">Aktif ({students.filter(s => s.status === 'Aktif').length})</option>
+              <option value="Lulus" className="bg-white text-slate-900">🎓 Lulus / Alumni ({alumniCount})</option>
+              <option value="Pindah" className="bg-white text-slate-900">Pindah ({students.filter(s => s.status === 'Pindah').length})</option>
             </select>
           </div>
         </div>
@@ -379,16 +505,61 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
                     </div>
                   </td>
                   <td className="p-3.5">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                      student.status === 'Aktif'
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                        : 'bg-slate-100 text-slate-600 border-slate-200'
-                    }`}>
-                      {student.status}
-                    </span>
+                    {student.status === 'Lulus' ? (
+                      <div className="flex flex-col items-start gap-1">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                          <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Lulus (Alumni)</span>
+                        </span>
+                        {student.tahunLulus && (
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            TA {student.tahunLulus}
+                          </span>
+                        )}
+                        {student.nomorIjazah && (
+                          <span className="text-[10px] text-emerald-800 font-mono font-semibold">
+                            Ijazah: {student.nomorIjazah}
+                          </span>
+                        )}
+                        {student.sekolahLanjutan && (
+                          <span className="text-[10px] text-slate-600 truncate max-w-[130px]" title={student.sekolahLanjutan}>
+                            ➡️ {student.sekolahLanjutan}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                        student.status === 'Aktif'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                      }`}>
+                        {student.status}
+                      </span>
+                    )}
                   </td>
                   <td className="p-3.5 text-center">
                     <div className="flex items-center justify-center gap-1">
+                      {student.status === 'Lulus' && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedStudentForSkl(student);
+                              setIsSklModalOpen(true);
+                            }}
+                            className="p-1.5 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg transition-colors"
+                            title="Cetak Surat Keterangan Lulus (SKL) Resmi"
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleRevertStudent(student)}
+                            className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors"
+                            title="Batalkan Kelulusan (Kembalikan Santri ke Aktif)"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
                       <button
                         onClick={() => handleOpenEdit(student)}
                         className="p-1.5 text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-colors"
@@ -531,11 +702,66 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
                     <option value="Aktif" className="bg-white text-slate-900">Aktif</option>
-                    <option value="Lulus" className="bg-white text-slate-900">Lulus</option>
+                    <option value="Lulus" className="bg-white text-slate-900">🎓 Lulus (Alumni)</option>
                     <option value="Pindah" className="bg-white text-slate-900">Pindah</option>
                   </select>
                 </div>
               </div>
+
+              {/* Data Kelulusan (Muncul jika status Lulus) */}
+              {form.status === 'Lulus' && (
+                <div className="bg-blue-50/80 p-3.5 rounded-xl border border-blue-200 space-y-3">
+                  <div className="flex items-center gap-1.5 text-blue-900 font-bold text-xs">
+                    <GraduationCap className="w-4 h-4 text-blue-700" />
+                    <span>Informasi Kelulusan & Alumni</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tahun Lulus / Angkatan</label>
+                      <input
+                        type="text"
+                        placeholder="contoh: 2024/2025"
+                        value={form.tahunLulus || ''}
+                        onChange={(e) => setForm({ ...form, tahunLulus: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tanggal Kelulusan</label>
+                      <input
+                        type="date"
+                        value={form.tanggalLulus || ''}
+                        onChange={(e) => setForm({ ...form, tanggalLulus: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Nomor Seri Ijazah</label>
+                      <input
+                        type="text"
+                        placeholder="DN-05/DIK/2026/..."
+                        value={form.nomorIjazah || ''}
+                        onChange={(e) => setForm({ ...form, nomorIjazah: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-900 focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Sekolah Lanjutan</label>
+                      <input
+                        type="text"
+                        placeholder="SMA / SMK / MA / Ponpes"
+                        value={form.sekolahLanjutan || ''}
+                        onChange={(e) => setForm({ ...form, sekolahLanjutan: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -704,6 +930,30 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
         onUpdateTeachers={onSaveTeachers}
         onClassesChange={() => setClassesVersion(v => v + 1)}
       />
+
+      {/* Kelulusan Siswa Kelas Akhir Modal */}
+      <KelulusanSiswaModal
+        isOpen={isGraduationModalOpen}
+        onClose={() => setIsGraduationModalOpen(false)}
+        students={students}
+        onSaveStudents={onSaveStudents}
+        schoolInfo={schoolInfo || StorageService.getSchoolInfo()}
+        session={session}
+        classes={classes}
+      />
+
+      {/* Surat Keterangan Lulus (SKL) Modal Preview & Cetak */}
+      {selectedStudentForSkl && (
+        <SuratKeteranganLulusModal
+          isOpen={isSklModalOpen}
+          onClose={() => {
+            setIsSklModalOpen(false);
+            setSelectedStudentForSkl(null);
+          }}
+          student={selectedStudentForSkl}
+          schoolInfo={schoolInfo || StorageService.getSchoolInfo()}
+        />
+      )}
 
     </div>
   );

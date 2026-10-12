@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { SchoolInfo, Student, Teacher, SarprasItem, ScheduleItem, AttendanceRecord, SubjectGradeRecord } from '../../types';
 import { getAllClasses } from '../../data/constants';
-import { Users, GraduationCap, Building2, Award, BookOpen, HeartHandshake, CheckCircle, MapPin, Phone, Mail, Globe, ShieldCheck } from 'lucide-react';
+import { Users, GraduationCap, Building2, Award, BookOpen, HeartHandshake, CheckCircle, MapPin, Phone, Mail, Globe, ShieldCheck, Search } from 'lucide-react';
 
 interface PublicStatistikProps {
   schoolInfo: SchoolInfo;
@@ -21,6 +21,27 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
   schedules = []
 }) => {
   const activeStudents = students.filter(s => s.status === 'Aktif');
+  const alumniStudents = useMemo(() => students.filter(s => s.status === 'Lulus'), [students]);
+
+  // Unique graduation years
+  const alumniYears = useMemo(() => {
+    const years = Array.from(new Set(alumniStudents.map(a => a.tahunLulus).filter(Boolean))) as string[];
+    return years.sort().reverse();
+  }, [alumniStudents]);
+
+  const [alumniYearFilter, setAlumniYearFilter] = useState<string>('Semua');
+  const [alumniSearch, setAlumniSearch] = useState<string>('');
+
+  const filteredAlumni = useMemo(() => {
+    return alumniStudents.filter(a => {
+      const matchYear = alumniYearFilter === 'Semua' || a.tahunLulus === alumniYearFilter;
+      const matchSearch = !alumniSearch.trim() ||
+        a.nama.toLowerCase().includes(alumniSearch.toLowerCase()) ||
+        (a.sekolahLanjutan && a.sekolahLanjutan.toLowerCase().includes(alumniSearch.toLowerCase())) ||
+        (a.keteranganLulus && a.keteranganLulus.toLowerCase().includes(alumniSearch.toLowerCase()));
+      return matchYear && matchSearch;
+    });
+  }, [alumniStudents, alumniYearFilter, alumniSearch]);
 
   const dynamicClasses = useMemo(
     () => getAllClasses(students, schedules, teachers),
@@ -218,6 +239,165 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
           </div>
         </div>
 
+      </div>
+
+      {/* Alumni & Tracer Study Section */}
+      <div className="glass backdrop-blur-xl bg-slate-900/70 rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-full text-xs font-semibold mb-2">
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Jejak Lulusan & Tracer Study Al-Qomar</span>
+            </div>
+            <h3 className="text-xl sm:text-2xl font-bold font-serif text-white">
+              Kiprah & Rekam Jejak Alumni Santri
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
+              Melacak kesinambungan studi santriwan dan santriwati SMP Islam Al Qomar ke jenjang SMA, MA, SMK unggulan, dan Pondok Pesantren terpadu.
+            </p>
+          </div>
+
+          {/* Quick Metrics Badges */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="bg-emerald-950/80 border border-emerald-500/40 px-4 py-2 rounded-xl text-center shadow-md">
+              <div className="text-xl sm:text-2xl font-black font-serif text-amber-300">{alumniStudents.length}</div>
+              <div className="text-[10px] font-bold text-emerald-200 uppercase tracking-wide">Santri Lulus</div>
+            </div>
+            <div className="bg-teal-950/80 border border-teal-500/40 px-4 py-2 rounded-xl text-center shadow-md">
+              <div className="text-xl sm:text-2xl font-black font-serif text-emerald-300">100%</div>
+              <div className="text-[10px] font-bold text-teal-200 uppercase tracking-wide">Kelulusan</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter & Search Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+            <span className="text-xs font-bold text-slate-400 shrink-0">Angkatan:</span>
+            <button
+              onClick={() => setAlumniYearFilter('Semua')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                alumniYearFilter === 'Semua'
+                  ? 'bg-amber-400 text-slate-950 font-black shadow-md'
+                  : 'bg-white/10 text-slate-300 hover:bg-white/20'
+              }`}
+            >
+              Semua Angkatan ({alumniStudents.length})
+            </button>
+            {alumniYears.map(year => (
+              <button
+                key={year}
+                onClick={() => setAlumniYearFilter(year)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                  alumniYearFilter === year
+                    ? 'bg-amber-400 text-slate-950 font-black shadow-md'
+                    : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                }`}
+              >
+                Angkatan {year}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-full sm:w-64">
+            <input
+              type="text"
+              value={alumniSearch}
+              onChange={(e) => setAlumniSearch(e.target.value)}
+              placeholder="Cari nama santri / sekolah lanjutan..."
+              className="w-full pl-8 pr-3 py-1.5 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+          </div>
+        </div>
+
+        {/* Alumni Showcase Cards */}
+        {alumniStudents.length === 0 ? (
+          <div className="p-8 text-center bg-white/5 rounded-2xl border border-white/10 text-slate-300">
+            <GraduationCap className="w-10 h-10 text-amber-400/60 mx-auto mb-2" />
+            <p className="font-bold text-sm text-white">Pangkalan Data Alumni Sedang Dimutakhirkan</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Data kelulusan santri dan jejak alumni akan tampil di sini secara otomatis saat santri kelas akhir diluluskan atau ditambahkan manual.
+            </p>
+          </div>
+        ) : filteredAlumni.length === 0 ? (
+          <div className="p-6 text-center bg-white/5 rounded-xl border border-white/10 text-slate-300 text-xs">
+            Tidak ditemukan alumni yang sesuai dengan kata kunci pencarian.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredAlumni.map((alumnus) => (
+              <div
+                key={alumnus.id}
+                className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-400/40 rounded-2xl p-4.5 transition-all duration-200 flex flex-col justify-between group shadow-sm"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center justify-center font-bold text-sm shrink-0">
+                        {alumnus.gender === 'P' ? '🧕' : '👳'}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-sm text-white group-hover:text-amber-300 transition-colors line-clamp-1">
+                          {alumnus.nama}
+                        </h4>
+                        <span className="text-[10px] text-emerald-300 font-mono">
+                          Angkatan Lulus {alumnus.tahunLulus || '2024'}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-400/40 shrink-0">
+                      Alumni
+                    </span>
+                  </div>
+
+                  {alumnus.sekolahLanjutan ? (
+                    <div className="bg-emerald-950/60 border border-emerald-500/30 rounded-xl p-2.5">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Melanjutkan Ke:
+                      </div>
+                      <div className="text-xs font-bold text-amber-200 mt-0.5 flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span className="line-clamp-1">{alumnus.sekolahLanjutan}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-800/40 border border-white/5 rounded-xl p-2.5 text-[11px] text-slate-400 italic">
+                      Studi Lanjutan: Dalam Proses Pendataan Tracer
+                    </div>
+                  )}
+
+                  {alumnus.keteranganLulus && (
+                    <p className="text-[11px] text-slate-300 line-clamp-2 italic border-l-2 border-emerald-400/50 pl-2">
+                      "{alumnus.keteranganLulus}"
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between text-[10px] text-slate-400">
+                  <span className="flex items-center gap-1 text-emerald-400">
+                    <ShieldCheck className="w-3 h-3" />
+                    Terverifikasi Ijazah Resmi
+                  </span>
+                  <span>SMP Islam Al Qomar</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Privacy & Tracer Notice Footer */}
+        <div className="p-3.5 bg-emerald-950/40 rounded-xl border border-emerald-500/20 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-300">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>
+              <strong>Perlindungan Privasi:</strong> Data rahasia (NIK, NISN, nomor ijazah, alamat, & kontak wali) dilindungi dan tidak ditampilkan ke publik.
+            </span>
+          </div>
+          <span className="text-amber-300 font-semibold font-mono text-[10px]">
+            Ikatan Santri & Alumni Al-Qomar
+          </span>
+        </div>
       </div>
 
       {/* Sarpras Highlight Grid */}

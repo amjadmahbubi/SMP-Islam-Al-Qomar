@@ -720,6 +720,8 @@ export function App() {
               onSaveSchedules={handleSaveSchedules}
               teachers={teachers}
               onSaveTeachers={handleSaveTeachers}
+              schoolInfo={schoolInfo}
+              session={session}
             />
           )}
 
