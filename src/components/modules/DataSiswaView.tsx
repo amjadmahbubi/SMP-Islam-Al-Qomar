@@ -585,334 +585,571 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
 
       {/* Modal Add / Edit */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 backdrop-blur-sm p-3 sm:p-4 overflow-hidden animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden">
             
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold font-serif text-lg text-slate-900">
-                {editingStudent ? 'Edit Data Santri / Siswa' : 'Tambah Santri / Siswa Baru'}
-              </h3>
+            {/* Modal Header: Sticky at top */}
+            <div className={`px-5 py-3.5 border-b flex items-center justify-between shrink-0 ${
+              form.status === 'Lulus' ? 'bg-amber-50/50 border-amber-100' : 'bg-white border-slate-100'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                {form.status === 'Lulus' && (
+                  <div className="p-2 bg-amber-600 text-white rounded-xl shadow-xs">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-bold font-serif text-base sm:text-lg text-slate-900">
+                    {editingStudent
+                      ? (form.status === 'Lulus' ? 'Edit Data Alumni' : 'Edit Data Santri / Siswa')
+                      : (form.status === 'Lulus' ? 'Tambah Data Alumni (Manual)' : 'Tambah Santri / Siswa Baru')}
+                  </h3>
+                  {form.status === 'Lulus' ? (
+                    <p className="text-[11px] text-amber-800 font-medium">
+                      Pengisian cepat: hanya isi nama, kelulusan &amp; capaian
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Formulir pendaftaran dan mutasi santri ke Buku Induk
+                    </p>
+                  )}
+                </div>
+              </div>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600"
+                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleFormSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Siswa</label>
-                <input
-                  type="text"
-                  value={form.nama}
-                  onChange={(e) => setForm({ ...form, nama: e.target.value })}
-                  required
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">NISN (10 Digit)</label>
-                  <input
-                    type="text"
-                    value={form.nisn}
-                    onChange={(e) => setForm({ ...form, nisn: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">NIS Lokal</label>
-                  <input
-                    type="text"
-                    value={form.nis}
-                    onChange={(e) => setForm({ ...form, nis: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-slate-700">Rombel / Kelas</label>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomClass(!isCustomClass)}
-                    className="text-[11px] font-bold text-emerald-800 hover:underline"
-                  >
-                    {isCustomClass ? 'Pilih dari List' : '+ Tulis Kustom'}
-                  </button>
-                </div>
-                {isCustomClass ? (
-                  <input
-                    type="text"
-                    required
-                    value={customClassInput}
-                    onChange={(e) => setCustomClassInput(e.target.value)}
-                    placeholder="Contoh: 7C, 8-Tahfidz, VII Putri..."
-                    className="w-full px-3 py-2 bg-white border border-emerald-500 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                    autoFocus
-                  />
-                ) : (
-                  <select
-                    value={form.kelas}
-                    onChange={(e) => {
-                      if (e.target.value === '__CUSTOM__') {
-                        setIsCustomClass(true);
-                        setCustomClassInput('');
-                      } else {
-                        setForm({ ...form, kelas: e.target.value });
-                      }
-                    }}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  >
-                    {classes.map(c => (
-                      <option key={c} value={c} className="bg-white text-slate-900">
-                        {formatClassLabel(c)}
-                      </option>
-                    ))}
-                    <option value="__CUSTOM__" className="bg-emerald-50 text-emerald-950 font-bold">
-                      + Tulis Kelas Kustom Baru...
-                    </option>
-                  </select>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Jenis Kelamin</label>
-                  <select
-                    value={form.gender}
-                    onChange={(e) => setForm({ ...form, gender: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  >
-                    <option value="L" className="bg-white text-slate-900">Laki-Laki</option>
-                    <option value="P" className="bg-white text-slate-900">Perempuan</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
-                  <select
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value as any })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  >
-                    <option value="Aktif" className="bg-white text-slate-900">Aktif</option>
-                    <option value="Lulus" className="bg-white text-slate-900">🎓 Lulus (Alumni)</option>
-                    <option value="Pindah" className="bg-white text-slate-900">Pindah</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Data Kelulusan (Muncul jika status Lulus) */}
-              {form.status === 'Lulus' && (
-                <div className="bg-blue-50/80 p-3.5 rounded-xl border border-blue-200 space-y-3">
-                  <div className="flex items-center gap-1.5 text-blue-900 font-bold text-xs">
-                    <GraduationCap className="w-4 h-4 text-blue-700" />
-                    <span>Informasi Kelulusan & Alumni</span>
+            {/* Modal Body: Scrollable with proper scroll boundaries */}
+            <form id="student-modal-form" onSubmit={handleFormSubmit} className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-3.5 text-xs">
+              
+              {/* TAMPILAN KHUSUS ALUMNI (JIKA STATUS LULUS): ULTRA-RINGKAS, BIDANG SEKUNDER DISEMBUNYIKAN */}
+              {form.status === 'Lulus' ? (
+                <>
+                  {/* 1. Nama Lengkap (Wajib & Utama) */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      Nama Lengkap Santri / Siswa <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.nama}
+                      onChange={(e) => setForm({ ...form, nama: e.target.value })}
+                      required
+                      placeholder="Contoh: Muhammad Farhan Al-Fatih"
+                      autoFocus
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2.5">
+                  {/* 2. Baris Ringkas: Tahun Lulus, Kelas Terakhir, Gender */}
+                  <div className="grid grid-cols-3 gap-2.5">
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tahun Lulus / Angkatan</label>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Tahun Lulus <span className="text-rose-500">*</span>
+                      </label>
                       <input
                         type="text"
                         placeholder="contoh: 2024/2025"
+                        required
                         value={form.tahunLulus || ''}
                         onChange={(e) => setForm({ ...form, tahunLulus: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
                       />
                     </div>
+
                     <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tanggal Kelulusan</label>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Kelas Terakhir</label>
+                      <select
+                        value={form.kelas}
+                        onChange={(e) => setForm({ ...form, kelas: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                      >
+                        {classes.map(c => (
+                          <option key={c} value={c}>
+                            {formatClassLabel(c)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Jenis Kelamin</label>
+                      <select
+                        value={form.gender}
+                        onChange={(e) => setForm({ ...form, gender: e.target.value as any })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                      >
+                        <option value="L">Laki-Laki</option>
+                        <option value="P">Perempuan</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 3. Sekolah Lanjutan / Pondok Pesantren */}
+                  <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/70 space-y-2">
+                    <label className="block text-[11px] font-bold text-amber-950">
+                      Sekolah Lanjutan / Pondok Pesantren
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ketik atau pilih rekomendasi di bawah..."
+                      value={form.sekolahLanjutan || ''}
+                      onChange={(e) => setForm({ ...form, sekolahLanjutan: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                    />
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-[10px] text-slate-400 font-semibold mr-0.5">Pilihan Cepat:</span>
+                      {['MAN 1 Banyuwangi', 'SMAN 1 Giri', 'SMKN 1 Banyuwangi', 'Ponpes Darussalam Blokagung', 'Ponpes Gontor'].map(inst => (
+                        <button
+                          key={inst}
+                          type="button"
+                          onClick={() => setForm({ ...form, sekolahLanjutan: inst })}
+                          className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors ${
+                            form.sekolahLanjutan === inst
+                              ? 'bg-amber-600 text-white border-amber-600 font-bold'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-100 hover:border-amber-300'
+                          }`}
+                        >
+                          {inst}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 4. Capaian / Prestasi Khusus Kelulusan */}
+                  <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/70 space-y-2">
+                    <label className="block text-[11px] font-bold text-amber-950">
+                      Capaian / Prestasi Khusus Kelulusan
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ketik capaian atau pilih preset..."
+                      value={form.keteranganLulus || ''}
+                      onChange={(e) => setForm({ ...form, keteranganLulus: e.target.value })}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                    />
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-[10px] text-slate-400 font-semibold mr-0.5">Preset:</span>
+                      {['Tahfidz 5 Juz & Mumtaz', 'Tahfidz 3 Juz', 'Lulusan Terbaik Akademik', 'Juara MTQ & Sains', 'Lulus Memenuhi Kriteria'].map(c => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setForm({ ...form, keteranganLulus: c })}
+                          className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors ${
+                            form.keteranganLulus === c
+                              ? 'bg-amber-600 text-white border-amber-600 font-bold'
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-100 hover:border-amber-300'
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 5. BAGIAN TAMBAHAN DISEMBUNYIKAN (ACCORDION / PANEL LIPAT OPSIONAL) */}
+                  <details className="group border border-slate-200 rounded-xl p-3 bg-slate-50 text-xs transition-all">
+                    <summary className="cursor-pointer font-bold text-slate-700 hover:text-amber-800 list-none flex items-center justify-between select-none">
+                      <span className="flex items-center gap-1.5">
+                        <BookOpen className="w-4 h-4 text-amber-700" />
+                        <span>Data Tambahan: NISN, Ijazah, SKL, Tempat/Tanggal Lahir</span>
+                      </span>
+                      <span className="text-[10px] bg-slate-200 group-open:bg-amber-200 text-slate-700 group-open:text-amber-900 px-2 py-0.5 rounded font-bold transition-colors">
+                        Klik Buka/Tutup
+                      </span>
+                    </summary>
+
+                    <div className="mt-3 pt-3 border-t border-slate-200 space-y-3">
+                      <p className="text-[11px] text-slate-500">
+                        NISN dan NIS sudah terisi otomatis oleh sistem. Anda dapat mengubahnya jika ada data resmi dari Ijazah:
+                      </p>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">NISN (10 Digit)</label>
+                          <input
+                            type="text"
+                            value={form.nisn}
+                            onChange={(e) => setForm({ ...form, nisn: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800 focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">NIS Lokal</label>
+                          <input
+                            type="text"
+                            value={form.nis}
+                            onChange={(e) => setForm({ ...form, nis: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800 focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Nomor Seri Ijazah (Opsional)</label>
+                          <input
+                            type="text"
+                            placeholder="DN-05/DIK/2026/..."
+                            value={form.nomorIjazah || ''}
+                            onChange={(e) => setForm({ ...form, nomorIjazah: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800 focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Nomor SKL (Opsional)</label>
+                          <input
+                            type="text"
+                            placeholder="SKL/20525621/..."
+                            value={form.nomorSkl || ''}
+                            onChange={(e) => setForm({ ...form, nomorSkl: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800 focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Tanggal Kelulusan</label>
+                          <input
+                            type="date"
+                            value={form.tanggalLulus || ''}
+                            onChange={(e) => setForm({ ...form, tanggalLulus: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-amber-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Status Data</label>
+                          <select
+                            value={form.status}
+                            onChange={(e) => setForm({ ...form, status: e.target.value as any })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-bold text-slate-800"
+                          >
+                            <option value="Lulus">🎓 Lulus (Alumni)</option>
+                            <option value="Aktif">Aktif</option>
+                            <option value="Pindah">Pindah</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Tempat Lahir</label>
+                          <input
+                            type="text"
+                            value={form.tempatLahir}
+                            onChange={(e) => setForm({ ...form, tempatLahir: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Tanggal Lahir</label>
+                          <input
+                            type="date"
+                            value={sanitizeDateOnly(form.tanggalLahir)}
+                            onChange={(e) => setForm({ ...form, tanggalLahir: sanitizeDateOnly(e.target.value) })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Nama Orang Tua / Wali</label>
+                          <input
+                            type="text"
+                            value={form.namaOrangTua || ''}
+                            placeholder="Wali Santri"
+                            onChange={(e) => setForm({ ...form, namaOrangTua: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Alamat Domisili</label>
+                          <input
+                            type="text"
+                            value={form.alamat || ''}
+                            placeholder="Banyuwangi"
+                            onChange={(e) => setForm({ ...form, alamat: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </details>
+                </>
+              ) : (
+                /* TAMPILAN STANDAR UNTUK SANTRI AKTIF / PINDAH */
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Siswa</label>
+                    <input
+                      type="text"
+                      value={form.nama}
+                      onChange={(e) => setForm({ ...form, nama: e.target.value })}
+                      required
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">NISN (10 Digit)</label>
+                      <input
+                        type="text"
+                        value={form.nisn}
+                        onChange={(e) => setForm({ ...form, nisn: e.target.value })}
+                        required
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">NIS Lokal</label>
+                      <input
+                        type="text"
+                        value={form.nis}
+                        onChange={(e) => setForm({ ...form, nis: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-700">Rombel / Kelas</label>
+                      <button
+                        type="button"
+                        onClick={() => setIsCustomClass(!isCustomClass)}
+                        className="text-[11px] font-bold text-emerald-800 hover:underline"
+                      >
+                        {isCustomClass ? 'Pilih dari List' : '+ Tulis Kustom'}
+                      </button>
+                    </div>
+                    {isCustomClass ? (
+                      <input
+                        type="text"
+                        required
+                        value={customClassInput}
+                        onChange={(e) => setCustomClassInput(e.target.value)}
+                        placeholder="Contoh: 7C, 8-Tahfidz, VII Putri..."
+                        className="w-full px-3 py-2 bg-white border border-emerald-500 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        autoFocus
+                      />
+                    ) : (
+                      <select
+                        value={form.kelas}
+                        onChange={(e) => {
+                          if (e.target.value === '__CUSTOM__') {
+                            setIsCustomClass(true);
+                            setCustomClassInput('');
+                          } else {
+                            setForm({ ...form, kelas: e.target.value });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      >
+                        {classes.map(c => (
+                          <option key={c} value={c} className="bg-white text-slate-900">
+                            {formatClassLabel(c)}
+                          </option>
+                        ))}
+                        <option value="__CUSTOM__" className="bg-emerald-50 text-emerald-950 font-bold">
+                          + Tulis Kelas Kustom Baru...
+                        </option>
+                      </select>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Jenis Kelamin</label>
+                      <select
+                        value={form.gender}
+                        onChange={(e) => setForm({ ...form, gender: e.target.value as any })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      >
+                        <option value="L" className="bg-white text-slate-900">Laki-Laki</option>
+                        <option value="P" className="bg-white text-slate-900">Perempuan</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Status</label>
+                      <select
+                        value={form.status}
+                        onChange={(e) => setForm({ ...form, status: e.target.value as any })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      >
+                        <option value="Aktif" className="bg-white text-slate-900">Aktif</option>
+                        <option value="Lulus" className="bg-white text-slate-900">🎓 Lulus (Alumni)</option>
+                        <option value="Pindah" className="bg-white text-slate-900">Pindah</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Tempat Lahir</label>
+                      <input
+                        type="text"
+                        value={form.tempatLahir}
+                        onChange={(e) => setForm({ ...form, tempatLahir: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Tanggal Lahir</label>
                       <input
                         type="date"
-                        value={form.tanggalLulus || ''}
-                        onChange={(e) => setForm({ ...form, tanggalLulus: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500"
+                        value={sanitizeDateOnly(form.tanggalLahir)}
+                        onChange={(e) => setForm({ ...form, tanggalLahir: sanitizeDateOnly(e.target.value) })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">Format tanggal lahir murni (tanpa nama hari &amp; tanpa jam)</p>
+                    </div>
+                  </div>
+
+                  {/* Data Ayah Kandung */}
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-800">👨 Data Ayah Kandung</label>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, statusAyah: 'Masih Hidup' })}
+                          className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                            form.statusAyah === 'Masih Hidup'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                          }`}
+                        >
+                          Masih Hidup
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, statusAyah: 'Meninggal' })}
+                          className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                            form.statusAyah === 'Meninggal'
+                              ? 'bg-rose-600 text-white shadow-xs'
+                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                          }`}
+                        >
+                          Meninggal (Alm.)
+                        </button>
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder={form.statusAyah === 'Meninggal' ? 'Nama Lengkap Almarhum Ayah' : 'Nama Lengkap Ayah Kandung'}
+                      value={form.namaAyah || ''}
+                      onChange={(e) => setForm({ ...form, namaAyah: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Data Ibu Kandung */}
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-800">👩 Data Ibu Kandung</label>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, statusIbu: 'Masih Hidup' })}
+                          className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                            form.statusIbu === 'Masih Hidup'
+                              ? 'bg-pink-600 text-white shadow-xs'
+                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                          }`}
+                        >
+                          Masih Hidup
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, statusIbu: 'Meninggal' })}
+                          className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
+                            form.statusIbu === 'Meninggal'
+                              ? 'bg-rose-600 text-white shadow-xs'
+                              : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                          }`}
+                        >
+                          Meninggal (Almh.)
+                        </button>
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder={form.statusIbu === 'Meninggal' ? 'Nama Lengkap Almarhumah Ibu' : 'Nama Lengkap Ibu Kandung'}
+                      value={form.namaIbu || ''}
+                      onChange={(e) => setForm({ ...form, namaIbu: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">Nama Orang Tua / Wali (Ringkasan)</label>
+                      <input
+                        type="text"
+                        value={form.namaOrangTua}
+                        placeholder="Otomatis atau masukkan manual"
+                        onChange={(e) => setForm({ ...form, namaOrangTua: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">No. HP Orang Tua / Kontak</label>
+                      <input
+                        type="text"
+                        value={form.noHpOrangTua}
+                        placeholder="Contoh: 081234567890"
+                        onChange={(e) => setForm({ ...form, noHpOrangTua: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Nomor Seri Ijazah</label>
-                      <input
-                        type="text"
-                        placeholder="DN-05/DIK/2026/..."
-                        value={form.nomorIjazah || ''}
-                        onChange={(e) => setForm({ ...form, nomorIjazah: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-900 focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Sekolah Lanjutan</label>
-                      <input
-                        type="text"
-                        placeholder="SMA / SMK / MA / Ponpes"
-                        value={form.sekolahLanjutan || ''}
-                        onChange={(e) => setForm({ ...form, sekolahLanjutan: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Alamat Tempat Tinggal</label>
+                    <textarea
+                      value={form.alamat}
+                      onChange={(e) => setForm({ ...form, alamat: e.target.value })}
+                      rows={2}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
                   </div>
-                </div>
+                </>
               )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Tempat Lahir</label>
-                  <input
-                    type="text"
-                    value={form.tempatLahir}
-                    onChange={(e) => setForm({ ...form, tempatLahir: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Tanggal Lahir</label>
-                  <input
-                    type="date"
-                    value={sanitizeDateOnly(form.tanggalLahir)}
-                    onChange={(e) => setForm({ ...form, tanggalLahir: sanitizeDateOnly(e.target.value) })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                  <p className="text-[10px] text-slate-400 mt-1">Format tanggal lahir murni (tanpa nama hari &amp; tanpa jam)</p>
-                </div>
-              </div>
-
-              {/* Data Ayah Kandung */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-800">👨 Data Ayah Kandung</label>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, statusAyah: 'Masih Hidup' })}
-                      className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                        form.statusAyah === 'Masih Hidup'
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                      }`}
-                    >
-                      Masih Hidup
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, statusAyah: 'Meninggal' })}
-                      className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                        form.statusAyah === 'Meninggal'
-                          ? 'bg-rose-600 text-white shadow-xs'
-                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                      }`}
-                    >
-                      Meninggal (Alm.)
-                    </button>
-                  </div>
-                </div>
-                <input
-                  type="text"
-                  placeholder={form.statusAyah === 'Meninggal' ? 'Nama Lengkap Almarhum Ayah' : 'Nama Lengkap Ayah Kandung'}
-                  value={form.namaAyah || ''}
-                  onChange={(e) => setForm({ ...form, namaAyah: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              {/* Data Ibu Kandung */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-800">👩 Data Ibu Kandung</label>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, statusIbu: 'Masih Hidup' })}
-                      className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                        form.statusIbu === 'Masih Hidup'
-                          ? 'bg-pink-600 text-white shadow-xs'
-                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                      }`}
-                    >
-                      Masih Hidup
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, statusIbu: 'Meninggal' })}
-                      className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors ${
-                        form.statusIbu === 'Meninggal'
-                          ? 'bg-rose-600 text-white shadow-xs'
-                          : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                      }`}
-                    >
-                      Meninggal (Almh.)
-                    </button>
-                  </div>
-                </div>
-                <input
-                  type="text"
-                  placeholder={form.statusIbu === 'Meninggal' ? 'Nama Lengkap Almarhumah Ibu' : 'Nama Lengkap Ibu Kandung'}
-                  value={form.namaIbu || ''}
-                  onChange={(e) => setForm({ ...form, namaIbu: e.target.value })}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Nama Orang Tua / Wali (Ringkasan)</label>
-                  <input
-                    type="text"
-                    value={form.namaOrangTua}
-                    placeholder="Otomatis atau masukkan manual"
-                    onChange={(e) => setForm({ ...form, namaOrangTua: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">No. HP Orang Tua / Kontak</label>
-                  <input
-                    type="text"
-                    value={form.noHpOrangTua}
-                    placeholder="Contoh: 081234567890"
-                    onChange={(e) => setForm({ ...form, noHpOrangTua: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Alamat Tempat Tinggal</label>
-                <textarea
-                  value={form.alamat}
-                  onChange={(e) => setForm({ ...form, alamat: e.target.value })}
-                  rows={2}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-100"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-emerald-800 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow"
-                >
-                  Simpan Data Siswa
-                </button>
-              </div>
-
             </form>
+
+            {/* Modal Footer Action Buttons: Pinned at bottom, always visible! */}
+            <div className="px-5 py-3.5 border-t border-slate-100 flex items-center justify-end gap-2 bg-slate-50 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-200 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="student-modal-form"
+                className={`px-5 py-2 text-white rounded-xl text-xs font-bold shadow-sm transition-all ${
+                  form.status === 'Lulus'
+                    ? 'bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-600 hover:to-amber-700'
+                    : 'bg-emerald-800 hover:bg-emerald-700'
+                }`}
+              >
+                {form.status === 'Lulus' ? 'Simpan Data Alumni' : 'Simpan Data Siswa'}
+              </button>
+            </div>
 
           </div>
         </div>

@@ -95,7 +95,8 @@ export const KelulusanSiswaModal: React.FC<KelulusanSiswaModalProps> = ({
     nomorSkl: '',
     sekolahLanjutan: '',
     tahunLulus: '',
-    tanggalLulus: ''
+    tanggalLulus: '',
+    keteranganLulus: ''
   });
 
   const [notification, setNotification] = useState<{ type: 'success' | 'info' | 'error'; message: string } | null>(null);
@@ -206,7 +207,8 @@ export const KelulusanSiswaModal: React.FC<KelulusanSiswaModalProps> = ({
       nomorSkl: student.nomorSkl || '',
       sekolahLanjutan: student.sekolahLanjutan || '',
       tahunLulus: student.tahunLulus || tahunLulus,
-      tanggalLulus: student.tanggalLulus || tanggalLulus
+      tanggalLulus: student.tanggalLulus || tanggalLulus,
+      keteranganLulus: student.keteranganLulus || ''
     });
   };
 
@@ -223,7 +225,8 @@ export const KelulusanSiswaModal: React.FC<KelulusanSiswaModalProps> = ({
           nomorSkl: editAlumniForm.nomorSkl.trim() || undefined,
           sekolahLanjutan: editAlumniForm.sekolahLanjutan.trim() || undefined,
           tahunLulus: editAlumniForm.tahunLulus.trim() || undefined,
-          tanggalLulus: editAlumniForm.tanggalLulus.trim() || undefined
+          tanggalLulus: editAlumniForm.tanggalLulus.trim() || undefined,
+          keteranganLulus: editAlumniForm.keteranganLulus?.trim() || undefined
         };
       }
       return s;
@@ -900,6 +903,29 @@ export const KelulusanSiswaModal: React.FC<KelulusanSiswaModalProps> = ({
                 />
               </div>
 
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Capaian / Prestasi Khusus Kelulusan</label>
+                <input
+                  type="text"
+                  value={editAlumniForm.keteranganLulus}
+                  onChange={(e) => setEditAlumniForm({ ...editAlumniForm, keteranganLulus: e.target.value })}
+                  placeholder="contoh: Tahfidz 5 Juz & Mumtaz, Lulusan Terbaik"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                />
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {['Tahfidz 5 Juz & Mumtaz', 'Tahfidz 3 Juz', 'Lulusan Terbaik', 'Lulus Memenuhi Kriteria'].map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setEditAlumniForm({ ...editAlumniForm, keteranganLulus: c })}
+                      className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 transition-colors"
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Tahun Lulus</label>
@@ -943,88 +969,69 @@ export const KelulusanSiswaModal: React.FC<KelulusanSiswaModalProps> = ({
 
       {/* Add Manual Alumni Modal */}
       {isAddingManualAlumni && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="px-5 py-4 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden max-h-[92vh] flex flex-col">
+            {/* Header */}
+            <div className="px-5 py-3.5 bg-gradient-to-r from-amber-700 via-amber-800 to-amber-900 text-white flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-amber-600/50 rounded-xl">
                   <GraduationCap className="w-5 h-5 text-amber-200" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm">Tambah Data Alumni Baru (Manual)</h4>
+                  <h4 className="font-bold text-sm">Tambah Data Alumni (Manual)</h4>
                   <p className="text-[11px] text-amber-200">
-                    Mencatat data santri yang sudah lulus (alumni lampau/pindahan) ke Buku Induk
+                    Fokus identitas santri, rekam jejak studi lanjutan &amp; capaian kelulusan
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddingManualAlumni(false)}
-                className="text-amber-200 hover:text-white p-1 rounded-lg"
+                className="text-amber-200 hover:text-white p-1 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveManualAlumni} className="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
+            <form onSubmit={handleSaveManualAlumni} className="p-4 sm:p-5 space-y-3.5 overflow-y-auto flex-1 text-xs">
+              {/* 1. Nama Lengkap (Wajib) */}
+              <div>
+                <label className="block font-bold text-slate-800 mb-1">
+                  Nama Lengkap Santri <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={manualAlumniForm.nama}
+                  onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, nama: e.target.value })}
+                  placeholder="Contoh: Muhammad Farhan Al-Fatih"
+                  autoFocus
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                />
+              </div>
+
+              {/* 2. Baris Ringkas: Tahun Lulus, Kelas Terakhir, Gender */}
+              <div className="grid grid-cols-3 gap-2.5">
+                <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    Nama Lengkap Santri <span className="text-rose-500">*</span>
+                    Tahun Lulus <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
-                    value={manualAlumniForm.nama}
-                    onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, nama: e.target.value })}
-                    placeholder="contoh: Muhammad Farhan Al-Fatih"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                    value={manualAlumniForm.tahunLulus}
+                    onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, tahunLulus: e.target.value })}
+                    placeholder="contoh: 2023/2024"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    NISN <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={manualAlumniForm.nisn}
-                    onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, nisn: e.target.value })}
-                    placeholder="contoh: 0098765432"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-900 focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">NIS Sekolah</label>
-                  <input
-                    type="text"
-                    value={manualAlumniForm.nis}
-                    onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, nis: e.target.value })}
-                    placeholder="contoh: 231020055"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-900 focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Jenis Kelamin</label>
-                  <select
-                    value={manualAlumniForm.gender}
-                    onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, gender: e.target.value as 'L' | 'P' })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="L">Laki-laki (Santriwan)</option>
-                    <option value="P">Perempuan (Santriwati)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Kelas Asal / Terakhir</label>
+                  <label className="block font-bold text-slate-700 mb-1">Kelas Terakhir</label>
                   <select
                     value={manualAlumniForm.kelas}
                     onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, kelas: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
                   >
                     {classes.map(c => (
                       <option key={c} value={c}>Kelas {c}</option>
@@ -1033,136 +1040,174 @@ export const KelulusanSiswaModal: React.FC<KelulusanSiswaModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Tempat Lahir</label>
-                  <input
-                    type="text"
-                    value={manualAlumniForm.tempatLahir}
-                    onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, tempatLahir: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Tanggal Lahir</label>
-                  <input
-                    type="date"
-                    value={manualAlumniForm.tanggalLahir}
-                    onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, tanggalLahir: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Nama Orang Tua / Wali</label>
-                  <input
-                    type="text"
-                    value={manualAlumniForm.namaOrangTua}
-                    onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, namaOrangTua: e.target.value })}
-                    placeholder="Nama Ayah & Ibu"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-amber-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Alamat Domisili</label>
-                  <input
-                    type="text"
-                    value={manualAlumniForm.alamat}
-                    onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, alamat: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-amber-500"
-                  />
+                  <label className="block font-bold text-slate-700 mb-1">Jenis Kelamin</label>
+                  <select
+                    value={manualAlumniForm.gender}
+                    onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, gender: e.target.value as 'L' | 'P' })}
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="L">Laki-laki</option>
+                    <option value="P">Perempuan</option>
+                  </select>
                 </div>
               </div>
 
-              {/* Data Kelulusan */}
-              <div className="pt-3 border-t border-slate-200">
-                <h5 className="font-bold text-xs text-amber-900 mb-2 flex items-center gap-1.5">
-                  <Award className="w-4 h-4 text-amber-700" />
-                  <span>Informasi Kelulusan & Studi Lanjutan</span>
-                </h5>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Tahun Ajaran Kelulusan <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={manualAlumniForm.tahunLulus}
-                      onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, tahunLulus: e.target.value })}
-                      placeholder="contoh: 2023/2024"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-bold text-slate-900 focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">Tanggal Kelulusan</label>
-                    <input
-                      type="date"
-                      value={manualAlumniForm.tanggalLulus}
-                      onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, tanggalLulus: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">Nomor Ijazah</label>
-                    <input
-                      type="text"
-                      value={manualAlumniForm.nomorIjazah}
-                      onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, nomorIjazah: e.target.value })}
-                      placeholder="contoh: DN-05/D-SMP/K13/24/001923"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-900 focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">Nomor SKL</label>
-                    <input
-                      type="text"
-                      value={manualAlumniForm.nomorSkl}
-                      onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, nomorSkl: e.target.value })}
-                      placeholder="contoh: SKL/20525621/2024/001"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg font-mono text-slate-900 focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block font-bold text-slate-700 mb-1">Sekolah Lanjutan / Pondok Pesantren</label>
-                    <input
-                      type="text"
-                      value={manualAlumniForm.sekolahLanjutan}
-                      onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, sekolahLanjutan: e.target.value })}
-                      placeholder="contoh: MAN 1 Banyuwangi, SMAN 1 Giri, Ponpes Darussalam Blokagung"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label className="block font-bold text-slate-700 mb-1">Keterangan / Capaian Khusus</label>
-                    <input
-                      type="text"
-                      value={manualAlumniForm.keteranganLulus}
-                      onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, keteranganLulus: e.target.value })}
-                      placeholder="contoh: Lulus Mumtaz & Tahfidz 5 Juz"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-amber-500"
-                    />
-                  </div>
+              {/* 3. Sekolah Lanjutan */}
+              <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/70 space-y-1.5">
+                <label className="block font-bold text-amber-950">
+                  Sekolah Lanjutan / Pondok Pesantren
+                </label>
+                <input
+                  type="text"
+                  value={manualAlumniForm.sekolahLanjutan}
+                  onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, sekolahLanjutan: e.target.value })}
+                  placeholder="Ketik atau pilih rekomendasi di bawah..."
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:ring-2 focus:ring-amber-500"
+                />
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] text-slate-400 font-semibold mr-0.5">Pilihan Cepat:</span>
+                  {['MAN 1 Banyuwangi', 'SMAN 1 Giri', 'SMKN 1 Banyuwangi', 'Ponpes Darussalam Blokagung', 'Ponpes Gontor'].map(inst => (
+                    <button
+                      key={inst}
+                      type="button"
+                      onClick={() => setManualAlumniForm({ ...manualAlumniForm, sekolahLanjutan: inst })}
+                      className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors ${
+                        manualAlumniForm.sekolahLanjutan === inst
+                          ? 'bg-amber-600 text-white border-amber-600 font-bold'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-100 hover:border-amber-300'
+                      }`}
+                    >
+                      {inst}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              {/* 4. Capaian / Prestasi Khusus */}
+              <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/70 space-y-1.5">
+                <label className="block font-bold text-amber-950">
+                  Capaian / Prestasi Khusus Kelulusan
+                </label>
+                <input
+                  type="text"
+                  value={manualAlumniForm.keteranganLulus}
+                  onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, keteranganLulus: e.target.value })}
+                  placeholder="Ketik capaian atau pilih rekomendasi..."
+                  className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-900 font-semibold focus:ring-2 focus:ring-amber-500"
+                />
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] text-slate-400 font-semibold mr-0.5">Preset:</span>
+                  {['Tahfidz 5 Juz & Mumtaz', 'Tahfidz 3 Juz', 'Lulusan Terbaik Akademik', 'Juara MTQ & Pidato', 'Lulus Memenuhi Kriteria'].map(capaian => (
+                    <button
+                      key={capaian}
+                      type="button"
+                      onClick={() => setManualAlumniForm({ ...manualAlumniForm, keteranganLulus: capaian })}
+                      className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors ${
+                        manualAlumniForm.keteranganLulus === capaian
+                          ? 'bg-amber-600 text-white border-amber-600 font-bold'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-amber-100 hover:border-amber-300'
+                      }`}
+                    >
+                      {capaian}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 5. Bagian Tambahan (Disembunyikan dalam Accordion) */}
+              <details className="group border border-slate-200 rounded-xl p-3 bg-slate-50 text-xs transition-all">
+                <summary className="cursor-pointer font-bold text-slate-700 hover:text-amber-800 list-none flex items-center justify-between select-none">
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-amber-700" />
+                    <span>Data Tambahan: NISN, Ijazah, SKL, Tanggal Lulus (Opsional)</span>
+                  </span>
+                  <span className="text-[10px] bg-slate-200 group-open:bg-amber-200 text-slate-700 group-open:text-amber-900 px-2 py-0.5 rounded font-bold transition-colors">
+                    Klik Buka/Tutup
+                  </span>
+                </summary>
+
+                <div className="mt-3 pt-3 border-t border-slate-200 space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-1">
+                        NISN (10 Digit)
+                      </label>
+                      <input
+                        type="text"
+                        value={manualAlumniForm.nisn}
+                        onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, nisn: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800 focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-1">NIS Lokal</label>
+                      <input
+                        type="text"
+                        value={manualAlumniForm.nis}
+                        onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, nis: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-slate-800 focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-1">Nomor Seri Ijazah (Opsional)</label>
+                      <input
+                        type="text"
+                        value={manualAlumniForm.nomorIjazah}
+                        onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, nomorIjazah: e.target.value })}
+                        placeholder="DN-05/D-SMP/K13/..."
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-[11px] text-slate-800 focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-1">Nomor SKL (Opsional)</label>
+                      <input
+                        type="text"
+                        value={manualAlumniForm.nomorSkl}
+                        onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, nomorSkl: e.target.value })}
+                        placeholder="SKL/20525621/..."
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-mono text-[11px] text-slate-800 focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-1">Tanggal Kelulusan</label>
+                      <input
+                        type="date"
+                        value={manualAlumniForm.tanggalLulus}
+                        onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, tanggalLulus: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800 focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-1">Tempat Lahir</label>
+                      <input
+                        type="text"
+                        value={manualAlumniForm.tempatLahir}
+                        onChange={(e) => setManualAlumniForm({ ...manualAlumniForm, tempatLahir: e.target.value })}
+                        className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsAddingManualAlumni(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-lg shadow-sm"
+                  className="px-5 py-2 bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-600 hover:to-amber-700 text-white font-bold rounded-xl shadow-sm transition-all"
                 >
                   Simpan Alumni ke Buku Induk
                 </button>
