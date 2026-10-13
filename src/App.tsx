@@ -789,6 +789,7 @@ export function App() {
               session={session}
               schoolInfo={schoolInfo}
               onSaveGrades={handleSaveGrades}
+              sheetsConfig={sheetsConfig}
             />
           )}
 
@@ -826,6 +827,8 @@ export function App() {
               onImportEvents={handleSaveEvents}
               onImportPpdb={handleSavePpdbRegistrations}
               onImportSchoolInfo={handleSaveSchoolInfo}
+              onImportGrades={handleSaveGrades}
+              onImportAttendance={handleSaveAttendance}
               autoSyncStatus={autoSyncStatus}
               onTriggerAutoSync={triggerManualAutoSync}
             />

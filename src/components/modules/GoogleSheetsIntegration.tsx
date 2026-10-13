@@ -131,6 +131,8 @@ interface GoogleSheetsIntegrationProps {
   onImportEvents?: (events: CalendarEvent[]) => void;
   onImportPpdb?: (ppdb: PpdbRegistration[]) => void;
   onImportSchoolInfo?: (info: SchoolInfo) => void;
+  onImportGrades?: (grades: SubjectGradeRecord[]) => void;
+  onImportAttendance?: (attendance: AttendanceRecord[]) => void;
   autoSyncStatus?: {
     status: 'idle' | 'checking' | 'synced' | 'offline';
     lastSyncTime?: string;
@@ -160,6 +162,8 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   onImportEvents,
   onImportPpdb,
   onImportSchoolInfo,
+  onImportGrades,
+  onImportAttendance,
   autoSyncStatus,
   onTriggerAutoSync
 }) => {
@@ -199,6 +203,8 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
     ppdbRegistrations?: PpdbRegistration[];
     schedules?: ScheduleItem[];
     events?: CalendarEvent[];
+    grades?: SubjectGradeRecord[];
+    attendance?: AttendanceRecord[];
   } | null>(null);
 
   // Saved database URL
@@ -420,7 +426,12 @@ function doGet(e) {
           namaOrangTua: String(r[8] || ""),
           noHpOrangTua: String(r[9] || ""),
           alamat: String(r[10] || ""),
-          status: String(r[11] || "Aktif")
+          status: String(r[11] || "Aktif"),
+          tahunLulus: String(r[12] || ""),
+          sekolahLanjutan: String(r[13] || ""),
+          keteranganLulus: String(r[14] || ""),
+          nomorIjazah: String(r[15] || ""),
+          nomorSkl: String(r[16] || "")
         });
       }
     }
@@ -599,17 +610,153 @@ function doGet(e) {
     return list;
   }
 
+  // Parse Tab Data_Alumni
+  function parseAlumni() {
+    var rows = getTabData("Data_Alumni");
+    if (rows.length <= 1) return [];
+    var list = [];
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i];
+      if (r[0] || r[2]) {
+        list.push({
+          id: String(r[0] || ("ALM-" + i)),
+          tahunLulus: String(r[1] || ""),
+          nama: String(r[2] || ""),
+          nisn: String(r[3] || ""),
+          nis: String(r[4] || ""),
+          gender: String(r[5] || "L").toUpperCase().indexOf("P") !== -1 ? "P" : "L",
+          kelas: String(r[6] || "9"),
+          sekolahLanjutan: String(r[7] || ""),
+          keteranganLulus: String(r[8] || ""),
+          nomorIjazah: String(r[9] || ""),
+          nomorSkl: String(r[10] || ""),
+          tanggalLulus: String(r[11] || ""),
+          status: "Lulus"
+        });
+      }
+    }
+    return list;
+  }
+
+  // Parse Tab Data_Nilai (Rekap Nilai Siswa)
+  function parseGrades() {
+    var rows = getTabData("Data_Nilai");
+    if (rows.length <= 1) return [];
+    var recordMap = {};
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i];
+      if (!r[0] && !r[4] && !r[7]) continue;
+      var recId = String(r[0] || ("GRD-" + i));
+      var ta = String(r[1] || "2024/2025");
+      var sem = String(r[2] || "Ganjil");
+      var kls = String(r[3] || "7");
+      var mapel = String(r[4] || "Pendidikan Agama Islam");
+      var guru = String(r[5] || "Guru Pengampu");
+      var sId = String(r[6] || ("S" + (i < 10 ? "00" + i : i)));
+      var sName = String(r[7] || "");
+      var tp1 = Number(r[8]) || 0;
+      var tp2 = Number(r[9]) || 0;
+      var tp3 = Number(r[10]) || 0;
+      var tp4 = Number(r[11]) || 0;
+      var tp5 = Number(r[12]) || 0;
+      var rataLM = Number(r[13]) || (tp1 || 80);
+      var pts = Number(r[14]) || 0;
+      var pas = Number(r[15]) || 0;
+      var catatan = String(r[18] || "");
+
+      var groupKey = recId + "_" + kls + "_" + mapel + "_" + sem;
+      if (!recordMap[groupKey]) {
+        recordMap[groupKey] = {
+          id: recId,
+          kelas: kls,
+          mapel: mapel,
+          semester: sem,
+          tahunAjaran: ta,
+          teacherId: "T001",
+          teacherName: guru,
+          studentGrades: []
+        };
+      }
+      recordMap[groupKey].studentGrades.push({
+        studentId: sId,
+        studentName: sName,
+        sumatifScores: [tp1, tp2, tp3, tp4, tp5, 0, 0, 0, 0, 0],
+        nilaiFormatif1: tp1 || 85,
+        nilaiFormatif2: tp2 || 88,
+        nilaiSumatifLM: rataLM,
+        nilaiPTS: pts,
+        nilaiPAS: pas,
+        catatanKompetensi: catatan
+      });
+    }
+
+    var resultList = [];
+    for (var k in recordMap) {
+      resultList.push(recordMap[k]);
+    }
+    return resultList;
+  }
+
+  // Parse Tab Data_Presensi (Rekap Presensi Siswa)
+  function parseAttendance() {
+    var rows = getTabData("Data_Presensi");
+    if (rows.length <= 1) return [];
+    var attMap = {};
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i];
+      if (!r[0] && !r[1] && !r[6]) continue;
+      var attId = String(r[0] || ("ATT-" + i));
+      var tgl = String(r[1] || new Date().toISOString().split("T")[0]);
+      var kls = String(r[2] || "7");
+      var mapel = String(r[3] || "Umum");
+      var guru = String(r[4] || "Guru");
+      var sId = String(r[5] || ("S" + i));
+      var sName = String(r[6] || "");
+      var statusRaw = String(r[7] || "H").toUpperCase();
+      var st = (statusRaw === "I" || statusRaw === "S" || statusRaw === "A") ? statusRaw : "H";
+      var ket = String(r[8] || "");
+
+      var attKey = attId + "_" + tgl + "_" + kls;
+      if (!attMap[attKey]) {
+        attMap[attKey] = {
+          id: attId,
+          tanggal: tgl,
+          kelas: kls,
+          mapel: mapel,
+          teacherId: "T001",
+          teacherName: guru,
+          entries: []
+        };
+      }
+      attMap[attKey].entries.push({
+        studentId: sId,
+        studentName: sName,
+        status: st,
+        keterangan: ket
+      });
+    }
+
+    var attList = [];
+    for (var ak in attMap) {
+      attList.push(attMap[ak]);
+    }
+    return attList;
+  }
+
   var responsePayload = {
     status: "success",
     timestamp: new Date().toISOString(),
     school: "SMP Islam Al Qomar Banyuwangi",
     students: parseStudents(),
+    alumni: parseAlumni(),
     teachers: parseTeachers(),
     sarpras: parseSarpras(),
     schoolInfo: parseSchoolInfo(),
     ppdbRegistrations: parsePPDB(),
     schedules: parseSchedules(),
-    events: parseEvents()
+    events: parseEvents(),
+    grades: parseGrades(),
+    attendance: parseAttendance()
   };
 
   return ContentService.createTextOutput(JSON.stringify(responsePayload))
@@ -647,6 +794,7 @@ function doPost(e) {
       }
     }
 
+    // 1. Tab Profil_Sekolah
     if (payload.schoolInfo) {
       var s = payload.schoolInfo;
       var visiText = s.visi || "";
@@ -677,13 +825,144 @@ function doPost(e) {
       );
     }
 
+    // 2. Tab Data_Siswa (Buku Induk Lengkap)
     if (payload.students && Array.isArray(payload.students)) {
-      var studentRows = payload.students.map(function(s) {
-        return [s.id, s.nisn, s.nis, s.nama, s.gender, s.kelas, s.tempatLahir, s.tanggalLahir, s.namaOrangTua, s.noHpOrangTua, s.alamat, s.status];
+      var studentRows = payload.students.map(function(st) {
+        return [
+          st.id,
+          st.nisn || "-",
+          st.nis || "-",
+          st.nama,
+          st.gender || "L",
+          st.kelas || "-",
+          st.tempatLahir || "-",
+          st.tanggalLahir || "-",
+          st.namaOrangTua || "-",
+          st.noHpOrangTua || "-",
+          st.alamat || "-",
+          st.status || "Aktif",
+          st.tahunLulus || "-",
+          st.sekolahLanjutan || "-",
+          st.keteranganLulus || "-",
+          st.nomorIjazah || "-",
+          st.nomorSkl || "-"
+        ];
       });
-      updateTab("Data_Siswa", ["ID", "NISN", "NIS", "Nama Lengkap", "Jenis Kelamin", "Kelas", "Tempat Lahir", "Tanggal Lahir", "Nama Ortu", "No HP Ortu", "Alamat", "Status"], studentRows);
+      updateTab("Data_Siswa", [
+        "ID", "NISN", "NIS", "Nama Lengkap", "Jenis Kelamin", "Kelas", "Tempat Lahir", "Tanggal Lahir",
+        "Nama Ortu", "No HP Ortu", "Alamat", "Status",
+        "Tahun Lulus", "Sekolah Lanjutan", "Capaian Khusus", "No Ijazah", "No SKL"
+      ], studentRows);
+
+      // 3. Tab Khusus Data_Alumni (Disaring Otomatis dari Siswa Lulus)
+      var alumniList = payload.students.filter(function(st) { return st.status === "Lulus"; });
+      if (alumniList.length > 0) {
+        var alumniRows = alumniList.map(function(al) {
+          return [
+            al.id,
+            al.tahunLulus || "-",
+            al.nama,
+            al.nisn || "-",
+            al.nis || "-",
+            al.gender || "L",
+            al.kelas || "-",
+            al.sekolahLanjutan || "-",
+            al.keteranganLulus || "-",
+            al.nomorIjazah || "-",
+            al.nomorSkl || "-",
+            al.tanggalLulus || "-"
+          ];
+        });
+        updateTab("Data_Alumni", [
+          "ID Santri",
+          "Tahun Lulus / Angkatan",
+          "Nama Lengkap Alumni",
+          "NISN",
+          "NIS",
+          "Gender",
+          "Kelas Terakhir",
+          "Sekolah Lanjutan / Ponpes",
+          "Capaian / Prestasi Khusus",
+          "Nomor Seri Ijazah",
+          "Nomor SKL",
+          "Tanggal Kelulusan"
+        ], alumniRows);
+      }
     }
 
+    // 4. Tab Data_Nilai (Asesmen Sumatif Kurikulum Merdeka & Rapor)
+    if (payload.grades && Array.isArray(payload.grades)) {
+      var gradeRows = [];
+      for (var gIdx = 0; gIdx < payload.grades.length; gIdx++) {
+        var gRec = payload.grades[gIdx];
+        var sGrades = gRec.studentGrades || [];
+        for (var sgIdx = 0; sgIdx < sGrades.length; sgIdx++) {
+          var sg = sGrades[sgIdx];
+          var scores = sg.sumatifScores || [];
+          var s1 = Number(scores[0]) || 0;
+          var s2 = Number(scores[1]) || 0;
+          var s3 = Number(scores[2]) || 0;
+          var s4 = Number(scores[3]) || 0;
+          var s5 = Number(scores[4]) || 0;
+          var rataLM = Number(sg.nilaiSumatifLM) || (scores.length > 0 ? Math.round(scores.reduce(function(a, b){return a + b;}, 0) / (scores.filter(function(x){return x > 0;}).length || 1)) : 0);
+          var pts = Number(sg.nilaiPTS) || 0;
+          var pas = Number(sg.nilaiPAS) || 0;
+          var na = Math.round((rataLM * 0.5) + (pts * 0.25) + (pas * 0.25)) || rataLM;
+          var predikat = na >= 88 ? "A (Sangat Baik)" : na >= 76 ? "B (Baik)" : na >= 65 ? "C (Cukup)" : "D (Perlu Bimbingan)";
+          gradeRows.push([
+            gRec.id,
+            gRec.tahunAjaran || "2024/2025",
+            gRec.semester || "Ganjil",
+            gRec.kelas,
+            gRec.mapel,
+            gRec.teacherName || "-",
+            sg.studentId,
+            sg.studentName,
+            s1, s2, s3, s4, s5,
+            rataLM,
+            pts,
+            pas,
+            na,
+            predikat,
+            sg.catatanKompetensi || "-"
+          ]);
+        }
+      }
+      updateTab("Data_Nilai", [
+        "ID Record", "Tahun Ajaran", "Semester", "Kelas", "Mata Pelajaran", "Guru Pengampu",
+        "ID Siswa", "Nama Siswa", "TP 1", "TP 2", "TP 3", "TP 4", "TP 5",
+        "Rata Sumatif LM", "PTS", "PAS/SAS", "Nilai Akhir Rapor", "Predikat", "Capaian Kompetensi"
+      ], gradeRows);
+    }
+
+    // 5. Tab Data_Presensi (Jurnal Kehadiran Harian / Mapel)
+    if (payload.attendance && Array.isArray(payload.attendance)) {
+      var attRows = [];
+      for (var aIdx = 0; aIdx < payload.attendance.length; aIdx++) {
+        var aRec = payload.attendance[aIdx];
+        var entries = aRec.entries || [];
+        for (var eIdx = 0; eIdx < entries.length; eIdx++) {
+          var ent = entries[eIdx];
+          attRows.push([
+            aRec.id,
+            aRec.tanggal,
+            aRec.kelas,
+            aRec.mapel,
+            aRec.teacherName || "-",
+            ent.studentId,
+            ent.studentName,
+            ent.status,
+            ent.keterangan || ent.catatan || "-"
+          ]);
+        }
+      }
+      updateTab("Data_Presensi", [
+        "ID Presensi", "Tanggal", "Kelas", "Mata Pelajaran", "Guru Pengampu",
+        "ID Siswa", "Nama Siswa", "Status (H/I/S/A)", "Keterangan Catatan"
+      ], attRows);
+    }
+
+    // 6. Tab Data_Guru
     if (payload.teachers && Array.isArray(payload.teachers)) {
       var teacherRows = payload.teachers.map(function(t) {
         var mapelTambahanStr = Array.isArray(t.mapelTambahan) && t.mapelTambahan.length > 0 ? t.mapelTambahan.join("; ") : "-";
@@ -692,6 +971,7 @@ function doPost(e) {
       updateTab("Data_Guru", ["ID", "NUPTK", "NIGY", "Nama Lengkap", "Jenis Kelamin", "Mapel Utama", "Jabatan", "Status Pegawai", "Wali Kelas", "Email", "No HP", "Mapel Tambahan"], teacherRows);
     }
 
+    // 7. Tab Data_Sarpras
     if (payload.sarpras && Array.isArray(payload.sarpras)) {
       var sarprasRows = payload.sarpras.map(function(sp) {
         return [sp.id, sp.kode, sp.namaBarangRuang, sp.kategori, sp.jumlah, sp.kondisiBaik, sp.kondisiRusakRingan, sp.kondisiRusakBerat, sp.lokasi];
@@ -699,6 +979,7 @@ function doPost(e) {
       updateTab("Data_Sarpras", ["ID", "Kode", "Nama Barang / Ruang", "Kategori", "Jumlah Total", "Kondisi Baik", "Rusak Ringan", "Rusak Berat", "Lokasi"], sarprasRows);
     }
 
+    // 8. Tab Data_Jadwal
     if (payload.schedules && Array.isArray(payload.schedules)) {
       var scheduleRows = payload.schedules.map(function(j) {
         return [j.id, j.hari, j.kelas, j.jamKe, j.waktu, j.mapel, j.guruNama, j.ruang];
@@ -706,6 +987,7 @@ function doPost(e) {
       updateTab("Data_Jadwal", ["ID", "Hari", "Kelas", "Jam Ke", "Waktu", "Mata Pelajaran", "Guru Pengampu", "Ruangan"], scheduleRows);
     }
 
+    // 9. Tab Agenda_Kalender
     if (payload.events && Array.isArray(payload.events)) {
       var eventRows = payload.events.map(function(ev) {
         return [ev.id, ev.tanggalMulai, ev.tanggalSelesai, ev.kegiatan, ev.kategori, ev.semester, ev.deskripsi || ""];
@@ -713,6 +995,7 @@ function doPost(e) {
       updateTab("Agenda_Kalender", ["ID", "Tanggal Mulai", "Tanggal Selesai", "Nama Kegiatan / Agenda", "Kategori Event", "Semester", "Deskripsi Keterangan"], eventRows);
     }
 
+    // 10. Tab Data_PPDB
     if (payload.ppdbRegistrations && Array.isArray(payload.ppdbRegistrations)) {
       var currentYear = new Date().getFullYear();
       var defaultTa = (new Date().getMonth() >= 6) ? (currentYear + "/" + (currentYear + 1)) : ((currentYear - 1) + "/" + currentYear);
@@ -766,10 +1049,11 @@ function doPost(e) {
       ], ppdbRows);
     }
 
+    // 11. Tab Log_Dapodik
     var logSheet = ss.getSheetByName("Log_Dapodik") || ss.insertSheet("Log_Dapodik");
-    logSheet.appendRow([new Date(), data.type || "SINKRONISASI_DAPODIK", "Sukses sinkronisasi seluruh data"]);
+    logSheet.appendRow([new Date(), data.type || "SINKRONISASI_DAPODIK", "Sukses sinkronisasi seluruh data (Termasuk Nilai, Presensi & Alumni)"]);
 
-    return ContentService.createTextOutput(JSON.stringify({ result: "success", message: "Seluruh tab data berhasil disinkronkan di Google Sheets" }))
+    return ContentService.createTextOutput(JSON.stringify({ result: "success", message: "Seluruh tab data (Termasuk Data_Nilai, Data_Presensi & Data_Alumni) berhasil disinkronkan di Google Sheets" }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ result: "error", message: err.toString() }))
@@ -879,7 +1163,7 @@ function doPost(e) {
       const response = await fetch(fetchUrl);
       const data = await response.json();
 
-      if (data && (data.students || data.teachers || data.sarpras || data.schoolInfo || data.ppdbRegistrations || data.schedules || data.events)) {
+      if (data && (data.students || data.teachers || data.sarpras || data.schoolInfo || data.ppdbRegistrations || data.schedules || data.events || data.grades || data.attendance)) {
         setPulledData({
           students: Array.isArray(data.students) && data.students.length > 0 ? data.students : undefined,
           teachers: Array.isArray(data.teachers) && data.teachers.length > 0 ? data.teachers : undefined,
@@ -888,6 +1172,8 @@ function doPost(e) {
           ppdbRegistrations: Array.isArray(data.ppdbRegistrations) && data.ppdbRegistrations.length > 0 ? data.ppdbRegistrations : undefined,
           schedules: Array.isArray(data.schedules) && data.schedules.length > 0 ? data.schedules : undefined,
           events: Array.isArray(data.events) && data.events.length > 0 ? data.events : undefined,
+          grades: Array.isArray(data.grades) && data.grades.length > 0 ? data.grades : undefined,
+          attendance: Array.isArray(data.attendance) && data.attendance.length > 0 ? data.attendance : undefined,
         });
         setIsPullModalOpen(true);
         setPullStatus('success');
@@ -954,7 +1240,9 @@ function doPost(e) {
         schoolInfo: updatedSchoolInfo,
         ppdbRegistrations,
         schedules: schedules.length > 0 ? schedules : undefined,
-        events: events.length > 0 ? events : undefined
+        events: events.length > 0 ? events : undefined,
+        grades: grades.length > 0 ? grades : undefined,
+        attendance: attendance.length > 0 ? attendance : undefined
       });
 
       setIsPullModalOpen(true);
@@ -997,6 +1285,16 @@ function doPost(e) {
     if (pulledData.events && onImportEvents) {
       onImportEvents(pulledData.events);
       countSummary.push(`${pulledData.events.length} Agenda Kalender`);
+    }
+
+    if (pulledData.grades && onImportGrades) {
+      onImportGrades(pulledData.grades);
+      countSummary.push(`${pulledData.grades.length} Rekap Nilai Asesmen`);
+    }
+
+    if (pulledData.attendance && onImportAttendance) {
+      onImportAttendance(pulledData.attendance);
+      countSummary.push(`${pulledData.attendance.length} Jurnal Presensi`);
     }
 
     if (pulledData.schoolInfo && onImportSchoolInfo) {
@@ -1664,7 +1962,94 @@ function doPost(e) {
             </div>
           </div>
 
+          {/* TAB BARU: DATA NILAI ASESMEN & RAPOR */}
+          <div className="glass backdrop-blur-xl bg-emerald-950/40 p-5 rounded-2xl border-2 border-emerald-500/50 shadow-xl space-y-3 flex flex-col justify-between ring-1 ring-emerald-500/30">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold font-serif text-sm text-white flex items-center gap-1.5">
+                  <Database className="w-4 h-4 text-emerald-400" />
+                  Tab: Data_Nilai
+                </span>
+                <span className="bg-emerald-500 text-slate-950 font-bold text-xs px-2.5 py-0.5 rounded shadow-xs">
+                  {grades.length} Rekap Mapel
+                </span>
+              </div>
+              <p className="text-xs text-slate-300">
+                ⭐ <strong>Nilai Asesmen &amp; Rapor</strong>: Skor TP 1-5, Sumatif LM, PTS, PAS/SAS, Nilai Akhir, Predikat, &amp; Deskripsi Capaian per Santri.
+              </p>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-emerald-500/20">
+              <span className="flex items-center gap-1 text-xs text-emerald-400 font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Otomatis Masuk Sheet</span>
+              </span>
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-mono font-bold">
+                FITUR AKTIF
+              </span>
+            </div>
+          </div>
+
+          {/* TAB BARU: DATA PRESENSI / KEHADIRAN */}
+          <div className="glass backdrop-blur-xl bg-slate-900/60 p-5 rounded-2xl border border-white/10 shadow-xl space-y-3 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold font-serif text-sm text-white flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                  Tab: Data_Presensi
+                </span>
+                <span className="bg-teal-500/20 text-teal-300 border border-teal-400/30 font-bold text-xs px-2 py-0.5 rounded">
+                  {attendance.length} Jurnal Harian
+                </span>
+              </div>
+              <p className="text-xs text-slate-300">
+                Rekap kehadiran: Tanggal, Kelas, Mapel, Status (Hadir, Sakit, Izin, Alpa), &amp; Catatan Khusus.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium pt-2 border-t border-white/5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Dapat Ditarik &amp; Dikirim</span>
+            </div>
+          </div>
+
+          {/* TAB BARU: DATA ALUMNI / KELULUSAN */}
+          <div className="glass backdrop-blur-xl bg-amber-950/40 p-5 rounded-2xl border border-amber-500/40 shadow-xl space-y-3 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold font-serif text-sm text-white flex items-center gap-1.5">
+                  <Table className="w-4 h-4 text-amber-400" />
+                  Tab: Data_Alumni
+                </span>
+                <span className="bg-amber-500/20 text-amber-300 border border-amber-400/30 font-bold text-xs px-2 py-0.5 rounded">
+                  {students.filter(s => s.status === 'Lulus').length} Alumni
+                </span>
+              </div>
+              <p className="text-xs text-slate-300">
+                Kelulusan Santri: Tahun Lulus / Angkatan, Sekolah Lanjutan (MAN/SMA/Ponpes), Capaian Tahfidz, No. Ijazah &amp; SKL.
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-amber-400 font-medium pt-2 border-t border-white/5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Dapat Ditarik &amp; Dikirim</span>
+            </div>
+          </div>
+
         </div>
+      </div>
+
+      {/* PANDUAN PENTING MEMBUAT TAB DATA NILAI */}
+      <div className="p-4 bg-gradient-to-r from-amber-950/80 via-slate-900 to-emerald-950/80 border-2 border-amber-400/50 rounded-2xl space-y-2 text-white shadow-xl">
+        <div className="flex items-center gap-2 text-amber-300 font-bold text-sm">
+          <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+          <span>Kenapa Nilai Belum Muncul di Google Sheets Anda? Ini Solusinya:</span>
+        </div>
+        <p className="text-xs text-slate-200 leading-relaxed">
+          Google Sheets membutuhkan skrip <strong>Google Apps Script terbaru</strong> agar dapat membuat dan mengisi tab <strong>Data_Nilai</strong>, <strong>Data_Presensi</strong>, dan <strong>Data_Alumni</strong>. Jika sebelumnya Anda sudah menempelkan skrip lama, silakan lakukan 3 langkah mudah ini:
+        </p>
+        <ol className="text-xs text-slate-300 list-decimal list-inside space-y-1 bg-slate-950/60 p-3 rounded-xl border border-white/10 font-medium">
+          <li>Klik tombol kuning <strong>"Salin Skrip Baru"</strong> di bawah ini.</li>
+          <li>Buka Spreadsheet Anda &gt; menu <strong>Ekstensi &gt; Apps Script</strong> &gt; ganti seluruh kodenya dengan skrip yang baru disalin &gt; klik <strong>Simpan (ikon disket)</strong>.</li>
+          <li>Klik tombol biru <strong>Deploy (Terapkan) &gt; Kelola deployment &gt; Edit (ikon pensil) &gt; Versi Baru &gt; Terapkan</strong>. Setelah itu klik tombol <strong>"Sinkronkan Seluruh Data Ke Sheets"</strong> di atas. Tab <code>Data_Nilai</code> akan langsung muncul otomatis dengan seluruh nilai siswa!</li>
+        </ol>
       </div>
 
       {/* Google Apps Script Integration Helper */}
@@ -1673,13 +2058,13 @@ function doPost(e) {
           <div className="flex items-center gap-2">
             <Code className="w-5 h-5 text-amber-400" />
             <h3 className="font-bold font-serif text-base text-amber-300">
-              Skrip Google Apps Script 2-Arah (Terbaru dengan doGet &amp; doPost)
+              Skrip Google Apps Script 2-Arah (Terbaru: Termasuk Data_Nilai, Data_Presensi &amp; Data_Alumni)
             </h3>
           </div>
 
           <button
             onClick={handleCopyCode}
-            className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs px-4 py-2 rounded-xl transition-colors"
+            className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer"
           >
             {copiedCode ? <Check className="w-4 h-4 text-emerald-950" /> : <Copy className="w-4 h-4" />}
             <span>{copiedCode ? 'Tercopy!' : 'Salin Skrip Baru'}</span>

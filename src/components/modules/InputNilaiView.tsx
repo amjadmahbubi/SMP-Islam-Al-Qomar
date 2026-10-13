@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Student, SubjectGradeRecord, Teacher, UserSession, GradeLockRecord, SchoolInfo } from '../../types';
+import { Student, SubjectGradeRecord, Teacher, UserSession, GradeLockRecord, SchoolInfo, GoogleSheetsConfig } from '../../types';
 import { StorageService } from '../../services/storage';
+import { pushToGoogleSheets } from '../../services/sheetsSyncService';
 import { AuditLogModal } from './AuditLogModal';
 import { DEFAULT_MAPEL_LIST, getAllClasses, getTeacherAllowedMapelList } from '../../data/constants';
 import {
@@ -20,7 +21,9 @@ import {
   UserCheck,
   Key,
   ShieldCheck,
-  X
+  X,
+  UploadCloud,
+  RefreshCw
 } from 'lucide-react';
 
 interface InputNilaiViewProps {
@@ -30,6 +33,7 @@ interface InputNilaiViewProps {
   session: UserSession;
   schoolInfo?: SchoolInfo;
   onSaveGrades: (grades: SubjectGradeRecord[]) => void;
+  sheetsConfig?: GoogleSheetsConfig;
 }
 
 export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
@@ -38,7 +42,8 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
   teachers,
   session,
   schoolInfo,
-  onSaveGrades
+  onSaveGrades,
+  sheetsConfig
 }) => {
   const dynamicClasses = getAllClasses(students, [], teachers);
   const mapelList = DEFAULT_MAPEL_LIST;
@@ -450,6 +455,84 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
+  // Google Sheets Direct Sync State & Handler
+  const [sheetsSyncStatus, setSheetsSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [sheetsSyncMsg, setSheetsSyncMsg] = useState<string | null>(null);
+
+  const handleSyncGradesToSheets = async () => {
+    const cfg = sheetsConfig || StorageService.getSheetsConfig();
+    const url = (cfg.webAppUrl || '').trim();
+    if (!url) {
+      alert('URL Google Sheets belum dikonfigurasi!\n\nSilakan buka menu "Google Sheets" untuk memasang URL Web App Google Apps Script Anda.');
+      return;
+    }
+
+    setSheetsSyncStatus('syncing');
+    try {
+      const currentStudentGrades = classStudents.map(s => {
+        const g = studentGradesMap[s.id] || { sumatif: [85, 88, 85, 82, 86, 0, 0, 0, 0, 0], pts: 80, pas: 85, catatan: '' };
+        const rataLM = calculateRataSumatifLM(g.sumatif, tpList);
+        return {
+          studentId: s.id,
+          studentName: s.nama,
+          sumatifScores: g.sumatif,
+          nilaiFormatif1: g.sumatif[0] || 85,
+          nilaiFormatif2: g.sumatif[1] || 88,
+          nilaiSumatifLM: rataLM,
+          nilaiPTS: Number(g.pts),
+          nilaiPAS: Number(g.pas),
+          catatanKompetensi: g.catatan
+        };
+      });
+
+      const activeTahunAjaran = schoolInfo?.tahunAjaran || '2024/2025';
+      const currentRecord: SubjectGradeRecord = {
+        id: existingRecord ? existingRecord.id : `GRD${Date.now().toString().slice(-4)}`,
+        mapel: selectedMapel,
+        kelas: selectedClass,
+        teacherId: session.teacherId || 'T001',
+        teacherName: selectedTeacher,
+        semester,
+        tahunAjaran: activeTahunAjaran,
+        tpList,
+        studentGrades: currentStudentGrades,
+        isLocked: isDraftLocked
+      };
+
+      const updatedGradesList = existingRecord
+        ? grades.map(g => (g.id === existingRecord.id ? currentRecord : g))
+        : [currentRecord, ...grades];
+
+      if (canUserEdit) {
+        onSaveGrades(updatedGradesList);
+      }
+
+      const res = await pushToGoogleSheets(url, {
+        type: 'SINKRONISASI_NILAI_MAPEL',
+        grades: updatedGradesList,
+        students,
+        schoolInfo
+      });
+
+      if (res.success) {
+        setSheetsSyncStatus('success');
+        setSheetsSyncMsg('Sukses! Nilai tersimpan & otomatis masuk ke tab Data_Nilai di Google Sheets.');
+        setTimeout(() => {
+          setSheetsSyncStatus('idle');
+          setSheetsSyncMsg(null);
+        }, 4000);
+      } else {
+        setSheetsSyncStatus('error');
+        setSheetsSyncMsg(res.error || 'Gagal mengirim nilai ke Google Sheets.');
+        setTimeout(() => setSheetsSyncStatus('idle'), 5000);
+      }
+    } catch (err: any) {
+      setSheetsSyncStatus('error');
+      setSheetsSyncMsg('Koneksi ke Google Sheets gagal.');
+      setTimeout(() => setSheetsSyncStatus('idle'), 5000);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
@@ -498,6 +581,33 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
               {isDraftLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
               <span>{isDraftLocked ? '🔒 Status: Terkunci (Kelola)' : '🔓 Kunci Draft Nilai'}</span>
             </button>
+          )}
+
+          {/* Direct Google Sheets Sync Button */}
+          <button
+            type="button"
+            onClick={handleSyncGradesToSheets}
+            disabled={sheetsSyncStatus === 'syncing'}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-1.5 border border-emerald-500 cursor-pointer disabled:opacity-50"
+            title="Kirim nilai langsung ke tab Data_Nilai di Google Sheets"
+          >
+            {sheetsSyncStatus === 'syncing' ? (
+              <RefreshCw className="w-4 h-4 animate-spin text-white" />
+            ) : (
+              <UploadCloud className="w-4 h-4 text-emerald-100" />
+            )}
+            <span>{sheetsSyncStatus === 'syncing' ? 'Mengirim ke Sheets...' : '⚡ Kirim Nilai ke Sheets'}</span>
+          </button>
+
+          {sheetsSyncMsg && (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold animate-in fade-in ${
+              sheetsSyncStatus === 'error'
+                ? 'bg-rose-100 text-rose-900 border border-rose-300'
+                : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+            }`}>
+              <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+              <span>{sheetsSyncMsg}</span>
+            </div>
           )}
 
           {savedSuccess && (
@@ -876,18 +986,35 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
             <span>* Nilai Akhir dihitung otomatis: 50% Rata-rata Sumatif LM + 25% PTS + 25% PAS.</span>
           </div>
 
-          <button
-            type="submit"
-            disabled={!canUserEdit}
-            className={`font-bold text-sm px-8 py-3 rounded-xl shadow transition-colors flex items-center gap-2 ${
-              canUserEdit
-                ? 'bg-emerald-800 hover:bg-emerald-700 text-white'
-                : 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
-            }`}
-          >
-            <Save className="w-4 h-4" />
-            <span>{canUserEdit ? 'Simpan Nilai Asesmen Mapel' : 'Akses Terkunci (Read Only)'}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleSyncGradesToSheets}
+              disabled={sheetsSyncStatus === 'syncing'}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm px-5 py-3 rounded-xl shadow transition-colors flex items-center gap-2 border border-emerald-500 cursor-pointer disabled:opacity-50"
+              title="Kirim nilai langsung ke tab Data_Nilai di Google Sheets"
+            >
+              {sheetsSyncStatus === 'syncing' ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <UploadCloud className="w-4 h-4 text-emerald-100" />
+              )}
+              <span>{sheetsSyncStatus === 'syncing' ? 'Mengirim Nilai...' : '⚡ Kirim Nilai ke Sheets'}</span>
+            </button>
+
+            <button
+              type="submit"
+              disabled={!canUserEdit}
+              className={`font-bold text-sm px-7 py-3 rounded-xl shadow transition-colors flex items-center gap-2 ${
+                canUserEdit
+                  ? 'bg-emerald-800 hover:bg-emerald-700 text-white cursor-pointer'
+                  : 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
+              }`}
+            >
+              <Save className="w-4 h-4" />
+              <span>{canUserEdit ? 'Simpan Nilai Asesmen Mapel' : 'Akses Terkunci (Read Only)'}</span>
+            </button>
+          </div>
         </div>
       </form>
 

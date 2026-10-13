@@ -5,7 +5,9 @@ import {
   SchoolInfo, 
   ScheduleItem, 
   CalendarEvent, 
-  PpdbRegistration 
+  PpdbRegistration,
+  SubjectGradeRecord,
+  AttendanceRecord
 } from '../types';
 
 export interface SheetsPayload {
@@ -18,6 +20,8 @@ export interface SheetsPayload {
   ppdbRegistrations?: PpdbRegistration[];
   schedules?: ScheduleItem[];
   events?: CalendarEvent[];
+  grades?: SubjectGradeRecord[];
+  attendance?: AttendanceRecord[];
 }
 
 export interface FetchResult {
@@ -89,5 +93,35 @@ export async function fetchFromGoogleSheets(webAppUrl: string, timeoutMs = 8000)
       isNetworkError: true,
       error: isTimeout ? 'Koneksi ke Google Sheets timeout (lebih dari 8 detik).' : (err.message || 'Gagal terhubung ke Google Sheets.')
     };
+  }
+}
+
+export async function pushToGoogleSheets(
+  webAppUrl: string,
+  data: Partial<SheetsPayload> & { type?: string }
+): Promise<{ success: boolean; error?: string }> {
+  const validation = validateSheetsUrl(webAppUrl);
+  if (!validation.isValid) {
+    return { success: false, error: validation.error };
+  }
+
+  const cleanUrl = webAppUrl.trim();
+  const payload = {
+    type: data.type || 'SINKRONISASI_DAPODIK_PUSH',
+    timestamp: new Date().toISOString(),
+    payload: data
+  };
+
+  try {
+    await fetch(cleanUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      mode: 'no-cors'
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Gagal mengirim data ke Google Sheets.' };
   }
 }
