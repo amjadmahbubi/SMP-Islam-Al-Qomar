@@ -1,7 +1,26 @@
 import React, { useMemo, useState } from 'react';
-import { SchoolInfo, Student, Teacher, SarprasItem, ScheduleItem, AttendanceRecord, SubjectGradeRecord } from '../../types';
+import { SchoolInfo, Student, Teacher, SarprasItem, ScheduleItem, AttendanceRecord, SubjectGradeRecord, StudentAchievement } from '../../types';
 import { getAllClasses } from '../../data/constants';
-import { Users, GraduationCap, Building2, Award, BookOpen, HeartHandshake, CheckCircle, MapPin, Phone, Mail, Globe, ShieldCheck, Search } from 'lucide-react';
+import { 
+  Users, 
+  GraduationCap, 
+  Building2, 
+  Award, 
+  BookOpen, 
+  HeartHandshake, 
+  CheckCircle, 
+  MapPin, 
+  Phone, 
+  Mail, 
+  Globe, 
+  ShieldCheck, 
+  Search,
+  Trophy,
+  RefreshCw,
+  FileSpreadsheet,
+  Zap,
+  CheckCircle2
+} from 'lucide-react';
 
 interface PublicStatistikProps {
   schoolInfo: SchoolInfo;
@@ -11,6 +30,14 @@ interface PublicStatistikProps {
   schedules?: ScheduleItem[];
   attendance?: AttendanceRecord[];
   grades?: SubjectGradeRecord[];
+  achievements?: StudentAchievement[];
+  autoSyncStatus?: {
+    status: 'idle' | 'checking' | 'synced' | 'offline';
+    lastSyncTime?: string;
+    message?: string;
+  };
+  onTriggerAutoSync?: () => Promise<void> | void;
+  onNavigateToSheets?: () => void;
 }
 
 export const PublicStatistik: React.FC<PublicStatistikProps> = ({
@@ -18,8 +45,25 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
   students,
   teachers,
   sarpras,
-  schedules = []
+  schedules = [],
+  achievements = [],
+  autoSyncStatus,
+  onTriggerAutoSync,
+  onNavigateToSheets
 }) => {
+  const [isPulling, setIsPulling] = useState(false);
+
+  const handleQuickPull = async () => {
+    if (onTriggerAutoSync) {
+      setIsPulling(true);
+      try {
+        await onTriggerAutoSync();
+      } finally {
+        setTimeout(() => setIsPulling(false), 800);
+      }
+    }
+  };
+
   const activeStudents = students.filter(s => s.status === 'Aktif');
   const alumniStudents = useMemo(() => students.filter(s => s.status === 'Lulus'), [students]);
 
@@ -86,6 +130,15 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
       badge: 'Aktif Terdata'
     },
     {
+      title: 'Prestasi & Kejuaraan Murid',
+      value: achievements.length,
+      unit: 'Prestasi',
+      sub: 'Tahfidz, OSN, Olahraga & Seni',
+      icon: Trophy,
+      color: 'from-amber-600 to-yellow-600',
+      badge: 'Sinkron Sheets'
+    },
+    {
       title: 'Status Akreditasi BAN-S/M',
       value: schoolInfo.akreditasi,
       unit: 'Nilai 96',
@@ -96,8 +149,10 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
     }
   ];
 
+  const isSyncChecking = isPulling || autoSyncStatus?.status === 'checking';
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       
       {/* Hero Islamic Banner */}
       <div className="relative rounded-3xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 text-white p-6 sm:p-10 shadow-xl overflow-hidden border border-emerald-800/80">
@@ -133,6 +188,57 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
         </div>
       </div>
 
+      {/* QUICK SYNC / TARIK DATA GOOGLE SHEETS BAR (Khusus Beranda) */}
+      <div className="glass backdrop-blur-xl bg-slate-900/75 rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center justify-center shrink-0">
+            <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-bold text-white font-serif">
+                Sinkronisasi Integrasi Google Sheets
+              </h3>
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2 py-0.5 rounded-md">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>{autoSyncStatus?.lastSyncTime ? `Tersinkron: ${autoSyncStatus.lastSyncTime}` : 'Siap Sinkron'}</span>
+              </span>
+            </div>
+            <p className="text-xs text-slate-300/90 truncate mt-0.5">
+              {autoSyncStatus?.message || 'Semua modul DAPODIK termasuk Prestasi Santri & Asesmen Nilai terhubung 2-arah.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+          {onTriggerAutoSync && (
+            <button
+              onClick={handleQuickPull}
+              disabled={isSyncChecking}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md border cursor-pointer ${
+                isSyncChecking
+                  ? 'bg-amber-500/20 text-amber-200 border-amber-400/40 cursor-wait'
+                  : 'bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 border-emerald-300/50 hover:shadow-emerald-500/20'
+              }`}
+              title="Tarik pembaruan data langsung dari Google Sheets"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncChecking ? 'animate-spin text-amber-300' : 'text-slate-950'}`} />
+              <span>{isSyncChecking ? 'Menarik Data Sheets...' : 'Tarik Data Terbaru'}</span>
+            </button>
+          )}
+
+          {onNavigateToSheets && (
+            <button
+              onClick={onNavigateToSheets}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 transition-colors"
+              title="Buka pengaturan dan detail sinkronisasi Google Sheets"
+            >
+              <span>Detail Sheets</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* KPI Stats Grid */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -142,7 +248,7 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
           <span className="text-xs text-slate-400 font-mono">Realtime DAPODIK</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {statsCards.map((card, i) => {
             const Icon = card.icon;
             return (

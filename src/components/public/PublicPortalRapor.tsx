@@ -76,11 +76,12 @@ export const PublicPortalRapor: React.FC<PublicPortalRaporProps> = ({
         const avgFormatif = Math.round((entry.nilaiFormatif1 + entry.nilaiFormatif2) / 2);
         // Formula: 40% Formatif + 30% PTS + 30% PAS
         const akhir = Math.round((avgFormatif * 0.4) + (entry.nilaiPTS * 0.3) + (entry.nilaiPAS * 0.3));
-        let predikat = 'C';
+        let predikat = '- (Belum Dinilai)';
         if (akhir >= 90) predikat = 'A (Sangat Baik)';
         else if (akhir >= 80) predikat = 'B (Baik)';
         else if (akhir >= 70) predikat = 'C (Cukup)';
-        else predikat = 'D (Perlu Bimbingan)';
+        else if (akhir > 0) predikat = 'D (Perlu Bimbingan)';
+        else predikat = '- (Belum Dinilai)';
 
         list.push({
           mapel: g.mapel,

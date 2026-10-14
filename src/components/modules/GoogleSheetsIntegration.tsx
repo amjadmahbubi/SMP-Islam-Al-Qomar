@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Student, Teacher, SarprasItem, AttendanceRecord, SubjectGradeRecord, SchoolInfo, ScheduleItem, CalendarEvent, PpdbRegistration, GoogleSheetsConfig, UserSession } from '../../types';
+import { Student, Teacher, SarprasItem, AttendanceRecord, SubjectGradeRecord, SchoolInfo, ScheduleItem, CalendarEvent, PpdbRegistration, GoogleSheetsConfig, UserSession, StudentAchievement } from '../../types';
 import { 
   Sheet, 
   Copy, 
@@ -28,7 +28,8 @@ import {
   ExternalLink,
   HelpCircle,
   Zap,
-  CheckCheck
+  CheckCheck,
+  Trophy
 } from 'lucide-react';
 import { StorageService } from '../../services/storage';
 
@@ -133,6 +134,8 @@ interface GoogleSheetsIntegrationProps {
   onImportSchoolInfo?: (info: SchoolInfo) => void;
   onImportGrades?: (grades: SubjectGradeRecord[]) => void;
   onImportAttendance?: (attendance: AttendanceRecord[]) => void;
+  achievements?: StudentAchievement[];
+  onImportAchievements?: (achievements: StudentAchievement[]) => void;
   autoSyncStatus?: {
     status: 'idle' | 'checking' | 'synced' | 'offline';
     lastSyncTime?: string;
@@ -148,6 +151,7 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   sarpras = [],
   attendance = [],
   grades = [],
+  achievements = [],
   schoolInfo,
   schedules = [],
   events = [],
@@ -164,6 +168,7 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   onImportSchoolInfo,
   onImportGrades,
   onImportAttendance,
+  onImportAchievements,
   autoSyncStatus,
   onTriggerAutoSync
 }) => {
@@ -205,6 +210,7 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
     events?: CalendarEvent[];
     grades?: SubjectGradeRecord[];
     attendance?: AttendanceRecord[];
+    achievements?: StudentAchievement[];
   } | null>(null);
 
   // Saved database URL
@@ -681,8 +687,8 @@ function doGet(e) {
         studentId: sId,
         studentName: sName,
         sumatifScores: [tp1, tp2, tp3, tp4, tp5, 0, 0, 0, 0, 0],
-        nilaiFormatif1: tp1 || 85,
-        nilaiFormatif2: tp2 || 88,
+        nilaiFormatif1: tp1,
+        nilaiFormatif2: tp2,
         nilaiSumatifLM: rataLM,
         nilaiPTS: pts,
         nilaiPAS: pas,
@@ -743,6 +749,33 @@ function doGet(e) {
     return attList;
   }
 
+  // Parse Tab Data_Prestasi (Prestasi & Kejuaraan Santri)
+  function parseAchievements() {
+    var rows = getTabData("Data_Prestasi");
+    if (rows.length <= 1) return [];
+    var list = [];
+    for (var i = 1; i < rows.length; i++) {
+      var r = rows[i];
+      if (r[0] || r[2] || r[4]) {
+        list.push({
+          id: String(r[0] || ("ACH-" + i)),
+          studentId: String(r[1] || ""),
+          studentName: String(r[2] || ""),
+          kelas: String(r[3] || "7"),
+          judulPrestasi: String(r[4] || ""),
+          kategori: String(r[5] || "Tahfidz & Al-Qur'an"),
+          tingkat: String(r[6] || "Provinsi"),
+          tahun: String(r[7] || new Date().getFullYear().toString()),
+          medali: String(r[8] || "Juara 1"),
+          penyelenggara: String(r[9] || ""),
+          pembimbing: String(r[10] || "-"),
+          deskripsi: String(r[11] || "")
+        });
+      }
+    }
+    return list;
+  }
+
   var responsePayload = {
     status: "success",
     timestamp: new Date().toISOString(),
@@ -756,7 +789,8 @@ function doGet(e) {
     schedules: parseSchedules(),
     events: parseEvents(),
     grades: parseGrades(),
-    attendance: parseAttendance()
+    attendance: parseAttendance(),
+    achievements: parseAchievements()
   };
 
   return ContentService.createTextOutput(JSON.stringify(responsePayload))
@@ -908,7 +942,7 @@ function doPost(e) {
           var pts = Number(sg.nilaiPTS) || 0;
           var pas = Number(sg.nilaiPAS) || 0;
           var na = Math.round((rataLM * 0.5) + (pts * 0.25) + (pas * 0.25)) || rataLM;
-          var predikat = na >= 88 ? "A (Sangat Baik)" : na >= 76 ? "B (Baik)" : na >= 65 ? "C (Cukup)" : "D (Perlu Bimbingan)";
+          var predikat = na >= 88 ? "A (Sangat Baik)" : na >= 76 ? "B (Baik)" : na >= 65 ? "C (Cukup)" : (na > 0 ? "D (Perlu Bimbingan)" : "- (Belum Dinilai)");
           gradeRows.push([
             gRec.id,
             gRec.tahunAjaran || "2024/2025",
@@ -1049,11 +1083,45 @@ function doPost(e) {
       ], ppdbRows);
     }
 
-    // 11. Tab Log_Dapodik
-    var logSheet = ss.getSheetByName("Log_Dapodik") || ss.insertSheet("Log_Dapodik");
-    logSheet.appendRow([new Date(), data.type || "SINKRONISASI_DAPODIK", "Sukses sinkronisasi seluruh data (Termasuk Nilai, Presensi & Alumni)"]);
+    // 11. Tab Data_Prestasi (Prestasi, Kejuaraan & Lomba Santri)
+    if (payload.achievements && Array.isArray(payload.achievements)) {
+      var achRows = payload.achievements.map(function(ac) {
+        return [
+          ac.id,
+          ac.studentId || "-",
+          ac.studentName || "-",
+          ac.kelas || "-",
+          ac.judulPrestasi || "-",
+          ac.kategori || "-",
+          ac.tingkat || "-",
+          ac.tahun || "-",
+          ac.medali || "-",
+          ac.penyelenggara || "-",
+          ac.pembimbing || "-",
+          ac.deskripsi || ""
+        ];
+      });
+      updateTab("Data_Prestasi", [
+        "ID Prestasi",
+        "ID Siswa",
+        "Nama Lengkap Siswa",
+        "Kelas",
+        "Judul Prestasi / Lomba",
+        "Kategori",
+        "Tingkat",
+        "Tahun",
+        "Peringkat / Medali",
+        "Penyelenggara",
+        "Guru Pembimbing",
+        "Deskripsi Keterangan"
+      ], achRows);
+    }
 
-    return ContentService.createTextOutput(JSON.stringify({ result: "success", message: "Seluruh tab data (Termasuk Data_Nilai, Data_Presensi & Data_Alumni) berhasil disinkronkan di Google Sheets" }))
+    // 12. Tab Log_Dapodik
+    var logSheet = ss.getSheetByName("Log_Dapodik") || ss.insertSheet("Log_Dapodik");
+    logSheet.appendRow([new Date(), data.type || "SINKRONISASI_DAPODIK", "Sukses sinkronisasi seluruh data (Termasuk Nilai, Presensi, Alumni & Prestasi)"]);
+
+    return ContentService.createTextOutput(JSON.stringify({ result: "success", message: "Seluruh tab data (Termasuk Data_Nilai, Data_Presensi, Data_Alumni & Data_Prestasi) berhasil disinkronkan di Google Sheets" }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ result: "error", message: err.toString() }))
@@ -1094,6 +1162,7 @@ function doPost(e) {
           sarprasCount: sarpras.length,
           attendanceCount: attendance.length,
           gradesCount: grades.length,
+          achievementsCount: achievements.length,
           schedulesCount: schedules.length,
           eventsCount: events.length,
           ppdbCount: ppdbRegistrations.length,
@@ -1104,7 +1173,8 @@ function doPost(e) {
           events,
           ppdbRegistrations,
           attendance,
-          grades
+          grades,
+          achievements
         }
       };
 
@@ -1163,7 +1233,7 @@ function doPost(e) {
       const response = await fetch(fetchUrl);
       const data = await response.json();
 
-      if (data && (data.students || data.teachers || data.sarpras || data.schoolInfo || data.ppdbRegistrations || data.schedules || data.events || data.grades || data.attendance)) {
+      if (data && (data.students || data.teachers || data.sarpras || data.schoolInfo || data.ppdbRegistrations || data.schedules || data.events || data.grades || data.attendance || data.achievements)) {
         setPulledData({
           students: Array.isArray(data.students) && data.students.length > 0 ? data.students : undefined,
           teachers: Array.isArray(data.teachers) && data.teachers.length > 0 ? data.teachers : undefined,
@@ -1174,6 +1244,7 @@ function doPost(e) {
           events: Array.isArray(data.events) && data.events.length > 0 ? data.events : undefined,
           grades: Array.isArray(data.grades) && data.grades.length > 0 ? data.grades : undefined,
           attendance: Array.isArray(data.attendance) && data.attendance.length > 0 ? data.attendance : undefined,
+          achievements: Array.isArray(data.achievements) && data.achievements.length > 0 ? data.achievements : undefined,
         });
         setIsPullModalOpen(true);
         setPullStatus('success');
@@ -1242,7 +1313,8 @@ function doPost(e) {
         schedules: schedules.length > 0 ? schedules : undefined,
         events: events.length > 0 ? events : undefined,
         grades: grades.length > 0 ? grades : undefined,
-        attendance: attendance.length > 0 ? attendance : undefined
+        attendance: attendance.length > 0 ? attendance : undefined,
+        achievements: achievements.length > 0 ? achievements : undefined
       });
 
       setIsPullModalOpen(true);
@@ -1295,6 +1367,11 @@ function doPost(e) {
     if (pulledData.attendance && onImportAttendance) {
       onImportAttendance(pulledData.attendance);
       countSummary.push(`${pulledData.attendance.length} Jurnal Presensi`);
+    }
+
+    if (pulledData.achievements && onImportAchievements) {
+      onImportAchievements(pulledData.achievements);
+      countSummary.push(`${pulledData.achievements.length} Prestasi Siswa`);
     }
 
     if (pulledData.schoolInfo && onImportSchoolInfo) {
@@ -2033,22 +2110,49 @@ function doPost(e) {
             </div>
           </div>
 
+          {/* TAB BARU: DATA PRESTASI SISWA */}
+          <div className="glass backdrop-blur-xl bg-amber-950/50 p-5 rounded-2xl border-2 border-amber-400/50 shadow-xl space-y-3 flex flex-col justify-between ring-1 ring-amber-400/20">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold font-serif text-sm text-white flex items-center gap-1.5">
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  Tab: Data_Prestasi
+                </span>
+                <span className="bg-amber-400 text-amber-950 font-bold text-xs px-2.5 py-0.5 rounded shadow-xs">
+                  {achievements.length} Prestasi
+                </span>
+              </div>
+              <p className="text-xs text-slate-300">
+                ⭐ <strong>Prestasi &amp; Kejuaraan Santri</strong>: Lomba Tahfidz, MTQ, Sains, Seni, Olahraga (Tingkat Kecamatan s/d Nasional).
+              </p>
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-amber-400/20">
+              <span className="flex items-center gap-1 text-xs text-amber-300 font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Otomatis Masuk Sheet</span>
+              </span>
+              <span className="text-[10px] bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded font-mono font-bold">
+                FITUR AKTIF
+              </span>
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* PANDUAN PENTING MEMBUAT TAB DATA NILAI */}
+      {/* PANDUAN PENTING MEMBUAT TAB DATA NILAI & PRESTASI */}
       <div className="p-4 bg-gradient-to-r from-amber-950/80 via-slate-900 to-emerald-950/80 border-2 border-amber-400/50 rounded-2xl space-y-2 text-white shadow-xl">
         <div className="flex items-center gap-2 text-amber-300 font-bold text-sm">
           <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
-          <span>Kenapa Nilai Belum Muncul di Google Sheets Anda? Ini Solusinya:</span>
+          <span>Kenapa Nilai &amp; Prestasi Belum Muncul di Google Sheets Anda? Ini Solusinya:</span>
         </div>
         <p className="text-xs text-slate-200 leading-relaxed">
-          Google Sheets membutuhkan skrip <strong>Google Apps Script terbaru</strong> agar dapat membuat dan mengisi tab <strong>Data_Nilai</strong>, <strong>Data_Presensi</strong>, dan <strong>Data_Alumni</strong>. Jika sebelumnya Anda sudah menempelkan skrip lama, silakan lakukan 3 langkah mudah ini:
+          Google Sheets membutuhkan skrip <strong>Google Apps Script terbaru</strong> agar dapat membuat dan mengisi tab <strong>Data_Nilai</strong>, <strong>Data_Prestasi</strong>, <strong>Data_Presensi</strong>, dan <strong>Data_Alumni</strong>. Jika sebelumnya Anda sudah menempelkan skrip lama, silakan lakukan 3 langkah mudah ini:
         </p>
         <ol className="text-xs text-slate-300 list-decimal list-inside space-y-1 bg-slate-950/60 p-3 rounded-xl border border-white/10 font-medium">
           <li>Klik tombol kuning <strong>"Salin Skrip Baru"</strong> di bawah ini.</li>
           <li>Buka Spreadsheet Anda &gt; menu <strong>Ekstensi &gt; Apps Script</strong> &gt; ganti seluruh kodenya dengan skrip yang baru disalin &gt; klik <strong>Simpan (ikon disket)</strong>.</li>
-          <li>Klik tombol biru <strong>Deploy (Terapkan) &gt; Kelola deployment &gt; Edit (ikon pensil) &gt; Versi Baru &gt; Terapkan</strong>. Setelah itu klik tombol <strong>"Sinkronkan Seluruh Data Ke Sheets"</strong> di atas. Tab <code>Data_Nilai</code> akan langsung muncul otomatis dengan seluruh nilai siswa!</li>
+          <li>Klik tombol biru <strong>Deploy (Terapkan) &gt; Kelola deployment &gt; Edit (ikon pensil) &gt; Versi Baru &gt; Terapkan</strong>. Setelah itu klik tombol <strong>"Sinkronkan Seluruh Data Ke Sheets"</strong> di atas. Tab <code>Data_Nilai</code> dan <code>Data_Prestasi</code> akan langsung dibuat otomatis!</li>
         </ol>
       </div>
 
@@ -2058,7 +2162,7 @@ function doPost(e) {
           <div className="flex items-center gap-2">
             <Code className="w-5 h-5 text-amber-400" />
             <h3 className="font-bold font-serif text-base text-amber-300">
-              Skrip Google Apps Script 2-Arah (Terbaru: Termasuk Data_Nilai, Data_Presensi &amp; Data_Alumni)
+              Skrip Google Apps Script 2-Arah (Terbaru: Termasuk Data_Nilai, Data_Prestasi, Data_Presensi &amp; Data_Alumni)
             </h3>
           </div>
 
@@ -2206,6 +2310,42 @@ function doPost(e) {
                       </div>
                     );
                   })()}
+                </div>
+              )}
+
+              {pulledData.grades && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-emerald-950">Rekap Nilai Asesmen ({pulledData.grades.length} Mapel/Kelas)</p>
+                    <p className="text-[11px] text-emerald-800">
+                      Sampel: Kelas {pulledData.grades[0]?.kelas} • {pulledData.grades[0]?.mapel} ({pulledData.grades[0]?.studentGrades?.length || 0} Santri)
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold bg-emerald-200 text-emerald-950 px-2 py-1 rounded">Siap Diimpor</span>
+                </div>
+              )}
+
+              {pulledData.attendance && (
+                <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-teal-900">Jurnal Presensi Siswa ({pulledData.attendance.length} Jurnal)</p>
+                    <p className="text-[11px] text-teal-700">
+                      Sampel: Kelas {pulledData.attendance[0]?.kelas} • {pulledData.attendance[0]?.tanggal}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold bg-teal-200 text-teal-900 px-2 py-1 rounded">Siap Diimpor</span>
+                </div>
+              )}
+
+              {pulledData.achievements && (
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-amber-950">Prestasi & Kejuaraan Santri ({pulledData.achievements.length} Prestasi)</p>
+                    <p className="text-[11px] text-amber-800">
+                      Sampel: {pulledData.achievements[0]?.studentName} - {pulledData.achievements[0]?.judulPrestasi} ({pulledData.achievements[0]?.medali})
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold bg-amber-200 text-amber-950 px-2 py-1 rounded">Siap Diimpor</span>
                 </div>
               )}
 

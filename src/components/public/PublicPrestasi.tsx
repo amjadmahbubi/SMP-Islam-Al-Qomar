@@ -14,7 +14,9 @@ import {
   Star,
   CheckCircle2,
   X,
-  UserCheck
+  UserCheck,
+  RefreshCw,
+  FileSpreadsheet
 } from 'lucide-react';
 
 interface PublicPrestasiProps {
@@ -24,6 +26,13 @@ interface PublicPrestasiProps {
   teachers?: Teacher[];
   session: UserSession;
   onSaveAchievements: (updated: StudentAchievement[]) => void;
+  autoSyncStatus?: {
+    status: 'idle' | 'checking' | 'synced' | 'offline';
+    lastSyncTime?: string;
+    message?: string;
+  };
+  onTriggerAutoSync?: () => Promise<void> | void;
+  onNavigateToSheets?: () => void;
 }
 
 export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
@@ -32,8 +41,24 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
   schedules = [],
   teachers = [],
   session,
-  onSaveAchievements
+  onSaveAchievements,
+  autoSyncStatus,
+  onTriggerAutoSync,
+  onNavigateToSheets
 }) => {
+  const [isPulling, setIsPulling] = useState(false);
+
+  const handleQuickPull = async () => {
+    if (onTriggerAutoSync) {
+      setIsPulling(true);
+      try {
+        await onTriggerAutoSync();
+      } finally {
+        setTimeout(() => setIsPulling(false), 800);
+      }
+    }
+  };
+
   const isAuthorized = session.role === 'admin' || session.role === 'guru';
 
   const dynamicClasses = useMemo(
@@ -207,15 +232,33 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
           </p>
         </div>
 
-        {isAuthorized && (
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-lg transition-all border border-emerald-300/50 self-start md:self-auto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Prestasi Murid</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2.5 flex-wrap self-start md:self-auto">
+          {onTriggerAutoSync && (
+            <button
+              onClick={handleQuickPull}
+              disabled={isPulling || autoSyncStatus?.status === 'checking'}
+              className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md border cursor-pointer ${
+                isPulling || autoSyncStatus?.status === 'checking'
+                  ? 'bg-amber-500/20 text-amber-200 border-amber-400/40 cursor-wait'
+                  : 'bg-slate-800 hover:bg-slate-700 text-emerald-300 border-emerald-500/30'
+              }`}
+              title="Tarik data prestasi terbaru dari Google Sheets"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isPulling || autoSyncStatus?.status === 'checking' ? 'animate-spin text-amber-300' : 'text-emerald-400'}`} />
+              <span>{isPulling || autoSyncStatus?.status === 'checking' ? 'Menarik...' : 'Tarik dari Sheets'}</span>
+            </button>
+          )}
+
+          {isAuthorized && (
+            <button
+              onClick={handleOpenAddModal}
+              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow-lg transition-all border border-emerald-300/50"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Prestasi Murid</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Summary Stats Cards */}

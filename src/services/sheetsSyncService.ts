@@ -7,7 +7,8 @@ import {
   CalendarEvent, 
   PpdbRegistration,
   SubjectGradeRecord,
-  AttendanceRecord
+  AttendanceRecord,
+  StudentAchievement
 } from '../types';
 
 export interface SheetsPayload {
@@ -22,6 +23,7 @@ export interface SheetsPayload {
   events?: CalendarEvent[];
   grades?: SubjectGradeRecord[];
   attendance?: AttendanceRecord[];
+  achievements?: StudentAchievement[];
 }
 
 export interface FetchResult {

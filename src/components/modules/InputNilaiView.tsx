@@ -192,20 +192,20 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
     classStudents.forEach(s => {
       const entry = existingRecord?.studentGrades.find(e => e.studentId === s.id);
       
-      let sumatifArray: number[] = [85, 88, 85, 82, 86, 0, 0, 0, 0, 0];
+      let sumatifArray: number[] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       if (entry?.sumatifScores && entry.sumatifScores.length === 10) {
         sumatifArray = [...entry.sumatifScores];
       } else if (entry) {
-        sumatifArray = [entry.nilaiFormatif1 || 85, entry.nilaiFormatif2 || 88, entry.nilaiSumatifLM || 85, 82, 86, 0, 0, 0, 0, 0];
+        sumatifArray = [entry.nilaiFormatif1 ?? 0, entry.nilaiFormatif2 ?? 0, entry.nilaiSumatifLM ?? 0, 0, 0, 0, 0, 0, 0, 0];
       }
 
       const defaultAutoCatatan = generateCatatanFromTP(sumatifArray, currentTpList);
 
       initialMap[s.id] = {
         sumatif: sumatifArray,
-        pts: entry ? entry.nilaiPTS : 82,
-        pas: entry ? entry.nilaiPAS : 86,
-        catatan: entry?.catatanKompetensi || defaultAutoCatatan
+        pts: entry ? (entry.nilaiPTS ?? 0) : 0,
+        pas: entry ? (entry.nilaiPAS ?? 0) : 0,
+        catatan: entry?.catatanKompetensi || (defaultAutoCatatan !== 'Belum ada penilaian capaian kompetensi.' ? defaultAutoCatatan : '')
       };
     });
 
@@ -217,9 +217,9 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
     const clamped = Math.max(0, Math.min(100, val));
     setStudentGradesMap(prev => {
       const currentStudent = prev[studentId] || {
-        sumatif: [85, 88, 85, 82, 86, 0, 0, 0, 0, 0],
-        pts: 82,
-        pas: 86,
+        sumatif: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        pts: 0,
+        pas: 0,
         catatan: ''
       };
       const newSumatif = [...currentStudent.sumatif];
@@ -240,9 +240,9 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
     const clamped = Math.max(0, Math.min(100, val));
     setStudentGradesMap(prev => {
       const currentStudent = prev[studentId] || {
-        sumatif: [85, 88, 85, 82, 86, 0, 0, 0, 0, 0],
-        pts: 82,
-        pas: 86,
+        sumatif: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        pts: 0,
+        pas: 0,
         catatan: ''
       };
       return {
@@ -294,7 +294,7 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
     }
 
     if (activeTps.length === 0) {
-      return 'Menunjukkan penguasaan yang baik dalam mencapai Tujuan Pembelajaran (TP).';
+      return 'Belum ada penilaian capaian kompetensi.';
     }
 
     activeTps.sort((a, b) => b.score - a.score);
@@ -329,15 +329,15 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
       const updatedMap = { ...prev };
       classStudents.forEach(s => {
         const studentObj = updatedMap[s.id] || {
-          sumatif: [85, 88, 85, 82, 86, 0, 0, 0, 0, 0],
-          pts: 82,
-          pas: 86,
+          sumatif: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          pts: 0,
+          pas: 0,
           catatan: ''
         };
         const autoText = generateCatatanFromTP(studentObj.sumatif, tpList);
         updatedMap[s.id] = {
           ...studentObj,
-          catatan: autoText
+          catatan: autoText !== 'Belum ada penilaian capaian kompetensi.' ? autoText : ''
         };
       });
       return updatedMap;
@@ -396,18 +396,18 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
     }
 
     const studentGrades = classStudents.map(s => {
-      const g = studentGradesMap[s.id] || { sumatif: [85, 88, 85, 82, 86, 0, 0, 0, 0, 0], pts: 80, pas: 85, catatan: '' };
+      const g = studentGradesMap[s.id] || { sumatif: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], pts: 0, pas: 0, catatan: '' };
       const rataLM = calculateRataSumatifLM(g.sumatif, tpList);
 
       return {
         studentId: s.id,
         studentName: s.nama,
         sumatifScores: g.sumatif,
-        nilaiFormatif1: g.sumatif[0] || 85,
-        nilaiFormatif2: g.sumatif[1] || 88,
+        nilaiFormatif1: g.sumatif[0] ?? 0,
+        nilaiFormatif2: g.sumatif[1] ?? 0,
         nilaiSumatifLM: rataLM,
-        nilaiPTS: Number(g.pts),
-        nilaiPAS: Number(g.pas),
+        nilaiPTS: Number(g.pts) || 0,
+        nilaiPAS: Number(g.pas) || 0,
         catatanKompetensi: g.catatan
       };
     });
@@ -470,17 +470,17 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
     setSheetsSyncStatus('syncing');
     try {
       const currentStudentGrades = classStudents.map(s => {
-        const g = studentGradesMap[s.id] || { sumatif: [85, 88, 85, 82, 86, 0, 0, 0, 0, 0], pts: 80, pas: 85, catatan: '' };
+        const g = studentGradesMap[s.id] || { sumatif: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], pts: 0, pas: 0, catatan: '' };
         const rataLM = calculateRataSumatifLM(g.sumatif, tpList);
         return {
           studentId: s.id,
           studentName: s.nama,
           sumatifScores: g.sumatif,
-          nilaiFormatif1: g.sumatif[0] || 85,
-          nilaiFormatif2: g.sumatif[1] || 88,
+          nilaiFormatif1: g.sumatif[0] ?? 0,
+          nilaiFormatif2: g.sumatif[1] ?? 0,
           nilaiSumatifLM: rataLM,
-          nilaiPTS: Number(g.pts),
-          nilaiPAS: Number(g.pas),
+          nilaiPTS: Number(g.pts) || 0,
+          nilaiPAS: Number(g.pas) || 0,
           catatanKompetensi: g.catatan
         };
       });
@@ -869,9 +869,9 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
               <tbody className="divide-y divide-slate-200">
                 {classStudents.map((s, idx) => {
                   const currentGrades = studentGradesMap[s.id] || {
-                    sumatif: [85, 88, 85, 82, 86, 0, 0, 0, 0, 0],
-                    pts: 82,
-                    pas: 86,
+                    sumatif: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    pts: 0,
+                    pas: 0,
                     catatan: ''
                   };
 
@@ -902,7 +902,10 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
                               max="100"
                               value={val}
                               disabled={!canUserEdit}
-                              onChange={(e) => handleSumatifChange(s.id, tpIdx, Number(e.target.value))}
+                              onFocus={(e) => {
+                                if (e.target.value === '0') e.target.select();
+                              }}
+                              onChange={(e) => handleSumatifChange(s.id, tpIdx, e.target.value === '' ? 0 : Number(e.target.value))}
                               className={`w-14 px-1 py-1 text-center font-bold text-xs rounded border focus:outline-none focus:ring-1 focus:ring-emerald-600 disabled:bg-slate-100 disabled:text-slate-400 ${
                                 isTpActive
                                   ? 'bg-white border-slate-300 text-slate-900'
@@ -921,7 +924,10 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
                           max="100"
                           value={currentGrades.pts}
                           disabled={!canUserEdit}
-                          onChange={(e) => handleExamChange(s.id, 'pts', Number(e.target.value))}
+                          onFocus={(e) => {
+                            if (e.target.value === '0') e.target.select();
+                          }}
+                          onChange={(e) => handleExamChange(s.id, 'pts', e.target.value === '' ? 0 : Number(e.target.value))}
                           className="w-13 px-1 py-1 bg-white border border-slate-300 rounded text-center font-bold text-xs text-slate-900 focus:ring-1 focus:ring-emerald-600 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
                         />
                       </td>
@@ -934,7 +940,10 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
                           max="100"
                           value={currentGrades.pas}
                           disabled={!canUserEdit}
-                          onChange={(e) => handleExamChange(s.id, 'pas', Number(e.target.value))}
+                          onFocus={(e) => {
+                            if (e.target.value === '0') e.target.select();
+                          }}
+                          onChange={(e) => handleExamChange(s.id, 'pas', e.target.value === '' ? 0 : Number(e.target.value))}
                           className="w-13 px-1 py-1 bg-white border border-slate-300 rounded text-center font-bold text-xs text-slate-900 focus:ring-1 focus:ring-emerald-600 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
                         />
                       </td>

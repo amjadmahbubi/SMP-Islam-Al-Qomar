@@ -419,6 +419,18 @@ export function App() {
       handleSavePpdbRegistrations(data.ppdbRegistrations);
       updatedItems.push(`${data.ppdbRegistrations.length} Data PPDB`);
     }
+    if (Array.isArray(data.achievements) && data.achievements.length > 0) {
+      handleSaveAchievements(data.achievements);
+      updatedItems.push(`${data.achievements.length} Prestasi Siswa`);
+    }
+    if (Array.isArray(data.grades) && data.grades.length > 0) {
+      handleSaveGrades(data.grades);
+      updatedItems.push(`${data.grades.length} Rekap Nilai Asesmen`);
+    }
+    if (Array.isArray(data.attendance) && data.attendance.length > 0) {
+      handleSaveAttendance(data.attendance);
+      updatedItems.push(`${data.attendance.length} Jurnal Presensi`);
+    }
     if (data.schoolInfo && data.schoolInfo.nama) {
       let normalizedMisi = Array.isArray(schoolInfo.misi) && schoolInfo.misi.length > 0 ? schoolInfo.misi : initialSchoolInfo.misi;
       if (Array.isArray(data.schoolInfo.misi) && data.schoolInfo.misi.length > 0) {
@@ -625,6 +637,10 @@ export function App() {
               sarpras={sarpras}
               attendance={attendance}
               grades={grades}
+              achievements={achievements}
+              autoSyncStatus={autoSyncStatus}
+              onTriggerAutoSync={triggerManualAutoSync}
+              onNavigateToSheets={() => setActiveTab('google-sheets')}
             />
           )}
 
@@ -656,6 +672,9 @@ export function App() {
               teachers={teachers}
               session={session}
               onSaveAchievements={handleSaveAchievements}
+              autoSyncStatus={autoSyncStatus}
+              onTriggerAutoSync={triggerManualAutoSync}
+              onNavigateToSheets={() => setActiveTab('google-sheets')}
             />
           )}
 
@@ -813,6 +832,7 @@ export function App() {
               sarpras={sarpras}
               attendance={attendance}
               grades={grades}
+              achievements={achievements}
               schoolInfo={schoolInfo}
               schedules={schedules}
               events={events}
@@ -829,6 +849,7 @@ export function App() {
               onImportSchoolInfo={handleSaveSchoolInfo}
               onImportGrades={handleSaveGrades}
               onImportAttendance={handleSaveAttendance}
+              onImportAchievements={handleSaveAchievements}
               autoSyncStatus={autoSyncStatus}
               onTriggerAutoSync={triggerManualAutoSync}
             />

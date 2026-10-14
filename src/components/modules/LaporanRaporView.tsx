@@ -88,11 +88,12 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
       if (entry) {
         const avgF = Math.round((entry.nilaiFormatif1 + entry.nilaiFormatif2) / 2);
         const akhir = Math.round((avgF * 0.4) + (entry.nilaiPTS * 0.3) + (entry.nilaiPAS * 0.3));
-        let predikat = 'C';
+        let predikat = '-';
         if (akhir >= 90) predikat = 'A';
         else if (akhir >= 80) predikat = 'B';
         else if (akhir >= 70) predikat = 'C';
-        else predikat = 'D';
+        else if (akhir > 0) predikat = 'D';
+        else predikat = '-';
 
         list.push({
           mapel: g.mapel,
