@@ -23,7 +23,8 @@ import {
   ShieldCheck,
   X,
   UploadCloud,
-  RefreshCw
+  RefreshCw,
+  RotateCcw
 } from 'lucide-react';
 
 interface InputNilaiViewProps {
@@ -176,6 +177,10 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
   }>({});
 
   const [savedSuccess, setSavedSuccess] = useState(false);
+  
+  // Modal for resetting grades for new semester
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetTpTitles, setResetTpTitles] = useState(false);
 
   // Sync TP list and Student Grades when mapel / class / semester changes
   useEffect(() => {
@@ -346,6 +351,90 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
 
   const calculateNilaiAkhir = (rataLM: number, pts: number, pas: number) => {
     return Math.round((rataLM * 0.5) + (pts * 0.25) + (pas * 0.25));
+  };
+
+  // Reset all student grades to 0 for starting a fresh semester
+  const handleExecuteResetGrades = () => {
+    if (!canUserEdit) {
+      alert('Akses edit terkunci! Anda tidak memiliki wewenang untuk mereset nilai pada mata pelajaran ini atau draft nilai sedang dikunci.');
+      return;
+    }
+
+    const resetMap: {
+      [studentId: string]: { sumatif: number[]; pts: number; pas: number; catatan: string };
+    } = {};
+
+    classStudents.forEach(s => {
+      resetMap[s.id] = {
+        sumatif: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        pts: 0,
+        pas: 0,
+        catatan: ''
+      };
+    });
+
+    setStudentGradesMap(resetMap);
+
+    let updatedTpList = tpList;
+    if (resetTpTitles) {
+      updatedTpList = getDefaultTpList(selectedMapel);
+      setTpList(updatedTpList);
+    }
+
+    const activeTahunAjaran = schoolInfo?.tahunAjaran || '2024/2025';
+
+    const clearedStudentGrades = classStudents.map(s => ({
+      studentId: s.id,
+      studentName: s.nama,
+      sumatifScores: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      nilaiFormatif1: 0,
+      nilaiFormatif2: 0,
+      nilaiSumatifLM: 0,
+      nilaiPTS: 0,
+      nilaiPAS: 0,
+      catatanKompetensi: ''
+    }));
+
+    const resetRecord: SubjectGradeRecord = {
+      id: existingRecord ? existingRecord.id : `GRD${Date.now().toString().slice(-4)}`,
+      mapel: selectedMapel,
+      kelas: selectedClass,
+      teacherId: session.teacherId || 'T001',
+      teacherName: selectedTeacher,
+      semester,
+      tahunAjaran: activeTahunAjaran,
+      tpList: updatedTpList,
+      studentGrades: clearedStudentGrades,
+      isLocked: isDraftLocked,
+      lockedBy: currentLockRecord?.lockedBy,
+      lockedAt: currentLockRecord?.lockedAt,
+      deadline: currentLockRecord?.deadline,
+      lockReason: currentLockRecord?.catatan
+    };
+
+    const updated = existingRecord
+      ? grades.map(g => (g.id === existingRecord.id ? resetRecord : g))
+      : [resetRecord, ...grades];
+
+    onSaveGrades(updated);
+
+    // Record to Audit Log
+    StorageService.addAuditLog({
+      userName: session.name || selectedTeacher,
+      userRole: session.role === 'admin' ? 'Admin DAPODIK' : (loggedTeacher?.jabatan || 'Guru Mapel'),
+      action: 'RESET_NILAI',
+      module: 'Input Nilai Asesmen',
+      kelas: selectedClass,
+      mapel: selectedMapel,
+      semester,
+      details: `Mereset seluruh nilai siswa ke 0 untuk awal semester baru pada Mapel ${selectedMapel} Kelas ${selectedClass} (${semester} TA ${activeTahunAjaran}). ${resetTpTitles ? 'Judul materi TP juga direset ke default.' : 'Judul materi TP dipertahankan.'}`,
+      previousDataSummary: existingRecord ? `Versi Terakhir: ID ${existingRecord.id}` : 'Entri Baru',
+      newDataSummary: `Semua nilai (${classStudents.length} santri) direset ke 0`
+    });
+
+    setIsResetModalOpen(false);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3500);
   };
 
   // Lock / Unlock Toggle Handler
@@ -580,6 +669,19 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
             >
               {isDraftLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
               <span>{isDraftLocked ? '🔒 Status: Terkunci (Kelola)' : '🔓 Kunci Draft Nilai'}</span>
+            </button>
+          )}
+
+          {/* Reset Nilai Awal Semester Button */}
+          {canUserEdit && (
+            <button
+              type="button"
+              onClick={() => setIsResetModalOpen(true)}
+              className="bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Reset seluruh nilai siswa pada kelas & mapel ini ke 0 untuk mengawali semester baru"
+            >
+              <RotateCcw className="w-4 h-4 text-rose-600" />
+              <span>Reset Nilai (Awal Semester)</span>
             </button>
           )}
 
@@ -996,6 +1098,18 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            {canUserEdit && (
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(true)}
+                className="bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 font-bold text-xs sm:text-sm px-4 py-3 rounded-xl transition-colors flex items-center gap-2 cursor-pointer shadow-xs"
+                title="Reset seluruh nilai kelas dan mapel ini menjadi 0 untuk mengawali semester baru"
+              >
+                <RotateCcw className="w-4 h-4 text-rose-600" />
+                <span>Reset Nilai (Awal Semester)</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleSyncGradesToSheets}
@@ -1199,6 +1313,91 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
         currentClass={selectedClass}
         currentMapel={selectedMapel}
       />
+
+      {/* MODAL 4: KONFIRMASI RESET NILAI SEMESTER */}
+      {isResetModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 border border-slate-200 shadow-2xl space-y-4 text-slate-900">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-rose-100 text-rose-700 rounded-xl">
+                  <RotateCcw className="w-5 h-5 text-rose-700" />
+                </div>
+                <div>
+                  <h3 className="font-bold font-serif text-base text-slate-900">
+                    Reset Seluruh Nilai (Awal Semester)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Kosongkan seluruh nilai menjadi 0 tanpa mengubah satu per satu
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-xs text-amber-950 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                <p className="font-semibold text-amber-900">
+                  Anda akan mereset nilai untuk:
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 pl-6 font-mono text-[11px] text-slate-800">
+                <div>• Mapel: <strong>{selectedMapel}</strong></div>
+                <div>• Kelas: <strong>Kelas {selectedClass}</strong></div>
+                <div>• Semester: <strong>{semester}</strong></div>
+                <div>• Total Siswa: <strong>{classStudents.length} Santri</strong></div>
+              </div>
+              <p className="pl-6 text-[11px] text-amber-900 leading-relaxed pt-1">
+                Seluruh skor <strong>Sumatif 1 s/d 10, PTS, PAS, dan Nilai Akhir</strong> pada kelas &amp; semester ini akan kembali menjadi <strong>0</strong>. Catatan capaian kompetensi juga akan dikosongkan.
+              </p>
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-2">
+              <label className="flex items-start gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={resetTpTitles}
+                  onChange={(e) => setResetTpTitles(e.target.checked)}
+                  className="rounded text-rose-600 focus:ring-rose-500 mt-0.5"
+                />
+                <span className="text-slate-700">
+                  Juga reset judul <strong>Tujuan Pembelajaran (TP)</strong> ke nama materi kurikulum default
+                </span>
+              </label>
+              <p className="text-[11px] text-slate-500 pl-5">
+                (Biarkan tidak dicentang jika Anda ingin tetap mempertahankan nama materi/TP yang sudah Anda susun sebelumnya).
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-slate-200 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsResetModalOpen(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExecuteResetGrades}
+                className="px-5 py-2.5 bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs rounded-xl shadow transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Ya, Reset Seluruh Nilai ke 0</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
