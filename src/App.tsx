@@ -20,6 +20,7 @@ import {
 import { StorageService } from './services/storage';
 import { initialSchoolInfo } from './data/initialData';
 import { fetchFromGoogleSheets, validateSheetsUrl } from './services/sheetsSyncService';
+import { DEFAULT_SHEETS_WEB_APP_URL } from './data/constants';
 import { RefreshCw, Zap, CheckCircle2 } from 'lucide-react';
 
 // Core Layout
@@ -230,15 +231,51 @@ export function App() {
         StorageService.savePpdbSettings(updatedPpdb);
       }
 
-      // 4. Log Audit Trail
+      // 4. Log Audit Trail Tahun Ajaran
       StorageService.addAuditLog({
         userName: session.name || 'Admin DAPODIK',
-        userRole: session.role === 'admin' ? 'Admin DAPODIK' : 'Kepala Sekolah',
+        userRole: session.role === 'admin' ? 'Administrator' : 'Kepala Sekolah',
         action: 'SYNC_TAHUN_AJARAN',
         module: 'Data Profil Sekolah (Master TA)',
         details: `Otomatis menyinkronkan Tahun Ajaran Master ke seluruh modul (PPDB, Nilai & Rapor, Presensi Siswa, Administrasi Guru, Jadwal Pelajaran).`,
         previousDataSummary: `TA Sebelumnya: ${oldTa} (${oldSem})`,
         newDataSummary: `TA Baru: ${info.tahunAjaran} (${info.semesterAktif})`
+      });
+    }
+
+    // 5. Log Audit Trail Perubahan Kepala Sekolah
+    if (isKepsekChanged) {
+      StorageService.addAuditLog({
+        userName: session.name || 'Admin DAPODIK',
+        userRole: session.role === 'admin' ? 'Administrator' : 'Kepala Sekolah',
+        action: 'PERUBAHAN_KEPALA_SEKOLAH',
+        module: 'Data Profil Sekolah (Identitas Kepsek)',
+        details: `Perubahan data pejabat Kepala Sekolah resmi dan sinkronisasi ke Master Data Guru: ${schoolInfo.kepalaSekolah || '-'} ➔ ${finalizedInfo.kepalaSekolah}.`,
+        previousDataSummary: `Kepala Sekolah: ${schoolInfo.kepalaSekolah || '-'} (NIGY: ${schoolInfo.nigyKepalaSekolah || '-'})`,
+        newDataSummary: `Kepala Sekolah: ${finalizedInfo.kepalaSekolah} (NIGY: ${finalizedInfo.nigyKepalaSekolah || '-'})`
+      });
+    }
+
+    // 6. Log Audit Trail Pembaruan Profil Sekolah Umum
+    const isProfileMetaChanged =
+      schoolInfo.nama !== finalizedInfo.nama ||
+      schoolInfo.npsn !== finalizedInfo.npsn ||
+      schoolInfo.akreditasi !== finalizedInfo.akreditasi ||
+      schoolInfo.visi !== finalizedInfo.visi ||
+      schoolInfo.logoUrl !== finalizedInfo.logoUrl ||
+      schoolInfo.alamat !== finalizedInfo.alamat ||
+      schoolInfo.telepon !== finalizedInfo.telepon ||
+      schoolInfo.email !== finalizedInfo.email;
+
+    if (isProfileMetaChanged && !isTaChanged && !isSemChanged && !isKepsekChanged) {
+      StorageService.addAuditLog({
+        userName: session.name || 'Admin DAPODIK',
+        userRole: session.role === 'admin' ? 'Administrator' : 'Admin',
+        action: 'UPDATE_PROFIL_SEKOLAH',
+        module: 'Data Profil Sekolah',
+        details: `Pembaruan data profil, identitas, kontak, dan visi-misi sekolah.`,
+        previousDataSummary: `Nama: ${schoolInfo.nama}, NPSN: ${schoolInfo.npsn}, Akreditasi: ${schoolInfo.akreditasi}`,
+        newDataSummary: `Nama: ${finalizedInfo.nama}, NPSN: ${finalizedInfo.npsn}, Akreditasi: ${finalizedInfo.akreditasi}`
       });
     }
   };
@@ -482,7 +519,7 @@ export function App() {
       return;
     }
 
-    const targetUrl = sheetsConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec';
+    const targetUrl = sheetsConfig.webAppUrl || DEFAULT_SHEETS_WEB_APP_URL;
     setAutoSyncStatus(prev => ({ ...prev, status: 'checking' }));
 
     const res = await fetchFromGoogleSheets(targetUrl, 7000);
@@ -501,7 +538,7 @@ export function App() {
   useEffect(() => {
     if (sheetsConfig.autoSyncOnLoad === false) return;
 
-    const targetUrl = sheetsConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec';
+    const targetUrl = sheetsConfig.webAppUrl || DEFAULT_SHEETS_WEB_APP_URL;
     const validation = validateSheetsUrl(targetUrl);
     if (!validation.isValid) return;
 
@@ -716,6 +753,7 @@ export function App() {
             <DataSekolahView
               schoolInfo={schoolInfo}
               teachers={teachers}
+              session={session}
               onSave={handleSaveSchoolInfo}
               onNavigateToTeachers={() => setActiveTab('data-guru')}
             />

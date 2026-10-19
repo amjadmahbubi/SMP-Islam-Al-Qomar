@@ -21,8 +21,9 @@ export interface SchoolInfo {
   visi: string;
   misi: string[];
   tahunAjaran: string;
-  semesterAktif: 'Ganjil' | 'Genap';
   logoUrl?: string;
+  kopSuratUrl?: string; // Gambar Banner Kop Surat Resmi Sekolah (sesuai arsip dokumen fisik)
+  isLogoLocked?: boolean; // Proteksi permanen logo & kop surat lintas perangkat
 }
 
 export interface Teacher {
@@ -308,7 +309,7 @@ export interface AuditLog {
   timestamp: string;
   userName: string;
   userRole: string;
-  action: 'UPDATE_NILAI' | 'LOCK_DRAFT_NILAI' | 'UNLOCK_DRAFT_NILAI' | 'RESET_NILAI' | 'UPDATE_ADMINISTRASI' | 'SYNC_TAHUN_AJARAN' | 'KELULUSAN_SISWA' | 'BATALKAN_KELULUSAN' | 'LAINNYA';
+  action: 'UPDATE_NILAI' | 'LOCK_DRAFT_NILAI' | 'UNLOCK_DRAFT_NILAI' | 'RESET_NILAI' | 'UPDATE_ADMINISTRASI' | 'SYNC_TAHUN_AJARAN' | 'PERUBAHAN_KEPALA_SEKOLAH' | 'UPDATE_PROFIL_SEKOLAH' | 'KELULUSAN_SISWA' | 'BATALKAN_KELULUSAN' | 'LAINNYA';
   module: string;
   kelas?: string;
   mapel?: string;

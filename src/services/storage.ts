@@ -53,6 +53,8 @@ import {
   SarprasRuang
 } from '../types';
 
+import { DEFAULT_SHEETS_WEB_APP_URL } from '../data/constants';
+
 const KEYS = {
   SESSION: 'alqomar_session',
   SCHOOL: 'alqomar_school_info',
@@ -124,19 +126,13 @@ export const StorageService = {
   },
   setSession: (session: UserSession): void => setStored(KEYS.SESSION, session),
 
-  // School Info (deep merge with initialSchoolInfo to ensure misi is always array)
+  // School Info
   getSchoolInfo: (): SchoolInfo => {
     const stored = getStored<Partial<SchoolInfo>>(KEYS.SCHOOL, initialSchoolInfo);
-    // If stored contains obsolete placeholder, upgrade to real school info
-    const isOldPlaceholder = !stored.nama ||
-      stored.npsn === '20348912' ||
-      stored.kepalaSekolah === 'Ustadz H. Ahmad Basuki, M.Pd.' ||
-      (stored.alamat && stored.alamat.includes('No. 45')) ||
-      (stored.visi && stored.visi.includes("Generasi Qur'ani, Berakhlak Mulia, Berprestasi"));
-    const base = isOldPlaceholder ? { ...initialSchoolInfo } : { ...initialSchoolInfo, ...stored };
     return {
-      ...base,
-      misi: Array.isArray(base.misi) && base.misi.length ? base.misi : initialSchoolInfo.misi
+      ...initialSchoolInfo,
+      ...stored,
+      misi: Array.isArray(stored.misi) && stored.misi.length ? stored.misi : initialSchoolInfo.misi
     };
   },
   saveSchoolInfo: (data: SchoolInfo): void => setStored(KEYS.SCHOOL, data),
@@ -145,10 +141,7 @@ export const StorageService = {
   // Teachers
   getTeachers: (): Teacher[] => {
     const data = getStored(KEYS.TEACHERS, initialTeachers);
-    if (!Array.isArray(data) || data.length < 12 || data.some(t => t.nama?.includes('Ahmad Basuki') || t.nama?.includes('Siti Fatimah'))) {
-      return initialTeachers;
-    }
-    return data;
+    return Array.isArray(data) && data.length > 0 ? data : initialTeachers;
   },
   saveTeachers: (data: Teacher[]): void => setStored(KEYS.TEACHERS, data),
   setTeachers: (data: Teacher[]): void => setStored(KEYS.TEACHERS, data),
@@ -156,10 +149,7 @@ export const StorageService = {
   // Students
   getStudents: (): Student[] => {
     const data = getStored(KEYS.STUDENTS, initialStudents);
-    if (!Array.isArray(data) || data.length < 29 || data.some(s => s.nama === 'Ahmad Zaki Mubarak')) {
-      return initialStudents;
-    }
-    return data;
+    return Array.isArray(data) && data.length > 0 ? data : initialStudents;
   },
   saveStudents: (data: Student[]): void => setStored(KEYS.STUDENTS, data),
   setStudents: (data: Student[]): void => setStored(KEYS.STUDENTS, data),
@@ -234,10 +224,7 @@ export const StorageService = {
   // Schedules
   getSchedules: (): ScheduleItem[] => {
     const data = getStored(KEYS.SCHEDULES, initialSchedules);
-    if (!Array.isArray(data) || data.length < 50) {
-      return initialSchedules;
-    }
-    return data;
+    return Array.isArray(data) && data.length > 0 ? data : initialSchedules;
   },
   saveSchedules: (data: ScheduleItem[]): void => setStored(KEYS.SCHEDULES, data),
   setSchedules: (data: ScheduleItem[]): void => setStored(KEYS.SCHEDULES, data),
@@ -277,11 +264,16 @@ export const StorageService = {
   // Google Sheets Config
   getSheetsConfig: (): GoogleSheetsConfig => {
     const stored = getStored<Partial<GoogleSheetsConfig>>(KEYS.SHEETS_CONFIG, initialSheetsConfig);
-    const isOldDummyUrl = !stored.webAppUrl || stored.webAppUrl.includes('SMP-Islam-Al-Qomar-Dapodik');
+    const isOldSampleUrl = stored.webAppUrl && stored.webAppUrl.includes('AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ');
+    const isValidUrl = stored.webAppUrl &&
+      stored.webAppUrl.trim().startsWith('https://script.google.com/') &&
+      stored.webAppUrl.includes('/exec') &&
+      !isOldSampleUrl;
     return {
       ...initialSheetsConfig,
       ...stored,
-      webAppUrl: isOldDummyUrl ? initialSheetsConfig.webAppUrl : stored.webAppUrl,
+      webAppUrl: isValidUrl ? stored.webAppUrl!.trim() : DEFAULT_SHEETS_WEB_APP_URL,
+      isLocked: stored.isLocked !== undefined ? stored.isLocked : false,
       autoSyncOnLoad: stored.autoSyncOnLoad !== undefined ? stored.autoSyncOnLoad : true
     };
   },
@@ -291,10 +283,7 @@ export const StorageService = {
   // Achievements
   getAchievements: (): StudentAchievement[] => {
     const data = getStored(KEYS.ACHIEVEMENTS, initialAchievements);
-    if (!Array.isArray(data) || !data.some(a => a.studentName?.includes('Hasna Auliyah'))) {
-      return initialAchievements;
-    }
-    return data;
+    return Array.isArray(data) && data.length > 0 ? data : initialAchievements;
   },
   saveAchievements: (data: StudentAchievement[]): void => setStored(KEYS.ACHIEVEMENTS, data),
   setAchievements: (data: StudentAchievement[]): void => setStored(KEYS.ACHIEVEMENTS, data),

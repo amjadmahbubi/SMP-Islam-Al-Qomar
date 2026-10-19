@@ -44,7 +44,10 @@ export const initialSchoolInfo: SchoolInfo = {
     'Melaksanakan pendidikan yang berpijak pada hasil (output) yang baik dalam kompetensi akademik maupun non akademik.'
   ],
   tahunAjaran: '2026/2027',
-  semesterAktif: 'Ganjil'
+  semesterAktif: 'Ganjil',
+  logoUrl: '',
+  kopSuratUrl: '',
+  isLogoLocked: false
 };
 
 export const initialTeachers: Teacher[] = [
@@ -1740,28 +1743,112 @@ export const initialSubjectGradeRecords: SubjectGradeRecord[] = [
 ];
 
 export const initialSheetsConfig: GoogleSheetsConfig = {
-  webAppUrl: 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec',
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec',
   spreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
   autoSync: false,
   autoSyncOnLoad: true,
-  isLocked: true,
+  isLocked: false,
   lastSyncedAt: undefined,
   lastPulledAt: '20.39 WIB'
 };
 
 export const initialAchievements: StudentAchievement[] = [
   {
+    id: 'ACH_1791949655695',
+    studentId: '-',
+    studentName: 'Ahmad Daris Daifullah Putra',
+    kelas: '9',
+    judulPrestasi: 'Juara 3 Menembak',
+    kategori: 'Olahraga',
+    tingkat: 'Nasional',
+    tahun: '2025',
+    medali: 'Juara 3',
+    penyelenggara: 'Perbakin Kab. Malang',
+    pembimbing: '-',
+    deskripsi: 'Kejuaraan Menembak Tingkat Nasional'
+  },
+  {
+    id: 'ACH_1791949462569',
+    studentId: '-',
+    studentName: 'Ahmad Daris Daifullah Putra',
+    kelas: '9',
+    judulPrestasi: 'Juara 3 Air Rifle Junior Class',
+    kategori: 'Olahraga',
+    tingkat: 'Internasional',
+    tahun: '2025',
+    medali: 'Juara 3',
+    penyelenggara: 'Perbakin Nasional',
+    pembimbing: '-',
+    deskripsi: 'Air Rifle Shooting Junior Class'
+  },
+  {
+    id: 'ACH_1791871414097',
+    studentId: '-',
+    studentName: 'Faiha Nada Zalfa',
+    kelas: '7',
+    judulPrestasi: 'Juara Harapan 1 MHQ Juz 30',
+    kategori: "Tahfidz & Al-Qur'an",
+    tingkat: 'Kota / Kabupaten',
+    tahun: '2026',
+    medali: 'Harapan 1',
+    penyelenggara: 'OSSAMA MA Al Amiriyah Blokagung',
+    pembimbing: '-',
+    deskripsi: "Musabaqah Hifdzil Qur'an Juz 30"
+  },
+  {
+    id: 'ACH_1791871244162',
+    studentId: '-',
+    studentName: 'Faiha Nada Zalfa',
+    kelas: '7',
+    judulPrestasi: 'Juara 3 Pencak Silat Tanding',
+    kategori: 'Olahraga',
+    tingkat: 'Provinsi',
+    tahun: '2025',
+    medali: 'Perunggu',
+    penyelenggara: 'Blambangan Championship',
+    pembimbing: '-',
+    deskripsi: 'Kejuaraan Pencak Silat Blambangan Championship se-Jawa Timur'
+  },
+  {
+    id: 'ACH_1791871167893',
+    studentId: '-',
+    studentName: 'Faiha Nada Zalfa',
+    kelas: '7',
+    judulPrestasi: 'Juara 2 MHQ Juz 30',
+    kategori: "Tahfidz & Al-Qur'an",
+    tingkat: 'Kota / Kabupaten',
+    tahun: '2025',
+    medali: 'Juara 2',
+    penyelenggara: 'Kemenag Kab. Banyuwangi',
+    pembimbing: '-',
+    deskripsi: 'Lomba MHQ Kemenag Kabupaten Banyuwangi'
+  },
+  {
+    id: 'ACH_1791180280567',
+    studentId: '-',
+    studentName: 'Ahmad Daris Daifullah Putra',
+    kelas: '9',
+    judulPrestasi: 'Kejuaraan Menembak Surabaya Rising Champion',
+    kategori: 'Olahraga',
+    tingkat: 'Provinsi',
+    tahun: '2026',
+    medali: 'Juara 2',
+    penyelenggara: 'Surabaya Rising Champion',
+    pembimbing: '-',
+    deskripsi: 'Lomba Menembak Surabaya Rising Champion'
+  },
+  {
     id: 'ACH_1788194488398',
     studentName: 'Hasna Auliyah Zahrany',
     kelas: '7',
-    judulPrestasi: 'Juara',
+    judulPrestasi: 'Juara Olimpiade Sains',
     kategori: 'Akademik',
     tingkat: 'Nasional',
     tahun: '2024',
     penyelenggara: 'GYPEM',
     pembimbing: 'Diah Putriani, S.Pd',
     medali: 'Emas',
-    deskripsi: 'lomba science'
+    deskripsi: 'Lomba science tingkat nasional GYPEM'
   },
   {
     id: 'ACH001',
@@ -1961,6 +2048,28 @@ export const initialGradeLocks: GradeLockRecord[] = [
 ];
 
 export const initialAuditLogs: AuditLog[] = [
+  {
+    id: 'AUD-20260715-001',
+    timestamp: '2026-07-15 08:00:00',
+    userName: 'Amjad Dzulfikar Mahbubie, S.Pd',
+    userRole: 'Administrator',
+    action: 'SYNC_TAHUN_AJARAN',
+    module: 'Data Sekolah & Profil',
+    details: 'Sinkronisasi Tahun Ajaran Baru 2026/2027 Semester Ganjil ke seluruh modul (Rapor, Nilai Asesmen, Kalender, Jadwal Pelajaran).',
+    previousDataSummary: 'Tahun Ajaran: 2025/2026 (Genap)',
+    newDataSummary: 'Tahun Ajaran: 2026/2027 (Ganjil) - Aktif'
+  },
+  {
+    id: 'AUD-20260710-002',
+    timestamp: '2026-07-10 09:15:30',
+    userName: 'Amjad Dzulfikar Mahbubie, S.Pd',
+    userRole: 'Administrator',
+    action: 'PERUBAHAN_KEPALA_SEKOLAH',
+    module: 'Data Sekolah & Profil',
+    details: 'Pengukuhan & Sinkronisasi Jabatan Kepala Sekolah: Ustadz H. Ahmad Basuki, M.Pd. (NIGY: 200501.004) terhubung ke Master Data Guru.',
+    previousDataSummary: 'Kepala Sekolah: Belum Ditetapkan',
+    newDataSummary: 'Kepala Sekolah: Ustadz H. Ahmad Basuki, M.Pd. (NIGY: 200501.004)'
+  },
   {
     id: 'AUD-20260812-001',
     timestamp: '2026-08-12 08:30:12',

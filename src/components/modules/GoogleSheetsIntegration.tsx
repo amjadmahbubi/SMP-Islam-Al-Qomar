@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Student, Teacher, SarprasItem, AttendanceRecord, SubjectGradeRecord, SchoolInfo, ScheduleItem, CalendarEvent, PpdbRegistration, GoogleSheetsConfig, UserSession, StudentAchievement } from '../../types';
 import { 
   Sheet, 
@@ -29,9 +29,11 @@ import {
   HelpCircle,
   Zap,
   CheckCheck,
-  Trophy
+  Trophy,
+  ClipboardPaste
 } from 'lucide-react';
 import { StorageService } from '../../services/storage';
+import { DEFAULT_SHEETS_WEB_APP_URL } from '../../data/constants';
 
 export interface UrlValidationResult {
   isValid: boolean;
@@ -177,15 +179,20 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   const initialConfig = sheetsConfig || StorageService.getSheetsConfig();
 
   const [sheetUrl, setSheetUrl] = useState<string>(() => {
-    return initialConfig.webAppUrl || 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec';
+    const isOldSample = initialConfig.webAppUrl?.includes('AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ');
+    if (!initialConfig.webAppUrl || isOldSample) {
+      return DEFAULT_SHEETS_WEB_APP_URL;
+    }
+    return initialConfig.webAppUrl;
   });
 
-  // Keep URL locked by default if it was configured/locked previously
+  // Keep URL lock state (defaults to false so Admin can freely edit)
   const [isLocked, setIsLocked] = useState<boolean>(() => {
     if (initialConfig.isLocked !== undefined) return initialConfig.isLocked;
-    // Default to true if a URL is already set, so it won't be lost accidentally
-    return Boolean(initialConfig.webAppUrl);
+    return false;
   });
+
+  const urlInputRef = useRef<HTMLInputElement>(null);
 
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
@@ -239,36 +246,9 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
 
   const handleTestAutoSync = async () => {
     if (onTriggerAutoSync) {
-      // Simulate new realistic verified updates from Google Sheets
-      const updatedStudents: Student[] = (students || []).map((s, idx) => {
-        if (idx === 0) {
-          return { ...s, nama: `${s.nama.replace(' (Sync)', '')} (Sync)` };
-        }
-        return s;
-      });
-
-      const updatedSchedules: ScheduleItem[] = schedules.length > 0 ? schedules : [
-        {
-          id: 'SCH-TEST-001',
-          hari: 'Senin',
-          jamKe: 1,
-          waktu: '07:30 - 08:50',
-          kelas: '7',
-          mapel: 'Pendidikan Agama Islam',
-          guruNama: 'Ustadz Faisal Rahman, S.Pd.',
-          ruang: 'Kelas 7'
-        }
-      ];
-
-      await onTriggerAutoSync({
-        students: updatedStudents,
-        teachers,
-        schedules: updatedSchedules,
-        events,
-        schoolInfo
-      });
+      await onTriggerAutoSync();
     } else {
-      handleSimulatePull();
+      await handlePullFromSheets();
     }
   };
 
@@ -279,14 +259,11 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
     }
   }, [isUrlMismatched, onUrlDraftChange]);
 
-  // Keep state synchronized if external config changes
+  // Keep state synchronized if external config changes (without race condition overriding local edit state)
   useEffect(() => {
     if (sheetsConfig) {
       if (sheetsConfig.webAppUrl && sheetsConfig.webAppUrl !== sheetUrl && isLocked) {
         setSheetUrl(sheetsConfig.webAppUrl);
-      }
-      if (sheetsConfig.isLocked !== undefined) {
-        setIsLocked(sheetsConfig.isLocked);
       }
       if (sheetsConfig.lastSyncedAt) {
         setLastSynced(sheetsConfig.lastSyncedAt);
@@ -295,10 +272,10 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
         setLastPulled(sheetsConfig.lastPulledAt);
       }
     }
-  }, [sheetsConfig, isLocked]);
+  }, [sheetsConfig]);
 
-  // Save and lock the URL permanently with strict validation
-  const handleSaveAndLockUrl = (urlToSave?: string): boolean => {
+  // Save URL with validation (can be kept unlocked for continuous editing, or optionally protected)
+  const handleSaveAndLockUrl = (urlToSave?: string, lockAfterSave: boolean = false): boolean => {
     const targetUrl = (urlToSave !== undefined ? urlToSave : sheetUrl).trim();
     
     // Strict Validation
@@ -314,13 +291,13 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
     const updatedConfig: GoogleSheetsConfig = {
       ...(sheetsConfig || StorageService.getSheetsConfig()),
       webAppUrl: targetUrl,
-      isLocked: true,
+      isLocked: lockAfterSave,
       lastSyncedAt: lastSynced || undefined,
       lastPulledAt: lastPulled || undefined
     };
 
     setSheetUrl(targetUrl);
-    setIsLocked(true);
+    setIsLocked(lockAfterSave);
     StorageService.setSheetsConfig(updatedConfig);
     if (onSaveSheetsConfig) {
       onSaveSheetsConfig(updatedConfig);
@@ -330,7 +307,10 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
       onUrlDraftChange(false);
     }
 
-    setSaveSuccessMsg('URL Web App Terverifikasi Valid, Dikunci & Tersimpan Permanen!');
+    setSaveSuccessMsg(lockAfterSave
+      ? 'URL Web App Valid & Terproteksi! Anda dapat membuka proteksi kapan saja untuk mengubahnya.'
+      : 'URL Web App Berhasil Disimpan & Siap Digunakan!'
+    );
     setTimeout(() => setSaveSuccessMsg(null), 4000);
     return true;
   };
@@ -339,13 +319,52 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   const handleUnlockUrl = () => {
     setIsLocked(false);
     setValidationError(null);
+    const updatedConfig: GoogleSheetsConfig = {
+      ...(sheetsConfig || StorageService.getSheetsConfig()),
+      isLocked: false
+    };
+    StorageService.setSheetsConfig(updatedConfig);
+    if (onSaveSheetsConfig) {
+      onSaveSheetsConfig(updatedConfig);
+    }
+    setTimeout(() => {
+      if (urlInputRef.current) {
+        urlInputRef.current.focus();
+        urlInputRef.current.select();
+      }
+    }, 100);
+    setSaveSuccessMsg('Proteksi dibuka! Anda sekarang dapat mengedit atau mengganti URL Web App.');
+    setTimeout(() => setSaveSuccessMsg(null), 3000);
+  };
+
+  // Paste from clipboard helper
+  const handlePasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        const clean = text.trim();
+        setSheetUrl(clean);
+        setIsLocked(false);
+        setValidationError(null);
+        if (urlInputRef.current) {
+          urlInputRef.current.focus();
+        }
+        setSaveSuccessMsg('URL dari clipboard berhasil ditempel! Klik "Simpan URL" untuk menyimpan.');
+        setTimeout(() => setSaveSuccessMsg(null), 3500);
+      }
+    } catch {
+      if (urlInputRef.current) {
+        urlInputRef.current.focus();
+        urlInputRef.current.select();
+      }
+    }
   };
 
   // Restore stored DB URL
   const handleRestoreStoredUrl = () => {
     if (savedDbUrl) {
       setSheetUrl(savedDbUrl);
-      setIsLocked(true);
+      setIsLocked(false);
       setValidationError(null);
       if (onUrlDraftChange) {
         onUrlDraftChange(false);
@@ -363,22 +382,17 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
     setTimeout(() => setCopiedUrl(false), 2500);
   };
 
-  // Reset to default sample URL
+  // Reset to official default URL and unlock so user can edit/replace directly
   const handleResetToDefaultUrl = () => {
-    const confirmReset = window.confirm(
-      'Apakah Anda yakin ingin mengembalikan URL ke URL bawaan/default?\n\nCatatan: Jika Anda telah men-deploy Apps Script sendiri di spreadsheet Anda, URL custom Anda akan digantikan.'
-    );
-    if (!confirmReset) return;
-
-    const defaultUrl = 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec';
+    const defaultUrl = DEFAULT_SHEETS_WEB_APP_URL;
     setSheetUrl(defaultUrl);
-    setIsLocked(false);
+    setIsLocked(false); // ALWAYS UNLOCKED - never permanently locked!
     setValidationError(null);
 
     const updatedConfig: GoogleSheetsConfig = {
       ...(sheetsConfig || StorageService.getSheetsConfig()),
       webAppUrl: defaultUrl,
-      isLocked: false
+      isLocked: false // Persisted as unlocked
     };
 
     StorageService.setSheetsConfig(updatedConfig);
@@ -389,8 +403,16 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
       onUrlDraftChange(false);
     }
 
-    setSaveSuccessMsg('URL telah dikembalikan ke bawaan/default.');
-    setTimeout(() => setSaveSuccessMsg(null), 3000);
+    // Focus & select input text so user can immediately edit, replace, or review
+    setTimeout(() => {
+      if (urlInputRef.current) {
+        urlInputRef.current.focus();
+        urlInputRef.current.select();
+      }
+    }, 100);
+
+    setSaveSuccessMsg('URL bawaan telah dimuat dan kunci dibuka! Kolom URL sekarang dapat diedit langsung. Silakan ubah atau ganti dengan URL baru, lalu klik "Simpan URL Web App".');
+    setTimeout(() => setSaveSuccessMsg(null), 6000);
   };
 
   // Comprehensive Google Apps Script code with Bi-Directional (doGet & doPost)
@@ -1194,7 +1216,7 @@ function doPost(e) {
       const updatedConfig: GoogleSheetsConfig = {
         ...currentConfig,
         webAppUrl: cleanUrl,
-        isLocked: true,
+        isLocked: isLocked,
         lastSyncedAt: timeNow
       };
       StorageService.setSheetsConfig(updatedConfig);
@@ -1220,8 +1242,8 @@ function doPost(e) {
       return;
     }
 
-    // Auto-lock and save URL to storage
-    const savedSuccessfully = handleSaveAndLockUrl(cleanUrl);
+    // Save URL to storage preserving current lock setting
+    const savedSuccessfully = handleSaveAndLockUrl(cleanUrl, isLocked);
     if (!savedSuccessfully) return;
 
     setPullStatus('pulling');
@@ -1256,7 +1278,7 @@ function doPost(e) {
         const updatedConfig: GoogleSheetsConfig = {
           ...currentConfig,
           webAppUrl: cleanUrl,
-          isLocked: true,
+          isLocked: isLocked,
           lastPulledAt: timeNow
         };
         StorageService.setSheetsConfig(updatedConfig);
@@ -1274,53 +1296,9 @@ function doPost(e) {
     }
   };
 
-  // Simulate Pull Data for instant testing in preview
+  // Quick Pull Data from Google Sheets
   const handleSimulatePull = () => {
-    setPullStatus('pulling');
-    setTimeout(() => {
-      // Modify 1 or 2 fields to simulate realistic changes made in Google Sheets
-      const updatedStudents: Student[] = (students || []).map((s, idx) => {
-        if (idx === 0) {
-          return { ...s, nama: `${s.nama} (Updated dari Sheets)` };
-        }
-        return s;
-      });
-
-      const updatedSchoolInfo: SchoolInfo = schoolInfo 
-        ? { ...schoolInfo, visi: `${schoolInfo.visi} [Tersinkron Google Sheets]` }
-        : {
-            nama: 'SMP Islam Al Qomar Banyuwangi',
-            npsn: '20512345',
-            akreditasi: 'A (Unggul)',
-            alamat: 'Jl. KH. Agus Salim No. 45 Banyuwangi',
-            telepon: '(0333) 421890',
-            email: 'info@smpislamalqomar.sch.id',
-            website: 'https://smpislamalqomar.sch.id',
-            kepalaSekolah: 'Ustadz H. Ahmad Basuki, M.Pd.',
-            nigyKepalaSekolah: 'NIGY.200501.004',
-            visi: "Terwujudnya Generasi Qur'ani, Berakhlak Mulia, Berprestasi Akademik, dan Berwawasan Global.",
-            misi: ["Menyelenggarakan pendidikan berbasis Al-Qur'an dan Hadits."],
-            tahunAjaran: '2024/2025',
-            semesterAktif: 'Ganjil'
-          };
-
-      setPulledData({
-        students: updatedStudents,
-        teachers,
-        sarpras,
-        schoolInfo: updatedSchoolInfo,
-        ppdbRegistrations,
-        schedules: schedules.length > 0 ? schedules : undefined,
-        events: events.length > 0 ? events : undefined,
-        grades: grades.length > 0 ? grades : undefined,
-        attendance: attendance.length > 0 ? attendance : undefined,
-        achievements: achievements.length > 0 ? achievements : undefined
-      });
-
-      setIsPullModalOpen(true);
-      setPullStatus('success');
-      setLastPulled(new Date().toLocaleTimeString('id-ID'));
-    }, 800);
+    handlePullFromSheets();
   };
 
   // Confirm applying pulled data to React state & localStorage
@@ -1442,15 +1420,18 @@ function doPost(e) {
             <span>{pullStatus === 'pulling' ? 'Menarik Data...' : 'Tarik Dari Sheets (Pull)'}</span>
           </button>
 
-          {/* SIMULATE PULL BUTTON FOR PREVIEW TEST */}
-          <button
-            onClick={handleSimulatePull}
-            title="Uji coba tarik data langsung di lingkungan preview"
-            className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-colors border border-emerald-500/30 cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Simulasi Tarik Data</span>
-          </button>
+          {/* TOMBOL KEMBALIKAN KE URL BAWAAN RESMI */}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={handleResetToDefaultUrl}
+              title="Kembalikan URL Web App ke URL resmi bawaan Google Sheets"
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-400/40 hover:border-amber-300 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+              <span>Kembalikan ke URL Bawaan</span>
+            </button>
+          )}
 
         </div>
       </div>
@@ -1594,7 +1575,7 @@ function doPost(e) {
         </div>
       </div>
 
-      {/* Sheet Webhook URL Settings with Permanent Locking */}
+      {/* Sheet Webhook URL Settings */}
       <div className={`glass backdrop-blur-xl rounded-2xl p-6 border shadow-xl space-y-4 transition-all ${
         isUrlMismatched
           ? 'bg-slate-900/90 border-amber-400/60 ring-2 ring-amber-400/30'
@@ -1615,7 +1596,7 @@ function doPost(e) {
             </div>
             <div>
               <h3 className="text-sm font-bold font-serif text-white flex items-center gap-2">
-                <span>Pengaturan &amp; Penguncian Endpoint API Google Apps Script</span>
+                <span>Pengaturan Endpoint API Google Apps Script</span>
                 {isUrlMismatched && (
                   <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full font-bold border border-amber-400/40 animate-pulse">
                     Perbedaan Terdeteksi
@@ -1626,8 +1607,8 @@ function doPost(e) {
                 {isUrlMismatched
                   ? '⚠️ Peringatan: URL di kolom input berbeda dengan URL tersimpan di database konfigurasi.'
                   : isLocked 
-                    ? '🔒 URL Web App saat ini TERKUNCI & TERSIMPAN PERMANEN di database konfigurasi.' 
-                    : '🔓 Mode Edit URL Aktif — Masukkan URL Web App Google Apps Script (/exec), lalu klik Kunci & Simpan.'}
+                    ? '🔒 URL Web App sedang dalam proteksi agar tidak sengaja terhapus. Klik "Buka Edit / Ganti URL" jika ingin mengubahnya.' 
+                    : '🔓 Mode Edit Terbuka — Kolom URL dapat diedit langsung. Silakan edit atau tempel (paste) URL baru, lalu klik "Simpan URL".'}
               </p>
             </div>
           </div>
@@ -1641,12 +1622,12 @@ function doPost(e) {
             ) : isLocked ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 text-[11px] font-bold border border-emerald-400/30">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Link Terkunci Permanen</span>
+                <span>Proteksi Aktif</span>
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-400/30 animate-pulse">
                 <Unlock className="w-3.5 h-3.5 text-amber-400" />
-                <span>Siap Diubah</span>
+                <span>Mode Edit Terbuka</span>
               </span>
             )}
           </div>
@@ -1698,11 +1679,11 @@ function doPost(e) {
                 <div className="flex flex-wrap items-center gap-2 mt-3 pt-2 border-t border-amber-500/30">
                   <button
                     type="button"
-                    onClick={() => handleSaveAndLockUrl()}
+                    onClick={() => handleSaveAndLockUrl(undefined, false)}
                     className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-3.5 py-2 rounded-xl shadow-lg transition-all cursor-pointer"
                   >
                     <Save className="w-3.5 h-3.5" />
-                    <span>Kunci &amp; Simpan URL Ini ke Database</span>
+                    <span>Simpan URL Ini ke Database</span>
                   </button>
 
                   <button
@@ -1710,8 +1691,18 @@ function doPost(e) {
                     onClick={handleRestoreStoredUrl}
                     className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl border border-white/10 transition-colors cursor-pointer"
                   >
-                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                    <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
                     <span>Batalkan &amp; Pulihkan URL Tersimpan</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetToDefaultUrl}
+                    className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold text-xs px-3.5 py-2 rounded-xl border border-amber-400/40 transition-colors cursor-pointer"
+                    title="Kembalikan langsung ke URL bawaan resmi dan buka mode edit"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Kembalikan ke URL Bawaan</span>
                   </button>
                 </div>
               </div>
@@ -1723,6 +1714,7 @@ function doPost(e) {
           <div className="flex flex-col md:flex-row gap-2.5">
             <div className="relative flex-1">
               <input
+                ref={urlInputRef}
                 type="url"
                 value={sheetUrl}
                 readOnly={isLocked}
@@ -1742,7 +1734,7 @@ function doPost(e) {
               {isLocked && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-500/30">
                   <Lock className="w-3 h-3" />
-                  <span>Terkunci</span>
+                  <span>Proteksi Aktif</span>
                 </div>
               )}
             </div>
@@ -1756,10 +1748,10 @@ function doPost(e) {
                       type="button"
                       onClick={handleUnlockUrl}
                       className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-4 py-3 rounded-xl shadow transition-all cursor-pointer"
-                      title="Klik untuk membuka kunci jika Anda ingin mengubah link URL Web App"
+                      title="Klik untuk membuka kunci jika Anda ingin mengubah atau mengganti link URL Web App"
                     >
                       <Unlock className="w-3.5 h-3.5" />
-                      <span>Buka Kunci / Ganti URL</span>
+                      <span>Buka Edit / Ganti URL</span>
                     </button>
                   ) : (
                     <div className="flex items-center gap-1 px-3 py-3 bg-slate-950/80 text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-semibold">
@@ -1772,50 +1764,82 @@ function doPost(e) {
                     type="button"
                     onClick={handleCopyUrl}
                     className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3.5 py-3 rounded-xl border border-white/10 transition-all cursor-pointer"
-                    title="Salin URL saat ini"
+                    title="Salin URL saat ini ke clipboard"
                   >
                     {copiedUrl ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedUrl ? 'Tersalin!' : 'Salin URL'}</span>
                   </button>
+
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={handleResetToDefaultUrl}
+                      className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 font-bold text-xs px-3.5 py-3 rounded-xl border border-amber-400/30 transition-all cursor-pointer"
+                      title="Kembalikan ke URL resmi bawaan dan buka mode edit"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Kembalikan ke URL Bawaan</span>
+                    </button>
+                  )}
                 </>
               ) : (
                 <>
                   <button
                     type="button"
-                    onClick={() => handleSaveAndLockUrl()}
+                    onClick={() => handleSaveAndLockUrl(undefined, false)}
                     className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-3 rounded-xl shadow-lg transition-all cursor-pointer font-sans"
-                    title="Kunci link ini agar tidak berubah saat Anda berpindah menu atau mengedit data"
+                    title="Simpan URL Web App ke konfigurasi sistem"
                   >
-                    <Lock className="w-3.5 h-3.5" />
-                    <span>Kunci &amp; Simpan URL Web App</span>
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Simpan URL Web App</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      if (savedDbUrl) {
-                        setSheetUrl(savedDbUrl);
-                      }
-                      setIsLocked(true);
-                      setValidationError(null);
-                      if (onUrlDraftChange) {
-                        onUrlDraftChange(false);
-                      }
-                    }}
-                    className="px-3.5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl border border-white/10 transition-colors cursor-pointer"
+                    onClick={handlePasteFromClipboard}
+                    className="flex items-center gap-1.5 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs px-3.5 py-3 rounded-xl shadow transition-all cursor-pointer"
+                    title="Tempel URL baru dari clipboard"
                   >
-                    Batal
+                    <ClipboardPaste className="w-3.5 h-3.5" />
+                    <span>Tempel (Paste)</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleResetToDefaultUrl}
-                    className="flex items-center gap-1 text-slate-400 hover:text-rose-300 text-[11px] px-2.5 py-3 transition-colors cursor-pointer"
-                    title="Kembalikan URL ke contoh default bawaan aplikasi"
+                    className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 font-bold text-xs px-3.5 py-3 rounded-xl border border-amber-400/30 transition-all cursor-pointer"
+                    title="Muat URL resmi bawaan aplikasi"
                   >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Reset Default</span>
+                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
+                    <span>URL Bawaan</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAndLockUrl(undefined, true)}
+                    className="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-3 rounded-xl border border-white/10 transition-colors cursor-pointer"
+                    title="Simpan dan aktifkan proteksi agar tidak sengaja terketik"
+                  >
+                    <Lock className="w-3 h-3 text-emerald-400" />
+                    <span>Kunci Proteksi</span>
+                  </button>
+
+                  {savedDbUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSheetUrl(savedDbUrl);
+                        setValidationError(null);
+                        if (onUrlDraftChange) {
+                          onUrlDraftChange(false);
+                        }
+                      }}
+                      className="px-3 py-3 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 font-bold text-xs rounded-xl border border-white/10 transition-colors cursor-pointer"
+                      title="Batalkan perubahan dan kembalikan ke URL tersimpan"
+                    >
+                      Batal
+                    </button>
+                  )}
                 </>
               )}
             </div>

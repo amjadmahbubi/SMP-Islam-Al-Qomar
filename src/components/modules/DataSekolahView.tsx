@@ -1,11 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { SchoolInfo, Teacher } from '../../types';
+import { SchoolInfo, Teacher, UserSession, AuditLog } from '../../types';
 import { initialSchoolInfo } from '../../data/initialData';
-import { Save, School, Check, Upload, Image as ImageIcon, Trash2, Eye, FileText, UserCheck, ShieldCheck, Crown, ArrowRight, Lock } from 'lucide-react';
+import { StorageService, exportToCSV } from '../../services/storage';
+import { 
+  Save, 
+  School, 
+  Check, 
+  Upload, 
+  Image as ImageIcon, 
+  Trash2, 
+  Eye, 
+  FileText, 
+  UserCheck, 
+  ShieldCheck, 
+  Crown, 
+  ArrowRight, 
+  Lock,
+  History,
+  Search,
+  Download,
+  Plus,
+  RefreshCw,
+  Calendar,
+  Sparkles,
+  Filter,
+  AlertCircle,
+  X,
+  Clock,
+  User,
+  ArrowRightLeft
+} from 'lucide-react';
 
 interface DataSekolahViewProps {
   schoolInfo: SchoolInfo;
   teachers?: Teacher[];
+  session?: UserSession | null;
   onSave: (info: SchoolInfo) => void;
   onNavigateToTeachers?: () => void;
 }
@@ -13,6 +42,7 @@ interface DataSekolahViewProps {
 export const DataSekolahView: React.FC<DataSekolahViewProps> = ({ 
   schoolInfo, 
   teachers = [], 
+  session,
   onSave,
   onNavigateToTeachers 
 }) => {
@@ -37,6 +67,18 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({
     nipKepalaSekolah: officialKepsekNigy
   }));
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Activity Log State
+  const [logs, setLogs] = useState<AuditLog[]>(() => StorageService.getAuditLogs());
+  const [logFilter, setLogFilter] = useState<'ALL' | 'SYNC_TAHUN_AJARAN' | 'PERUBAHAN_KEPALA_SEKOLAH' | 'UPDATE_PROFIL_SEKOLAH'>('ALL');
+  const [logSearch, setLogSearch] = useState('');
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualLogData, setManualLogData] = useState({
+    action: 'SYNC_TAHUN_AJARAN' as 'SYNC_TAHUN_AJARAN' | 'PERUBAHAN_KEPALA_SEKOLAH' | 'UPDATE_PROFIL_SEKOLAH' | 'LAINNYA',
+    details: '',
+    previousDataSummary: '',
+    newDataSummary: ''
+  });
 
   // Otomatis sinkronkan formData jika data guru Kepala Sekolah mengalami perubahan
   useEffect(() => {
@@ -98,9 +140,167 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({
       nigyKepalaSekolah: officialKepsekNigy,
       nipKepalaSekolah: officialKepsekNigy
     };
+
+    const currentUserName = session?.name || 'Amjad Dzulfikar Mahbubie, S.Pd';
+    const currentUserRole = session?.role === 'admin' ? 'Administrator' : (session?.role || 'Admin');
+
+    // 1. Audit Log: Sinkronisasi Tahun Ajaran / Semester
+    const isTaChanged = finalizedInfo.tahunAjaran !== schoolInfo.tahunAjaran;
+    const isSemChanged = finalizedInfo.semesterAktif !== schoolInfo.semesterAktif;
+    if (isTaChanged || isSemChanged) {
+      StorageService.addAuditLog({
+        userName: currentUserName,
+        userRole: currentUserRole,
+        action: 'SYNC_TAHUN_AJARAN',
+        module: 'Data Sekolah & Profil',
+        semester: finalizedInfo.semesterAktif,
+        details: `Sinkronisasi Tahun Ajaran & Semester: ${schoolInfo.tahunAjaran || '-'} (${schoolInfo.semesterAktif || '-'}) ➔ ${finalizedInfo.tahunAjaran} (${finalizedInfo.semesterAktif}). Otomatis tersinkronisasi ke PPDB, Rapor, Nilai, dan Jadwal.`,
+        previousDataSummary: `Tahun Ajaran: ${schoolInfo.tahunAjaran || '-'} (Semester ${schoolInfo.semesterAktif || '-'})`,
+        newDataSummary: `Tahun Ajaran: ${finalizedInfo.tahunAjaran} (Semester ${finalizedInfo.semesterAktif}) - Aktif`
+      });
+    }
+
+    // 2. Audit Log: Perubahan / Pengukuhan Jabatan Kepala Sekolah
+    const isKepsekChanged = finalizedInfo.kepalaSekolah !== schoolInfo.kepalaSekolah;
+    const isNigyChanged = finalizedInfo.nigyKepalaSekolah !== schoolInfo.nigyKepalaSekolah;
+    if (isKepsekChanged || isNigyChanged) {
+      StorageService.addAuditLog({
+        userName: currentUserName,
+        userRole: currentUserRole,
+        action: 'PERUBAHAN_KEPALA_SEKOLAH',
+        module: 'Data Sekolah & Profil',
+        details: `Pengukuhan / Perubahan Jabatan Kepala Sekolah: ${finalizedInfo.kepalaSekolah || '-'} (NIGY: ${finalizedInfo.nigyKepalaSekolah || '-'}), tersinkronisasi ke Rapor & Administrasi Resmi.`,
+        previousDataSummary: `Kepala Sekolah: ${schoolInfo.kepalaSekolah || '-'} (NIGY: ${schoolInfo.nigyKepalaSekolah || '-'})`,
+        newDataSummary: `Kepala Sekolah: ${finalizedInfo.kepalaSekolah || '-'} (NIGY: ${finalizedInfo.nigyKepalaSekolah || '-'})`
+      });
+    }
+
+    // 3. Audit Log: Pembaruan Profil Sekolah (Nama, NPSN, Akreditasi, Alamat, Logo, dll.)
+    const isProfileChanged =
+      finalizedInfo.nama !== schoolInfo.nama ||
+      finalizedInfo.npsn !== schoolInfo.npsn ||
+      finalizedInfo.akreditasi !== schoolInfo.akreditasi ||
+      finalizedInfo.logoUrl !== schoolInfo.logoUrl ||
+      finalizedInfo.alamat !== schoolInfo.alamat ||
+      finalizedInfo.telepon !== schoolInfo.telepon ||
+      finalizedInfo.email !== schoolInfo.email ||
+      finalizedInfo.website !== schoolInfo.website ||
+      finalizedInfo.visi !== schoolInfo.visi;
+
+    if (isProfileChanged && !isTaChanged && !isKepsekChanged) {
+      StorageService.addAuditLog({
+        userName: currentUserName,
+        userRole: currentUserRole,
+        action: 'UPDATE_PROFIL_SEKOLAH',
+        module: 'Data Sekolah & Profil',
+        details: `Pembaruan data profil sekolah: ${finalizedInfo.nama} (NPSN: ${finalizedInfo.npsn}, Akreditasi: ${finalizedInfo.akreditasi}).`,
+        previousDataSummary: `NPSN: ${schoolInfo.npsn} • Akred: ${schoolInfo.akreditasi}`,
+        newDataSummary: `NPSN: ${finalizedInfo.npsn} • Akred: ${finalizedInfo.akreditasi}`
+      });
+    }
+
+    // Refresh logs in state
+    setLogs(StorageService.getAuditLogs());
+
     onSave(finalizedInfo);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  // Filter logs relevant to Data Sekolah or overall administrative transparency
+  const schoolRelatedLogs = logs.filter(l => 
+    l.module === 'Data Sekolah & Profil' || 
+    ['SYNC_TAHUN_AJARAN', 'PERUBAHAN_KEPALA_SEKOLAH', 'UPDATE_PROFIL_SEKOLAH'].includes(l.action) ||
+    (!l.module && ['SYNC_TAHUN_AJARAN', 'PERUBAHAN_KEPALA_SEKOLAH'].includes(l.action))
+  );
+
+  const filteredLogs = schoolRelatedLogs.filter(log => {
+    const matchesFilter = logFilter === 'ALL' || log.action === logFilter;
+    const q = logSearch.toLowerCase().trim();
+    const matchesSearch = !q || 
+      log.details.toLowerCase().includes(q) ||
+      log.userName.toLowerCase().includes(q) ||
+      (log.previousDataSummary && log.previousDataSummary.toLowerCase().includes(q)) ||
+      (log.newDataSummary && log.newDataSummary.toLowerCase().includes(q)) ||
+      log.timestamp.toLowerCase().includes(q);
+    return matchesFilter && matchesSearch;
+  });
+
+  const handleExportLogsCSV = () => {
+    const exportRows = filteredLogs.map((l, index) => ({
+      No: index + 1,
+      ID: l.id,
+      Waktu_Audit: l.timestamp,
+      Petugas_Admin: l.userName,
+      Peran_Jabatan: l.userRole,
+      Kategori_Aksi: l.action,
+      Modul_Terkait: l.module,
+      Semester: l.semester || '-',
+      Rincian_Perubahan: l.details,
+      Kondisi_Sebelum: l.previousDataSummary || '-',
+      Kondisi_Sesudah: l.newDataSummary || '-'
+    }));
+    exportToCSV(`Log_Aktivitas_Data_Sekolah_${new Date().toISOString().slice(0, 10)}.csv`, exportRows);
+  };
+
+  const handleSaveManualLog = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualLogData.details.trim()) {
+      alert('Silakan isi rincian catatan aktivitas.');
+      return;
+    }
+
+    StorageService.addAuditLog({
+      userName: session?.name || 'Amjad Dzulfikar Mahbubie, S.Pd',
+      userRole: session?.role === 'admin' ? 'Administrator' : (session?.role || 'Admin'),
+      action: manualLogData.action,
+      module: 'Data Sekolah & Profil',
+      details: manualLogData.details.trim(),
+      previousDataSummary: manualLogData.previousDataSummary.trim() || undefined,
+      newDataSummary: manualLogData.newDataSummary.trim() || undefined
+    });
+
+    setLogs(StorageService.getAuditLogs());
+    setIsManualModalOpen(false);
+    setManualLogData({
+      action: 'SYNC_TAHUN_AJARAN',
+      details: '',
+      previousDataSummary: '',
+      newDataSummary: ''
+    });
+  };
+
+  const getActionBadge = (action: string) => {
+    switch (action) {
+      case 'SYNC_TAHUN_AJARAN':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 text-[11px] font-bold">
+            <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Sinkronisasi Tahun Ajaran</span>
+          </span>
+        );
+      case 'PERUBAHAN_KEPALA_SEKOLAH':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-300 border border-purple-400/40 text-[11px] font-bold">
+            <Crown className="w-3.5 h-3.5 text-amber-400" />
+            <span>Jabatan Kepala Sekolah</span>
+          </span>
+        );
+      case 'UPDATE_PROFIL_SEKOLAH':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 text-[11px] font-bold">
+            <School className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Pembaruan Profil Sekolah</span>
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 border border-white/10 text-[11px] font-bold">
+            <History className="w-3.5 h-3.5 text-slate-400" />
+            <span>{action}</span>
+          </span>
+        );
+    }
   };
 
   return (
@@ -580,7 +780,7 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({
         <div className="pt-4 border-t border-white/10 flex justify-end">
           <button
             type="submit"
-            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg transition-all flex items-center gap-2 border border-emerald-300/50"
+            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm px-6 py-2.5 rounded-xl shadow-lg transition-all flex items-center gap-2 border border-emerald-300/50 cursor-pointer"
           >
             <Save className="w-4 h-4" />
             <span>Simpan Perubahan Data Sekolah</span>
@@ -589,6 +789,333 @@ export const DataSekolahView: React.FC<DataSekolahViewProps> = ({
 
       </form>
 
+      {/* SECTION: LOG AKTIVITAS & AUDIT RIWAYAT DATA SEKOLAH */}
+      <div className="glass backdrop-blur-xl bg-slate-900/70 rounded-2xl p-6 border border-white/10 shadow-xl space-y-6">
+        
+        {/* Header & Quick Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 flex items-center justify-center shrink-0 shadow-inner">
+              <History className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded border border-cyan-400/30">
+                  Transparansi &amp; Akuntabilitas Admin
+                </span>
+                <span className="text-[10px] font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded border border-white/10">
+                  {schoolRelatedLogs.length} Catatan Riwayat
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-bold font-serif text-white mt-1">
+                Log Aktivitas &amp; Riwayat Perubahan Data Sekolah
+              </h3>
+              <p className="text-xs text-slate-300">
+                Pencatatan riwayat perubahan penting secara otomatis dan manual meliputi sinkronisasi tahun ajaran, semester aktif, penetapan Kepala Sekolah, dan profil institusi.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setLogs(StorageService.getAuditLogs())}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-white/10 transition-colors cursor-pointer"
+              title="Segarkan riwayat log"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+              <span>Segarkan</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportLogsCSV}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-bold rounded-xl border border-emerald-400/30 transition-colors cursor-pointer shadow-sm"
+              title="Unduh laporan log aktivitas format CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Ekspor CSV</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsManualModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold rounded-xl shadow-lg transition-all cursor-pointer border border-cyan-400/40"
+              title="Tambah catatan riwayat administratif secara manual"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Catatan Manual</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Metric Summary Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-slate-950/60 p-3.5 rounded-xl border border-white/10">
+            <span className="text-[11px] text-slate-400 block font-medium">Total Riwayat Sekolah</span>
+            <span className="text-xl font-bold font-mono text-white mt-1 block">{schoolRelatedLogs.length}</span>
+          </div>
+
+          <div className="bg-slate-950/60 p-3.5 rounded-xl border border-cyan-500/30">
+            <span className="text-[11px] text-cyan-300 block font-medium">Sinkronisasi TA / Sem</span>
+            <span className="text-xl font-bold font-mono text-cyan-300 mt-1 block">
+              {schoolRelatedLogs.filter(l => l.action === 'SYNC_TAHUN_AJARAN').length}
+            </span>
+          </div>
+
+          <div className="bg-slate-950/60 p-3.5 rounded-xl border border-purple-500/30">
+            <span className="text-[11px] text-purple-300 block font-medium">Perubahan Kepala Sekolah</span>
+            <span className="text-xl font-bold font-mono text-purple-300 mt-1 block">
+              {schoolRelatedLogs.filter(l => l.action === 'PERUBAHAN_KEPALA_SEKOLAH').length}
+            </span>
+          </div>
+
+          <div className="bg-slate-950/60 p-3.5 rounded-xl border border-emerald-500/30">
+            <span className="text-[11px] text-emerald-300 block font-medium">Pembaruan Profil &amp; Legalitas</span>
+            <span className="text-xl font-bold font-mono text-emerald-300 mt-1 block">
+              {schoolRelatedLogs.filter(l => l.action === 'UPDATE_PROFIL_SEKOLAH').length}
+            </span>
+          </div>
+        </div>
+
+        {/* Filter and Search Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/70 p-3 rounded-xl border border-white/10">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setLogFilter('ALL')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                logFilter === 'ALL'
+                  ? 'bg-cyan-500 text-slate-950 shadow'
+                  : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              Semua ({schoolRelatedLogs.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setLogFilter('SYNC_TAHUN_AJARAN')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                logFilter === 'SYNC_TAHUN_AJARAN'
+                  ? 'bg-cyan-500 text-slate-950 shadow'
+                  : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              ⚡ Tahun Ajaran ({schoolRelatedLogs.filter(l => l.action === 'SYNC_TAHUN_AJARAN').length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setLogFilter('PERUBAHAN_KEPALA_SEKOLAH')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                logFilter === 'PERUBAHAN_KEPALA_SEKOLAH'
+                  ? 'bg-purple-500 text-white shadow'
+                  : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              👑 Kepala Sekolah ({schoolRelatedLogs.filter(l => l.action === 'PERUBAHAN_KEPALA_SEKOLAH').length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setLogFilter('UPDATE_PROFIL_SEKOLAH')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+                logFilter === 'UPDATE_PROFIL_SEKOLAH'
+                  ? 'bg-emerald-500 text-slate-950 shadow'
+                  : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+              }`}
+            >
+              🏫 Profil ({schoolRelatedLogs.filter(l => l.action === 'UPDATE_PROFIL_SEKOLAH').length})
+            </button>
+          </div>
+
+          <div className="relative min-w-[240px]">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={logSearch}
+              onChange={(e) => setLogSearch(e.target.value)}
+              placeholder="Cari rincian, admin, atau tanggal..."
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-900 text-white placeholder-slate-400 text-xs rounded-lg border border-white/10 focus:outline-none focus:border-cyan-400"
+            />
+            {logSearch && (
+              <button
+                type="button"
+                onClick={() => setLogSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Timeline Log Cards */}
+        <div className="space-y-3">
+          {filteredLogs.length === 0 ? (
+            <div className="text-center py-10 bg-slate-950/40 rounded-xl border border-white/5 space-y-2">
+              <History className="w-8 h-8 text-slate-500 mx-auto" />
+              <p className="text-sm font-semibold text-slate-300">Tidak ada riwayat aktivitas yang cocok</p>
+              <p className="text-xs text-slate-400">
+                Riwayat akan tercatat otomatis setiap kali Anda melakukan sinkronisasi tahun ajaran, pergantian kepala sekolah, atau menyimpan perubahan profil.
+              </p>
+            </div>
+          ) : (
+            filteredLogs.map((log) => (
+              <div 
+                key={log.id}
+                className="bg-slate-950/70 border border-white/10 hover:border-white/20 rounded-xl p-4 transition-all space-y-3"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2.5">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    {getActionBadge(log.action)}
+                    <span className="text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-white/10">
+                      Modul: {log.module || 'Data Sekolah & Profil'}
+                    </span>
+                    {log.semester && (
+                      <span className="text-[10px] text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-400/20">
+                        Semester {log.semester}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <span className="flex items-center gap-1 font-mono text-[11px]">
+                      <Clock className="w-3 h-3 text-slate-400" />
+                      <span>{log.timestamp}</span>
+                    </span>
+                    <span className="flex items-center gap-1 text-slate-300">
+                      <User className="w-3 h-3 text-slate-400" />
+                      <strong className="text-slate-200">{log.userName}</strong>
+                      <span className="text-[10px] bg-slate-800 text-slate-400 px-1.5 py-0.2 rounded border border-white/5">
+                        {log.userRole}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans">
+                  {log.details}
+                </p>
+
+                {/* Before / After Summary Difference */}
+                {(log.previousDataSummary || log.newDataSummary) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 text-xs">
+                    {log.previousDataSummary && (
+                      <div className="p-2.5 bg-rose-950/30 rounded-lg border border-rose-500/20 text-rose-200">
+                        <span className="text-[10px] uppercase font-bold text-rose-400 block mb-0.5">
+                          Kondisi Sebelumnya:
+                        </span>
+                        <span className="font-mono">{log.previousDataSummary}</span>
+                      </div>
+                    )}
+                    {log.newDataSummary && (
+                      <div className="p-2.5 bg-emerald-950/30 rounded-lg border border-emerald-500/20 text-emerald-200">
+                        <span className="text-[10px] uppercase font-bold text-emerald-400 block mb-0.5">
+                          Kondisi Baru (Hasil Perubahan):
+                        </span>
+                        <span className="font-mono">{log.newDataSummary}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+      </div>
+
+      {/* MODAL: TAMBAH CATATAN RIWAYAT MANUAL */}
+      {isManualModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <History className="w-5 h-5 text-cyan-400" />
+                <h3 className="text-base font-bold font-serif text-white">
+                  Tambah Catatan Log Aktivitas Manual
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsManualModalOpen(false)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveManualLog} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">Kategori Perubahan</label>
+                <select
+                  value={manualLogData.action}
+                  onChange={(e) => setManualLogData(prev => ({ ...prev, action: e.target.value as any }))}
+                  className="w-full px-3 py-2 bg-slate-950 border border-white/15 rounded-xl text-white focus:outline-none focus:border-cyan-400"
+                >
+                  <option value="SYNC_TAHUN_AJARAN">⚡ Sinkronisasi Tahun Ajaran / Semester</option>
+                  <option value="PERUBAHAN_KEPALA_SEKOLAH">👑 Perubahan / Penetapan Kepala Sekolah</option>
+                  <option value="UPDATE_PROFIL_SEKOLAH">🏫 Pembaruan Profil &amp; Legalitas Sekolah</option>
+                  <option value="LAINNYA">📋 Catatan Administratif Lainnya</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-bold mb-1">Rincian Perubahan / Catatan Transparansi</label>
+                <textarea
+                  required
+                  rows={3}
+                  value={manualLogData.details}
+                  onChange={(e) => setManualLogData(prev => ({ ...prev, details: e.target.value }))}
+                  placeholder="Contoh: Berdasarkan SK Yayasan No. 05/2026 tanggal 15 Juli 2026, telah disepakati perubahan masa jabatan Kepala Sekolah..."
+                  className="w-full px-3 py-2 bg-slate-950 border border-white/15 rounded-xl text-white focus:outline-none focus:border-cyan-400 placeholder:text-slate-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-400 mb-1">Ringkasan Sebelum (Opsional)</label>
+                  <input
+                    type="text"
+                    value={manualLogData.previousDataSummary}
+                    onChange={(e) => setManualLogData(prev => ({ ...prev, previousDataSummary: e.target.value }))}
+                    placeholder="Contoh: TA 2024/2025"
+                    className="w-full px-3 py-1.5 bg-slate-950 border border-white/15 rounded-lg text-white focus:outline-none focus:border-cyan-400 placeholder:text-slate-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 mb-1">Ringkasan Sesudah (Opsional)</label>
+                  <input
+                    type="text"
+                    value={manualLogData.newDataSummary}
+                    onChange={(e) => setManualLogData(prev => ({ ...prev, newDataSummary: e.target.value }))}
+                    placeholder="Contoh: TA 2025/2026 Aktif"
+                    className="w-full px-3 py-1.5 bg-slate-950 border border-white/15 rounded-lg text-white focus:outline-none focus:border-cyan-400 placeholder:text-slate-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-white/10 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsManualModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl shadow cursor-pointer"
+                >
+                  Simpan Catatan Log
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
+

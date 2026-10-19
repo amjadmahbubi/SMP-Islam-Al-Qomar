@@ -35,6 +35,8 @@ export const COMMON_SCHEDULE_ACTIVITIES = [
 
 export const DEFAULT_CLASSES = ['7', '8', '9'];
 
+export const DEFAULT_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec';
+
 const INVALID_CLASS_NAMES = ['-', '--', 'none', 'tidak ada', 'null', 'undefined', '7A', '7B', '8A', '8B', '9A', '9B'];
 
 const isValidClass = (val: unknown): boolean => {
