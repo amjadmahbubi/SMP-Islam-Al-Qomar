@@ -60,11 +60,13 @@ export const InputNilaiView: React.FC<InputNilaiViewProps> = ({
   const [selectedClass, setSelectedClass] = useState(dynamicClasses[0] || '7');
   const [selectedMapel, setSelectedMapel] = useState(teacherDefaultMapel);
   const [selectedTeacher, setSelectedTeacher] = useState(session.name || loggedTeacher?.nama || teachers[0]?.nama || 'Ustadz Amjad Mahbubi, S.Pd.');
-  const [semester, setSemester] = useState<'Ganjil' | 'Genap'>(schoolInfo?.semesterAktif || 'Ganjil');
+  const [semester, setSemester] = useState<'Ganjil' | 'Genap'>(
+    schoolInfo?.semesterAktif === 'Genap' ? 'Genap' : 'Ganjil'
+  );
 
   // Update semester when schoolInfo changes
   useEffect(() => {
-    if (schoolInfo?.semesterAktif) {
+    if (schoolInfo?.semesterAktif === 'Genap' || schoolInfo?.semesterAktif === 'Ganjil') {
       setSemester(schoolInfo.semesterAktif);
     }
   }, [schoolInfo?.semesterAktif]);

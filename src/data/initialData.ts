@@ -45,9 +45,9 @@ export const initialSchoolInfo: SchoolInfo = {
   ],
   tahunAjaran: '2026/2027',
   semesterAktif: 'Ganjil',
-  logoUrl: '',
-  kopSuratUrl: '',
-  isLogoLocked: false
+  logoUrl: '/assets/aistudio/LOGO_SMP_c07d666e.PNG',
+  kopSuratUrl: '/assets/aistudio/Surat_Aktif_Nada_001_415335d4.png',
+  isLogoLocked: true
 };
 
 export const initialTeachers: Teacher[] = [
@@ -88,7 +88,7 @@ export const initialTeachers: Teacher[] = [
     nip: '-',
     nama: 'Fikriyadi, S.Pd',
     gender: 'L',
-    mapelUtama: 'Pendidikan Agama Islam',
+    mapelUtama: 'Pendidikan Agama dan Budi Pekerti',
     mapelTambahan: ['-'],
     jabatan: 'Koordinator UMMI',
     statusPegawai: 'GTY',
@@ -103,7 +103,7 @@ export const initialTeachers: Teacher[] = [
     nip: '992 101 008',
     nama: 'Diah Khoirunnisa, S.Pd',
     gender: 'P',
-    mapelUtama: 'Prakarya / Skill',
+    mapelUtama: 'Prakarya',
     mapelTambahan: ['-'],
     jabatan: 'Kepala TU',
     statusPegawai: 'GTY',
@@ -134,7 +134,7 @@ export const initialTeachers: Teacher[] = [
     nama: 'Amjad Dzulfikar Mahbubie, S.Pd',
     gender: 'L',
     mapelUtama: 'Bahasa Inggris',
-    mapelTambahan: ['-'],
+    mapelTambahan: ['Informatika'],
     jabatan: 'Operator & IT',
     statusPegawai: 'GTY',
     waliKelasDi: '-',
@@ -148,7 +148,7 @@ export const initialTeachers: Teacher[] = [
     nip: '-',
     nama: 'Diah Putriani, S.Pd',
     gender: 'P',
-    mapelUtama: 'IPA Terpadu',
+    mapelUtama: 'Ilmu Pengetahuan Alam',
     mapelTambahan: ['-'],
     jabatan: 'Waka Kesiswaan',
     statusPegawai: 'GTY',
@@ -163,7 +163,7 @@ export const initialTeachers: Teacher[] = [
     nip: '992 101 007',
     nama: 'Helmi Claresa, S.Pd',
     gender: 'P',
-    mapelUtama: 'PJOK',
+    mapelUtama: 'Pendidikan Jasmani, Olahraga, dan Kesehatan',
     mapelTambahan: ['-'],
     jabatan: 'Bendahara BOS',
     statusPegawai: 'GTY',
@@ -178,7 +178,7 @@ export const initialTeachers: Teacher[] = [
     nip: '-',
     nama: 'Ansorik, S.Sos',
     gender: 'L',
-    mapelUtama: 'Pancasila / PPKn',
+    mapelUtama: 'Pendidikan Pancasila',
     mapelTambahan: ['-'],
     jabatan: 'Pembina OSIS',
     statusPegawai: 'GTY',
@@ -193,7 +193,7 @@ export const initialTeachers: Teacher[] = [
     nip: '-',
     nama: 'Muhammad Bintang Nuriansyah, S.Pi',
     gender: 'L',
-    mapelUtama: 'IPS Terpadu',
+    mapelUtama: 'Ilmu Pengetahuan Sosial',
     mapelTambahan: ['-'],
     jabatan: 'Waka Sarpras',
     statusPegawai: 'GTT',
@@ -224,7 +224,7 @@ export const initialTeachers: Teacher[] = [
     nama: 'Muhammad Mahfudz Al-Hafidz',
     gender: 'L',
     mapelUtama: 'Bahasa Jawa',
-    mapelTambahan: ['-'],
+    mapelTambahan: ['Seni dan Budaya'],
     jabatan: 'Guru Tahfidz',
     statusPegawai: 'GTY',
     waliKelasDi: '-',
@@ -1743,7 +1743,7 @@ export const initialSubjectGradeRecords: SubjectGradeRecord[] = [
 ];
 
 export const initialSheetsConfig: GoogleSheetsConfig = {
-  webAppUrl: 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec',
+  webAppUrl: 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec',
   spreadsheetId: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
   autoSync: false,
   autoSyncOnLoad: true,

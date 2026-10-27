@@ -24,6 +24,66 @@
     radial-gradient(at 0% 100%, #1e1b4b 0, transparent 50%);
 }
 
+/* High-Performance Smooth Page & Feature Transitions */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-transition {
+  animation: pageEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition,
+  .celestial-star,
+  .celestial-glow {
+    animation: none !important;
+  }
+}
+
+/* Subtle Islamic Celestial Stars / Glitter Animation (Al-Qomar Night Sky) */
+@keyframes starTwinkle {
+  0%, 100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.6));
+  }
+}
+
+@keyframes starGlow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: rotate(0deg) scale(0.9);
+  }
+  50% {
+    opacity: 0.85;
+    transform: rotate(90deg) scale(1.1);
+    filter: drop-shadow(0 0 4px rgba(52, 211, 153, 0.5));
+  }
+}
+
+.celestial-star {
+  animation: starTwinkle 3.2s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+.celestial-glow {
+  animation: starGlow 4.5s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
 .glass {
   background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(16px);
@@ -253,8 +313,12 @@ html.light, .light {
   color: #047857 !important;
 }
 
-/* Print Overrides for Report Cards */
+/* Print Overrides for Report Cards & Official School Documents */
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 14mm 12mm 14mm;
+  }
   .no-print {
     display: none !important;
   }
@@ -262,16 +326,26 @@ html.light, .light {
     page-break-after: always !important;
     break-after: page !important;
   }
+  .break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
   body {
     background: #ffffff !important;
     color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   .mesh-bg {
     display: none !important;
   }
   .glass, .glass-panel, .glass-card {
     background: #ffffff !important;
-    border: 1px solid #cccccc !important;
+    border: none !important;
     color: #000000 !important;
     box-shadow: none !important;
     backdrop-filter: none !important;

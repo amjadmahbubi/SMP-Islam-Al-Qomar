@@ -53,7 +53,7 @@ import {
   SarprasRuang
 } from '../types';
 
-import { DEFAULT_SHEETS_WEB_APP_URL } from '../data/constants';
+import { DEFAULT_SHEETS_WEB_APP_URL, normalizeMapelName } from '../data/constants';
 
 const KEYS = {
   SESSION: 'alqomar_session',
@@ -129,9 +129,18 @@ export const StorageService = {
   // School Info
   getSchoolInfo: (): SchoolInfo => {
     const stored = getStored<Partial<SchoolInfo>>(KEYS.SCHOOL, initialSchoolInfo);
+    const validLogo = stored.logoUrl && stored.logoUrl.trim() && !stored.logoUrl.includes('unsplash')
+      ? stored.logoUrl
+      : initialSchoolInfo.logoUrl;
+    const validKop = stored.kopSuratUrl && stored.kopSuratUrl.trim() && !stored.kopSuratUrl.includes('image_ffaabd05')
+      ? stored.kopSuratUrl
+      : initialSchoolInfo.kopSuratUrl;
     return {
       ...initialSchoolInfo,
       ...stored,
+      logoUrl: validLogo,
+      kopSuratUrl: validKop,
+      isLogoLocked: stored.isLogoLocked !== undefined ? stored.isLogoLocked : initialSchoolInfo.isLogoLocked,
       misi: Array.isArray(stored.misi) && stored.misi.length ? stored.misi : initialSchoolInfo.misi
     };
   },
@@ -141,7 +150,21 @@ export const StorageService = {
   // Teachers
   getTeachers: (): Teacher[] => {
     const data = getStored(KEYS.TEACHERS, initialTeachers);
-    return Array.isArray(data) && data.length > 0 ? data : initialTeachers;
+    const rawTeachers = Array.isArray(data) && data.length > 0 ? data : initialTeachers;
+    return rawTeachers.map(t => {
+      const normalizedMapel = normalizeMapelName(t.mapelUtama);
+      let mapelTambahan = t.mapelTambahan;
+      if (t.id === 'T006' && (!mapelTambahan || mapelTambahan.includes('-'))) {
+        mapelTambahan = ['Informatika'];
+      } else if (t.id === 'T4856' && (!mapelTambahan || mapelTambahan.includes('-'))) {
+        mapelTambahan = ['Seni dan Budaya'];
+      }
+      return {
+        ...t,
+        mapelUtama: normalizedMapel || t.mapelUtama,
+        mapelTambahan
+      };
+    });
   },
   saveTeachers: (data: Teacher[]): void => setStored(KEYS.TEACHERS, data),
   setTeachers: (data: Teacher[]): void => setStored(KEYS.TEACHERS, data),
@@ -264,11 +287,14 @@ export const StorageService = {
   // Google Sheets Config
   getSheetsConfig: (): GoogleSheetsConfig => {
     const stored = getStored<Partial<GoogleSheetsConfig>>(KEYS.SHEETS_CONFIG, initialSheetsConfig);
-    const isOldSampleUrl = stored.webAppUrl && stored.webAppUrl.includes('AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ');
+    const isOldPlaceholder = stored.webAppUrl && (
+      stored.webAppUrl.includes('AKfycbx-SMP-Islam-Al-Qomar') ||
+      stored.webAppUrl.includes('placeholder')
+    );
     const isValidUrl = stored.webAppUrl &&
+      !isOldPlaceholder &&
       stored.webAppUrl.trim().startsWith('https://script.google.com/') &&
-      stored.webAppUrl.includes('/exec') &&
-      !isOldSampleUrl;
+      stored.webAppUrl.includes('/exec');
     return {
       ...initialSheetsConfig,
       ...stored,

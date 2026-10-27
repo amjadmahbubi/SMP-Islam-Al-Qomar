@@ -1,18 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { Wifi, WifiOff, Download, Smartphone, Check, AlertTriangle, Database, ShieldCheck, Sparkles, RefreshCw, X, ChevronRight } from 'lucide-react';
 import { StorageService } from '../services/storage';
+import { SchoolInfo, UserSession } from '../types';
 
 interface PWAOfflineBannerProps {
   onNavigateToSheets?: () => void;
+  schoolInfo?: SchoolInfo;
+  session?: UserSession;
 }
 
-export const PWAOfflineBanner: React.FC<PWAOfflineBannerProps> = ({ onNavigateToSheets }) => {
+export const PWAOfflineBanner: React.FC<PWAOfflineBannerProps> = ({ onNavigateToSheets, schoolInfo, session }) => {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstalled, setIsInstalled] = useState<boolean>(false);
-  const [showInstallBanner, setShowInstallBanner] = useState<boolean>(true);
+  const [showInstallBanner, setShowInstallBanner] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('dismissed_pwa_banner') !== 'true';
+    } catch {
+      return true;
+    }
+  });
   const [showOfflineModal, setShowOfflineModal] = useState<boolean>(false);
-  const [justReconnected, setJustReconnected] = useState<boolean>(false);
   const [isSimulatedOffline, setIsSimulatedOffline] = useState<boolean>(false);
 
   // Storage Stats for Offline Verification
@@ -45,8 +53,6 @@ export const PWAOfflineBanner: React.FC<PWAOfflineBannerProps> = ({ onNavigateTo
 
     const handleOnline = () => {
       setIsOnline(true);
-      setJustReconnected(true);
-      setTimeout(() => setJustReconnected(false), 8000);
     };
 
     const handleOffline = () => {
@@ -89,7 +95,7 @@ export const PWAOfflineBanner: React.FC<PWAOfflineBannerProps> = ({ onNavigateTo
     } else {
       // Show manual install instructions for iOS / browsers without beforeinstallprompt
       alert(
-        'Petunjuk Install PWA DAPODIK Al Qomar:\n\n' +
+        `Petunjuk Install Aplikasi ${schoolInfo?.nama || 'Sekolah'} di HP / Tablet:\n\n` +
         '📱 Android (Chrome): Klik titik tiga (⋮) di pojok kanan atas browser > pilih "Tambahkan ke Layar Utama" / "Install Aplikasi".\n\n' +
         '🍎 iOS / iPhone / iPad (Safari): Klik tombol Share (ikon kotak dengan panah ke atas) > gulir ke bawah > pilih "Add to Home Screen" (Tambahkan ke Layar Utama).'
       );
@@ -98,80 +104,49 @@ export const PWAOfflineBanner: React.FC<PWAOfflineBannerProps> = ({ onNavigateTo
 
   const activeOfflineState = !isOnline || isSimulatedOffline;
 
+  // Sembunyikan banner teknis secara total untuk publik & saat koneksi normal
+  if (session?.role === 'public') {
+    return null;
+  }
+
+  if (!activeOfflineState) {
+    return null;
+  }
+
   return (
     <div className="w-full space-y-2 mb-4">
-      
-      {/* 1. RECONNECTED ALERT TOAST */}
-      {justReconnected && (
-        <div className="bg-emerald-900/90 border border-emerald-400 text-white p-3.5 rounded-2xl shadow-xl flex items-center justify-between gap-3 animate-in slide-in-from-top duration-300">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-emerald-500 text-slate-950 rounded-xl font-bold">
-              <Wifi className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-emerald-200">Koneksi Internet Kembali Terhubung!</p>
-              <p className="text-[11px] text-emerald-100">
-                Data yang diinput saat offline tersimpan aman. Klik untuk sinkronkan ke Google Sheets.
-              </p>
-            </div>
+      {/* OFFLINE MODE BANNER (Hanya untuk PTK saat internet padam) */}
+      <div className="bg-gradient-to-r from-amber-950/90 via-amber-900/90 to-amber-950/90 border border-amber-500/50 text-amber-100 p-3 rounded-2xl shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-amber-500/20 text-amber-300 border border-amber-400/30 rounded-xl">
+            <WifiOff className="w-4 h-4" />
           </div>
-          {onNavigateToSheets && (
-            <button
-              onClick={onNavigateToSheets}
-              className="bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold text-xs px-3.5 py-1.5 rounded-xl shadow transition-colors flex items-center gap-1 whitespace-nowrap"
-            >
-              <span>Sync Sheets</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* 2. OFFLINE MODE BANNER */}
-      {activeOfflineState && (
-        <div className="bg-gradient-to-r from-amber-950/90 via-amber-900/90 to-amber-950/90 border border-amber-500/50 text-amber-100 p-3.5 rounded-2xl shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-500/20 text-amber-300 border border-amber-400/30 rounded-xl animate-pulse">
-              <WifiOff className="w-5 h-5" />
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-amber-300">
+                Mode Offline Aktif (Tanpa Internet)
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-200 border border-amber-400/30">
+                Data Lokal Aman
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-amber-300">
-                  {isSimulatedOffline ? 'Mode Simulasi Offline Aktif' : 'Mode Offline (Tanpa Internet)'}
-                </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-200 border border-amber-400/30">
-                  Data Lokal Siap
-                </span>
-              </div>
-              <p className="text-[11px] text-amber-200/90 mt-0.5">
-                Anda tetap bisa menginput Absensi, Nilai, &amp; mengelola data. Perubahan tersimpan otomatis di perangkat.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                loadStorageStats();
-                setShowOfflineModal(true);
-              }}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-xl transition-all border border-amber-300/50 flex items-center gap-1.5"
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span>Cek Status Offline ({storageStats.siswaCount + storageStats.guruCount} Data)</span>
-            </button>
-
-            {isSimulatedOffline && (
-              <button
-                onClick={() => setIsSimulatedOffline(false)}
-                className="bg-slate-800 hover:bg-slate-700 text-amber-200 font-bold text-xs px-2.5 py-1.5 rounded-xl border border-amber-500/30"
-              >
-                Matikan Simulasi
-              </button>
-            )}
+            <p className="text-[11px] text-amber-200/90 mt-0.5">
+              Anda tetap dapat menginput absensi dan nilai. Perubahan tersimpan di memori perangkat.
+            </p>
           </div>
         </div>
-      )}
+
+        <button
+          onClick={() => {
+            loadStorageStats();
+            setShowOfflineModal(true);
+          }}
+          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-xl transition-all border border-amber-300/50 flex items-center gap-1.5 self-start sm:self-auto shrink-0"
+        >
+          <Database className="w-3.5 h-3.5" />
+          <span>Status Penyimpanan Lokal</span>
+        </button>
+      </div>
 
       {/* 3. PWA INSTALL BANNER (Floating or Header Bar) */}
       {!isInstalled && showInstallBanner && (
@@ -182,7 +157,7 @@ export const PWAOfflineBanner: React.FC<PWAOfflineBannerProps> = ({ onNavigateTo
             </div>
             <div>
               <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                <span>Install Aplikasi DAPODIK Al Qomar di HP / Tablet</span>
+                <span>Install Aplikasi {schoolInfo?.nama || 'Sekolah'} di HP / Tablet</span>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-1.5 py-0.2 rounded font-mono">
                   PWA
                 </span>
@@ -193,7 +168,7 @@ export const PWAOfflineBanner: React.FC<PWAOfflineBannerProps> = ({ onNavigateTo
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end sm:self-center">
             <button
               onClick={handleInstallPWA}
               className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-3.5 py-1.5 rounded-xl shadow transition-all border border-emerald-300/50 flex items-center gap-1.5 whitespace-nowrap"
@@ -202,20 +177,17 @@ export const PWAOfflineBanner: React.FC<PWAOfflineBannerProps> = ({ onNavigateTo
               <span>Install Aplikasi</span>
             </button>
 
-            {!isSimulatedOffline && isOnline && (
-              <button
-                onClick={() => setIsSimulatedOffline(true)}
-                title="Uji coba mode offline untuk melihat keandalan penyimpanan lokal"
-                className="bg-slate-800 hover:bg-slate-700 text-emerald-300 text-[11px] font-bold px-2.5 py-1.5 rounded-xl border border-white/10 whitespace-nowrap"
-              >
-                Uji Offline
-              </button>
-            )}
-
             <button
-              onClick={() => setShowInstallBanner(false)}
-              className="p-1 text-slate-400 hover:text-white transition-colors"
-              title="Tutup banner"
+              onClick={() => {
+                try {
+                  sessionStorage.setItem('dismissed_pwa_banner', 'true');
+                } catch {
+                  // ignore
+                }
+                setShowInstallBanner(false);
+              }}
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+              title="Tutup banner ini"
             >
               <X className="w-4 h-4" />
             </button>

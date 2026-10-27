@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { SchoolInfo, Student, Teacher, SarprasItem, ScheduleItem, AttendanceRecord, SubjectGradeRecord, StudentAchievement } from '../../types';
+import { SchoolInfo, Student, Teacher, SarprasItem, ScheduleItem, AttendanceRecord, SubjectGradeRecord, StudentAchievement, UserSession } from '../../types';
 import { getAllClasses } from '../../data/constants';
 import { 
   Users, 
@@ -14,12 +14,12 @@ import {
   Mail, 
   Globe, 
   ShieldCheck, 
-  Search,
-  Trophy,
-  RefreshCw,
-  FileSpreadsheet,
-  Zap,
-  CheckCircle2
+  Search, 
+  Trophy, 
+  RefreshCw, 
+  FileSpreadsheet, 
+  Zap, 
+  CheckCircle2 
 } from 'lucide-react';
 
 interface PublicStatistikProps {
@@ -31,6 +31,7 @@ interface PublicStatistikProps {
   attendance?: AttendanceRecord[];
   grades?: SubjectGradeRecord[];
   achievements?: StudentAchievement[];
+  session?: UserSession;
   autoSyncStatus?: {
     status: 'idle' | 'checking' | 'synced' | 'offline';
     lastSyncTime?: string;
@@ -47,6 +48,7 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
   sarpras,
   schedules = [],
   achievements = [],
+  session,
   autoSyncStatus,
   onTriggerAutoSync,
   onNavigateToSheets
@@ -136,7 +138,7 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
       sub: 'Tahfidz, OSN, Olahraga & Seni',
       icon: Trophy,
       color: 'from-amber-600 to-yellow-600',
-      badge: 'Sinkron Sheets'
+      badge: 'Membanggakan'
     },
     {
       title: 'Status Akreditasi BAN-S/M',
@@ -156,6 +158,28 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
       
       {/* Hero Islamic Banner */}
       <div className="relative rounded-3xl bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-900 text-white p-6 sm:p-10 shadow-xl overflow-hidden border border-emerald-800/80">
+        
+        {/* Subtle Islamic Celestial Stars / Al-Qomar Night Sky Atmosphere */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none" aria-hidden="true">
+          {/* Subtle sparkling star particles with varied positions, colors & breathing delays */}
+          <span className="celestial-star absolute top-4 left-[12%] w-1.5 h-1.5 rounded-full bg-amber-300 opacity-60" style={{ animationDelay: '0s' }} />
+          <span className="celestial-star absolute top-10 left-[28%] w-1 h-1 rounded-full bg-emerald-200 opacity-40" style={{ animationDelay: '1.4s' }} />
+          <span className="celestial-star absolute top-6 left-[45%] w-2 h-2 rounded-full bg-amber-200 opacity-70" style={{ animationDelay: '0.8s' }} />
+          <span className="celestial-star absolute top-14 left-[58%] w-1.5 h-1.5 rounded-full bg-emerald-300 opacity-50" style={{ animationDelay: '2.1s' }} />
+          <span className="celestial-star absolute top-5 right-[24%] w-1 h-1 rounded-full bg-amber-100 opacity-60" style={{ animationDelay: '1.1s' }} />
+          <span className="celestial-star absolute top-16 right-[15%] w-2 h-2 rounded-full bg-amber-300 opacity-75" style={{ animationDelay: '2.8s' }} />
+          <span className="celestial-star absolute bottom-8 left-[18%] w-1 h-1 rounded-full bg-emerald-200 opacity-40" style={{ animationDelay: '0.5s' }} />
+          <span className="celestial-star absolute bottom-12 left-[50%] w-1.5 h-1.5 rounded-full bg-amber-200 opacity-60" style={{ animationDelay: '1.8s' }} />
+          <span className="celestial-star absolute bottom-6 right-[30%] w-1 h-1 rounded-full bg-emerald-100 opacity-50" style={{ animationDelay: '2.4s' }} />
+          <span className="celestial-star absolute bottom-14 right-[10%] w-1.5 h-1.5 rounded-full bg-amber-300 opacity-70" style={{ animationDelay: '0.3s' }} />
+          
+          {/* Soft 4-Point Islamic Stars floating near the crescent/moon watermark */}
+          <span className="celestial-glow absolute top-8 right-20 text-amber-300/60 text-sm" style={{ animationDelay: '0.7s' }}>✦</span>
+          <span className="celestial-glow absolute top-24 right-36 text-emerald-300/50 text-xs" style={{ animationDelay: '2.2s' }}>★</span>
+          <span className="celestial-glow absolute bottom-10 right-28 text-amber-200/50 text-base" style={{ animationDelay: '1.5s' }}>✦</span>
+          <span className="celestial-glow absolute top-16 left-[38%] text-amber-300/40 text-xs" style={{ animationDelay: '3.0s' }}>✦</span>
+        </div>
+
         <div className="absolute right-0 top-0 opacity-20 pointer-events-none transform translate-x-8 -translate-y-6 w-64 h-64 sm:w-80 sm:h-80 flex items-center justify-center">
           {schoolInfo.logoUrl ? (
             <img src={schoolInfo.logoUrl} alt="Logo Watermark" className="w-full h-full object-contain filter drop-shadow-2xl brightness-125" />
@@ -182,62 +206,64 @@ export const PublicStatistik: React.FC<PublicStatistikProps> = ({
             </span>
             <span className="flex items-center gap-1.5 bg-emerald-900/80 px-3 py-1.5 rounded-lg border border-emerald-700">
               <MapPin className="w-4 h-4 text-amber-400" />
-              Banyuwangi, Jawa Timur
+              {schoolInfo.alamat || 'Banyuwangi, Jawa Timur'}
             </span>
           </div>
         </div>
       </div>
 
-      {/* QUICK SYNC / TARIK DATA GOOGLE SHEETS BAR (Khusus Beranda) */}
-      <div className="glass backdrop-blur-xl bg-slate-900/75 rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center justify-center shrink-0">
-            <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-bold text-white font-serif">
-                Sinkronisasi Integrasi Google Sheets
-              </h3>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2 py-0.5 rounded-md">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>{autoSyncStatus?.lastSyncTime ? `Tersinkron: ${autoSyncStatus.lastSyncTime}` : 'Siap Sinkron'}</span>
-              </span>
+      {/* QUICK SYNC / TARIK DATA GOOGLE SHEETS BAR (Hanya Ditampilkan untuk Administrator) */}
+      {session?.role === 'admin' && (
+        <div className="glass backdrop-blur-xl bg-slate-900/75 rounded-2xl p-4 sm:p-5 border border-white/10 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center justify-center shrink-0">
+              <FileSpreadsheet className="w-5 h-5 text-emerald-400" />
             </div>
-            <p className="text-xs text-slate-300/90 truncate mt-0.5">
-              {autoSyncStatus?.message || 'Semua modul DAPODIK termasuk Prestasi Santri & Asesmen Nilai terhubung 2-arah.'}
-            </p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm font-bold text-white font-serif">
+                  Sinkronisasi Integrasi Google Sheets
+                </h3>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2 py-0.5 rounded-md">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>{autoSyncStatus?.lastSyncTime ? `Tersinkron: ${autoSyncStatus.lastSyncTime}` : 'Siap Sinkron'}</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-300/90 truncate mt-0.5">
+                {autoSyncStatus?.message || 'Semua modul DAPODIK termasuk Prestasi Santri & Asesmen Nilai terhubung 2-arah.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            {onTriggerAutoSync && (
+              <button
+                onClick={handleQuickPull}
+                disabled={isSyncChecking}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md border cursor-pointer ${
+                  isSyncChecking
+                    ? 'bg-amber-500/20 text-amber-200 border-amber-400/40 cursor-wait'
+                    : 'bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 border-emerald-300/50 hover:shadow-emerald-500/20'
+                }`}
+                title="Tarik pembaruan data langsung dari Google Sheets"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncChecking ? 'animate-spin text-amber-300' : 'text-slate-950'}`} />
+                <span>{isSyncChecking ? 'Menarik Data Sheets...' : 'Tarik Data Terbaru'}</span>
+              </button>
+            )}
+
+            {onNavigateToSheets && (
+              <button
+                onClick={onNavigateToSheets}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 transition-colors"
+                title="Buka pengaturan dan detail sinkronisasi Google Sheets"
+              >
+                <span>Detail Sheets</span>
+              </button>
+            )}
           </div>
         </div>
-
-        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-          {onTriggerAutoSync && (
-            <button
-              onClick={handleQuickPull}
-              disabled={isSyncChecking}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md border cursor-pointer ${
-                isSyncChecking
-                  ? 'bg-amber-500/20 text-amber-200 border-amber-400/40 cursor-wait'
-                  : 'bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-slate-950 border-emerald-300/50 hover:shadow-emerald-500/20'
-              }`}
-              title="Tarik pembaruan data langsung dari Google Sheets"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncChecking ? 'animate-spin text-amber-300' : 'text-slate-950'}`} />
-              <span>{isSyncChecking ? 'Menarik Data Sheets...' : 'Tarik Data Terbaru'}</span>
-            </button>
-          )}
-
-          {onNavigateToSheets && (
-            <button
-              onClick={onNavigateToSheets}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-white/10 transition-colors"
-              title="Buka pengaturan dan detail sinkronisasi Google Sheets"
-            >
-              <span>Detail Sheets</span>
-            </button>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* KPI Stats Grid */}
       <div>

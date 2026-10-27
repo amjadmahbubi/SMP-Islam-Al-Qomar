@@ -21,6 +21,7 @@ export interface SchoolInfo {
   visi: string;
   misi: string[];
   tahunAjaran: string;
+  semesterAktif?: 'Ganjil' | 'Genap';
   logoUrl?: string;
   kopSuratUrl?: string; // Gambar Banner Kop Surat Resmi Sekolah (sesuai arsip dokumen fisik)
   isLogoLocked?: boolean; // Proteksi permanen logo & kop surat lintas perangkat
@@ -41,6 +42,23 @@ export interface Teacher {
   statusPegawai: 'PNS' | 'GTY' | 'GTT' | 'Honor';
   waliKelasDi?: string; // e.g. '7A'
   password?: string;
+}
+
+export interface StudentEkskul {
+  id?: string;
+  nama: string; // e.g. 'Pramuka', 'Seni Hadrah / Banjari', 'PMR', 'Kaligrafi Islam', 'Futsal'
+  predikat: string; // 'A (Sangat Baik)' | 'B (Baik)' | 'C (Cukup)' | string
+  keterangan: string; // e.g. 'Aktif, disiplin, dan terampil dalam kepramukaan'
+}
+
+export interface StudentDiniyahReport {
+  tahfidz: string; // e.g. 'Hafal Juz 30 (Lancar & Mutqin)'
+  adab: string; // e.g. 'Istiqomah, Santun & Disiplin'
+  shalat: string; // e.g. 'Rutin Shalat Dhuha & Dzuhur Berjamaah'
+  kokurikuler?: string; // Capaian P5 (Projek Penguatan Profil Pelajar Pancasila) & Diniyah Islamiyyah
+  catatanWaliKelas?: string; // Catatan motivasi / perkembangan wali kelas
+  tanggapanOrtu?: string; // Catatan/tanggapan orang tua/wali murid
+  ekskul?: StudentEkskul[];
 }
 
 export interface Student {
@@ -66,6 +84,7 @@ export interface Student {
   nomorSkl?: string;
   sekolahLanjutan?: string;
   keteranganLulus?: string;
+  diniyahReport?: StudentDiniyahReport;
 }
 
 export interface SarprasGedung {

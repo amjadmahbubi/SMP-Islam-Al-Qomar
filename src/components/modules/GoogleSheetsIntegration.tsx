@@ -30,10 +30,16 @@ import {
   Zap,
   CheckCheck,
   Trophy,
-  ClipboardPaste
+  ClipboardPaste,
+  Share2,
+  Smartphone,
+  ChevronDown,
+  ChevronUp,
+  Settings2
 } from 'lucide-react';
 import { StorageService } from '../../services/storage';
 import { DEFAULT_SHEETS_WEB_APP_URL } from '../../data/constants';
+import { MasterDataBackupView } from './MasterDataBackupView';
 
 export interface UrlValidationResult {
   isValid: boolean;
@@ -144,6 +150,8 @@ interface GoogleSheetsIntegrationProps {
     message?: string;
   };
   onTriggerAutoSync?: (simulatedData?: any) => Promise<void> | void;
+  initialSubTab?: 'sheets' | 'backup';
+  onRefreshAllData?: () => void;
 }
 
 export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = ({
@@ -172,18 +180,24 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   onImportAttendance,
   onImportAchievements,
   autoSyncStatus,
-  onTriggerAutoSync
+  onTriggerAutoSync,
+  initialSubTab = 'sheets',
+  onRefreshAllData
 }) => {
   const isAdmin = session?.role === 'admin';
+  const [activeSubTab, setActiveSubTab] = useState<'sheets' | 'backup'>(initialSubTab);
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
+
   // Load persisted config from props or storage
   const initialConfig = sheetsConfig || StorageService.getSheetsConfig();
 
   const [sheetUrl, setSheetUrl] = useState<string>(() => {
-    const isOldSample = initialConfig.webAppUrl?.includes('AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ');
-    if (!initialConfig.webAppUrl || isOldSample) {
-      return DEFAULT_SHEETS_WEB_APP_URL;
-    }
-    return initialConfig.webAppUrl;
+    return initialConfig.webAppUrl || DEFAULT_SHEETS_WEB_APP_URL;
   });
 
   // Keep URL lock state (defaults to false so Admin can freely edit)
@@ -225,6 +239,18 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
   const currentUrl = sheetUrl.trim();
   const isUrlMismatched = Boolean(savedDbUrl && currentUrl && currentUrl !== savedDbUrl);
   const currentValidation = validateGoogleAppsScriptUrl(currentUrl);
+
+  // Alternatif 1: Collapsible Advanced Settings (Default disembunyikan agar tampilan bersih dan bebas risiko salah pencet)
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState<boolean>(() => {
+    return Boolean(savedDbUrl && currentUrl && currentUrl !== savedDbUrl);
+  });
+
+  // Jika terdeteksi ketidakcocokan URL secara aktif, buka pengaturan lanjutan agar admin tahu
+  useEffect(() => {
+    if (isUrlMismatched) {
+      setShowAdvancedSettings(true);
+    }
+  }, [isUrlMismatched]);
 
   // Auto-Sync on Load toggle state
   const [autoSyncOnLoad, setAutoSyncOnLoad] = useState<boolean>(() => {
@@ -380,6 +406,35 @@ export const GoogleSheetsIntegration: React.FC<GoogleSheetsIntegrationProps> = (
     navigator.clipboard.writeText(sheetUrl);
     setCopiedUrl(true);
     setTimeout(() => setCopiedUrl(false), 2500);
+  };
+
+  // Quick Sync Share Link for other devices without manual typing
+  const [copiedShareUrl, setCopiedShareUrl] = useState(false);
+
+  const handleShareQuickSyncLink = () => {
+    const activeUrl = (isLocked ? sheetUrl : (savedDbUrl || sheetUrl)) || '';
+    if (!activeUrl || !activeUrl.trim().startsWith('https://script.google.com/')) {
+      alert('Silakan simpan URL Web App Google Apps Script yang valid terlebih dahulu.');
+      return;
+    }
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    const shareUrl = `${origin}${pathname}?sheetUrl=${encodeURIComponent(activeUrl.trim())}`;
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setCopiedShareUrl(true);
+        setSaveSuccessMsg('Tautan Sinkronisasi Cepat Disalin! Buka tautan ini di HP atau Laptop lain untuk terhubung otomatis tanpa mengetik ulang.');
+        setTimeout(() => {
+          setCopiedShareUrl(false);
+          setSaveSuccessMsg(null);
+        }, 5000);
+      }).catch(() => {
+        prompt('Salin tautan sinkronisasi multi-perangkat berikut:', shareUrl);
+      });
+    } else {
+      prompt('Salin tautan sinkronisasi multi-perangkat berikut:', shareUrl);
+    }
   };
 
   // Reset to official default URL and unlock so user can edit/replace directly
@@ -543,6 +598,8 @@ function doGet(e) {
       if (key.indexOf("tahun") !== -1 || key.indexOf("ajaran") !== -1) info.tahunAjaran = val;
       if (key.indexOf("semester") !== -1) info.semesterAktif = val;
       if (key.indexOf("visi") !== -1) info.visi = val;
+      if (key.indexOf("logo") !== -1) info.logoUrl = val;
+      if (key.indexOf("kop") !== -1) info.kopSuratUrl = val;
       if (key.indexOf("misi") !== -1) {
         info.misi = val.split(/\\r?\\n/)
           .map(function(m) { return m.replace(/^[0-9]+[.)-]\\s*/, "").trim(); })
@@ -876,7 +933,9 @@ function doPost(e) {
           ["Website Resmi", s.website || ""],
           ["No Telepon", s.telepon || ""],
           ["Visi Sekolah", visiText],
-          ["Misi Sekolah", misiText]
+          ["Misi Sekolah", misiText],
+          ["URL Logo Resmi", s.logoUrl || ""],
+          ["URL Kop Surat Resmi", s.kopSuratUrl || ""]
         ]
       );
     }
@@ -1364,7 +1423,49 @@ function doPost(e) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* Title Header */}
+      {/* Sub-tab Navigation: Google Sheets Cloud vs Backup/Restore JSON */}
+      <div className="glass backdrop-blur-xl bg-slate-900/60 p-2 rounded-2xl border border-white/10 shadow-lg flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('sheets')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            activeSubTab === 'sheets'
+              ? 'bg-emerald-500 text-slate-950 shadow-md border border-emerald-300'
+              : 'text-slate-300 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Sheet className="w-4 h-4" />
+          <span>1. Sinkronisasi Google Sheets (Cloud)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('backup')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+            activeSubTab === 'backup'
+              ? 'bg-emerald-500 text-slate-950 shadow-md border border-emerald-300'
+              : 'text-slate-300 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Database className="w-4 h-4" />
+          <span>2. Cadangan &amp; Pemulihan JSON (Backup / Restore)</span>
+        </button>
+      </div>
+
+      {activeSubTab === 'backup' ? (
+        <MasterDataBackupView
+          schoolInfo={schoolInfo || StorageService.getSchoolInfo()}
+          students={students}
+          teachers={teachers}
+          schedules={schedules}
+          sarpras={sarpras}
+          sheetsConfig={sheetsConfig || StorageService.getSheetsConfig()}
+          onRefreshAllData={onRefreshAllData || (() => window.location.reload())}
+          onNavigateToSheets={() => setActiveSubTab('sheets')}
+        />
+      ) : (
+        <>
+          {/* Title Header */}
       <div className="glass backdrop-blur-xl bg-slate-900/60 rounded-2xl p-6 border border-white/10 shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30 mb-2">
@@ -1419,20 +1520,6 @@ function doPost(e) {
             <Download className={`w-4 h-4 ${pullStatus === 'pulling' ? 'animate-spin' : ''}`} />
             <span>{pullStatus === 'pulling' ? 'Menarik Data...' : 'Tarik Dari Sheets (Pull)'}</span>
           </button>
-
-          {/* TOMBOL KEMBALIKAN KE URL BAWAAN RESMI */}
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={handleResetToDefaultUrl}
-              title="Kembalikan URL Web App ke URL resmi bawaan Google Sheets"
-              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-400/40 hover:border-amber-300 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-              <span>Kembalikan ke URL Bawaan</span>
-            </button>
-          )}
-
         </div>
       </div>
 
@@ -1575,14 +1662,114 @@ function doPost(e) {
         </div>
       </div>
 
-      {/* Sheet Webhook URL Settings */}
-      <div className={`glass backdrop-blur-xl rounded-2xl p-6 border shadow-xl space-y-4 transition-all ${
-        isUrlMismatched
-          ? 'bg-slate-900/90 border-amber-400/60 ring-2 ring-amber-400/30'
-          : isLocked 
-            ? 'bg-slate-900/70 border-emerald-500/40 ring-1 ring-emerald-500/20' 
-            : 'bg-slate-900/90 border-amber-400/50 ring-1 ring-amber-400/30'
-      }`}>
+      {/* KARTU STATUS KONEKSI RESMI (TAMPILAN BERSIH & RAMAH PENGGUNA) */}
+      <div className="glass backdrop-blur-xl bg-slate-900/80 rounded-2xl p-6 border border-emerald-500/30 shadow-xl space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 bg-emerald-500/20 text-emerald-400 rounded-2xl border border-emerald-500/30 shrink-0">
+              <ShieldCheck className="w-6 h-6 text-emerald-400" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-bold font-serif text-white">
+                  Koneksi Google Sheets Resmi Sekolah
+                </h3>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Terhubung &amp; Otomatis
+                </span>
+                <span className="text-[11px] font-semibold text-emerald-400/90 bg-slate-950/70 border border-emerald-500/20 px-2 py-0.5 rounded">
+                  Bawaan Sistem Permanen
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed max-w-2xl">
+                Tautan Google Apps Script SMP Islam Al-Qomar telah terkonfigurasi permanen di sistem. Seluruh data master siswa, guru, jadwal, nilai, dan presensi otomatis tersinkronisasi 2-arah.
+              </p>
+              
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="flex items-center gap-1.5 text-xs font-mono text-emerald-300 bg-slate-950/80 px-3 py-1 rounded-lg border border-emerald-500/30">
+                  <span className="text-slate-400">Endpoint:</span>
+                  <span className="font-bold">
+                    {sheetUrl ? `${sheetUrl.slice(0, 36)}...${sheetUrl.slice(-12)}` : 'Google Apps Script Official'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyUrl}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-2.5 py-1 rounded-lg border border-white/10 transition-colors cursor-pointer"
+                  title="Salin URL lengkap ke clipboard"
+                >
+                  {copiedUrl ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                  <span>{copiedUrl ? 'Tersalin' : 'Salin'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-start lg:self-center">
+            <button
+              type="button"
+              onClick={handleShareQuickSyncLink}
+              className="flex items-center gap-1.5 bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl border border-indigo-400/40 shadow transition-all cursor-pointer"
+              title="Salin tautan cepat untuk dikirim ke HP / Laptop guru lain via WhatsApp agar langsung aktif otomatis"
+            >
+              {copiedShareUrl ? <Check className="w-4 h-4 text-emerald-300" /> : <Share2 className="w-4 h-4 text-indigo-200" />}
+              <span>{copiedShareUrl ? 'Tautan HP Tersalin!' : 'Bagi Link ke HP/PC'}</span>
+            </button>
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer ${
+                  showAdvancedSettings
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-white/10'
+                }`}
+                title="Buka atau tutup pengaturan teknis jika perlu mengganti spreadsheet di masa depan"
+              >
+                <Settings2 className="w-4 h-4 text-slate-400" />
+                <span>{showAdvancedSettings ? 'Tutup Pengaturan Teknis' : '⚙️ Pengaturan Lanjutan'}</span>
+                {showAdvancedSettings ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* FEEDBACK ALERT IF JUST SAVED */}
+        {saveSuccessMsg && (
+          <div className="p-3 bg-emerald-950/80 border border-emerald-400/50 rounded-xl flex items-center gap-2 text-emerald-200 text-xs font-semibold animate-in fade-in slide-in-from-top-1">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{saveSuccessMsg}</span>
+          </div>
+        )}
+      </div>
+
+      {/* DETAIL PENGATURAN TEKNIS LANJUTAN (HANYA DITAMPILKAN KETIKA DIKLIK ADMIN) */}
+      {isAdmin && showAdvancedSettings && (
+        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="bg-amber-950/40 border border-amber-500/30 rounded-xl p-3.5 flex items-center justify-between text-xs text-amber-200">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+              <span><strong>Mode Pengaturan Teknis Lanjutan:</strong> Anda dapat mengedit, mengganti, atau mereset URL Web App jika sekolah mengganti dokumen spreadsheet.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAdvancedSettings(false)}
+              className="text-slate-400 hover:text-white underline cursor-pointer text-[11px] shrink-0 ml-2"
+            >
+              Tutup / Lipat Kembali
+            </button>
+          </div>
+
+          {/* Sheet Webhook URL Settings */}
+          <div className={`glass backdrop-blur-xl rounded-2xl p-6 border shadow-xl space-y-4 transition-all ${
+            isUrlMismatched
+              ? 'bg-slate-900/90 border-amber-400/60 ring-2 ring-amber-400/30'
+              : isLocked 
+                ? 'bg-slate-900/70 border-emerald-500/40 ring-1 ring-emerald-500/20' 
+                : 'bg-slate-900/90 border-amber-400/50 ring-1 ring-amber-400/30'
+          }`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
           <div className="flex items-center gap-2.5">
             <div className={`p-2 rounded-xl ${
@@ -1694,16 +1881,6 @@ function doPost(e) {
                     <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
                     <span>Batalkan &amp; Pulihkan URL Tersimpan</span>
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={handleResetToDefaultUrl}
-                    className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 font-bold text-xs px-3.5 py-2 rounded-xl border border-amber-400/40 transition-colors cursor-pointer"
-                    title="Kembalikan langsung ke URL bawaan resmi dan buka mode edit"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Kembalikan ke URL Bawaan</span>
-                  </button>
                 </div>
               </div>
             </div>
@@ -1770,17 +1947,15 @@ function doPost(e) {
                     <span>{copiedUrl ? 'Tersalin!' : 'Salin URL'}</span>
                   </button>
 
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={handleResetToDefaultUrl}
-                      className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 font-bold text-xs px-3.5 py-3 rounded-xl border border-amber-400/30 transition-all cursor-pointer"
-                      title="Kembalikan ke URL resmi bawaan dan buka mode edit"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Kembalikan ke URL Bawaan</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleShareQuickSyncLink}
+                    className="flex items-center gap-1.5 bg-indigo-600/80 hover:bg-indigo-500 text-white font-bold text-xs px-3.5 py-3 rounded-xl border border-indigo-400/40 shadow transition-all cursor-pointer"
+                    title="Salin tautan cepat untuk dikirim ke HP / Laptop lain agar langsung otomatis terhubung tanpa salin-tempel"
+                  >
+                    {copiedShareUrl ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Share2 className="w-3.5 h-3.5 text-indigo-200" />}
+                    <span>{copiedShareUrl ? 'Tersalin!' : 'Bagi ke HP/PC'}</span>
+                  </button>
                 </>
               ) : (
                 <>
@@ -1802,16 +1977,6 @@ function doPost(e) {
                   >
                     <ClipboardPaste className="w-3.5 h-3.5" />
                     <span>Tempel (Paste)</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleResetToDefaultUrl}
-                    className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 hover:text-amber-200 font-bold text-xs px-3.5 py-3 rounded-xl border border-amber-400/30 transition-all cursor-pointer"
-                    title="Muat URL resmi bawaan aplikasi"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
-                    <span>URL Bawaan</span>
                   </button>
 
                   <button
@@ -1889,18 +2054,55 @@ function doPost(e) {
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>URL tersimpan secara persisten di database konfigurasi browser dan diproteksi dari penimpaan tidak sengaja.</span>
             </span>
-            {isLocked && (
-              <button
-                type="button"
-                onClick={handleResetToDefaultUrl}
-                className="text-slate-400 hover:text-rose-300 underline cursor-pointer text-[11px]"
-              >
-                Kembalikan ke URL Bawaan
-              </button>
-            )}
+          </div>
+
+          {/* Multi-Device Sync & Explanation Card */}
+          <div className="pt-3 border-t border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-950/70 p-3.5 rounded-xl border border-white/5">
+            <div className="flex items-start gap-2.5">
+              <Smartphone className="w-4 h-4 text-cyan-400 mt-0.5 shrink-0" />
+              <div className="space-y-0.5">
+                <p className="text-xs font-bold text-slate-200">
+                  Ingin Link Ini Sama di HP Guru &amp; Komputer Lain Tanpa Tempel Ulang?
+                </p>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Browser di setiap perangkat memiliki memori lokal (<span className="text-cyan-300 font-mono">localStorage</span>) sendiri. Klik tombol di kanan untuk menyalin <strong>Tautan Sinkronisasi Cepat</strong>. Kirim ke WA guru atau buka di browser HP/PC lain, maka URL Apps Script ini akan langsung aktif otomatis tanpa perlu mengetik/menempelkan link!
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleShareQuickSyncLink}
+              className="flex items-center justify-center gap-1.5 bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-200 hover:text-white font-bold text-xs px-3.5 py-2.5 rounded-xl border border-cyan-500/40 transition-all cursor-pointer shrink-0 shadow"
+              title="Salin tautan pintar untuk membuka aplikasi langsung terhubung di perangkat lain"
+            >
+              {copiedShareUrl ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Share2 className="w-3.5 h-3.5 text-cyan-300" />}
+              <span>{copiedShareUrl ? 'Tautan Cepat Tersalin!' : 'Salin Tautan Sinkronisasi HP/PC'}</span>
+            </button>
           </div>
         </div>
       </div>
+        </div>
+      )}
+
+      {/* TOMBOL BUKA PENGATURAN LANJUTAN JIKA SEDANG DILIPAT */}
+      {isAdmin && !showAdvancedSettings && (
+        <div className="p-4 bg-slate-900/40 hover:bg-slate-900/60 border border-white/10 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-slate-400 transition-all">
+          <div className="flex items-center gap-2.5">
+            <Settings2 className="w-4 h-4 text-slate-500 shrink-0" />
+            <p className="text-xs">
+              Pengaturan URL teknis otomatis disembunyikan agar antarmuka bersih &amp; aman. Butuh mengganti URL Spreadsheet baru?
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAdvancedSettings(true)}
+            className="text-xs font-bold text-amber-300 hover:text-amber-200 underline cursor-pointer shrink-0 self-start sm:self-auto flex items-center gap-1"
+          >
+            <span>Buka Pengaturan Teknis Lanjutan</span>
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* Synchronized Tabs Status Grid */}
       <div className="space-y-3">
@@ -2395,6 +2597,9 @@ function doPost(e) {
 
           </div>
         </div>
+      )}
+
+        </>
       )}
 
     </div>

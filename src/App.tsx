@@ -21,7 +21,7 @@ import { StorageService } from './services/storage';
 import { initialSchoolInfo } from './data/initialData';
 import { fetchFromGoogleSheets, validateSheetsUrl } from './services/sheetsSyncService';
 import { DEFAULT_SHEETS_WEB_APP_URL } from './data/constants';
-import { RefreshCw, Zap, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Zap, CheckCircle2, ShieldCheck } from 'lucide-react';
 
 // Core Layout
 import { Header } from './components/Header';
@@ -33,6 +33,7 @@ import { PublicStatistik } from './components/public/PublicStatistik';
 import { PublicJadwal } from './components/public/PublicJadwal';
 import { PublicAgenda } from './components/public/PublicAgenda';
 import { PublicKalender } from './components/public/PublicKalender';
+import { PublicKalenderAgenda } from './components/public/PublicKalenderAgenda';
 import { PublicPortalRapor } from './components/public/PublicPortalRapor';
 import { PublicPrestasi } from './components/public/PublicPrestasi';
 import { PublicPpdb } from './components/public/PublicPpdb';
@@ -50,7 +51,6 @@ import { AbsensiSiswaView } from './components/modules/AbsensiSiswaView';
 import { InputNilaiView } from './components/modules/InputNilaiView';
 import { LaporanRaporView } from './components/modules/LaporanRaporView';
 import { GoogleSheetsIntegration } from './components/modules/GoogleSheetsIntegration';
-import { MasterDataBackupView } from './components/modules/MasterDataBackupView';
 import { WAGatewayModal } from './components/modules/WAGatewayModal';
 import { PWAOfflineBanner } from './components/PWAOfflineBanner';
 
@@ -420,6 +420,37 @@ export function App() {
     details?: string;
   } | null>(null);
 
+  // Deteksi tautan konfigurasi otomatis dari URL query (?sheetUrl=... atau ?scriptUrl=...)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const sharedUrl = params.get('sheetUrl') || params.get('scriptUrl');
+      if (sharedUrl && sharedUrl.startsWith('https://script.google.com/') && sharedUrl.includes('/exec')) {
+        const cleanUrl = sharedUrl.trim();
+        const currentCfg = StorageService.getSheetsConfig();
+        const updatedCfg: GoogleSheetsConfig = {
+          ...currentCfg,
+          webAppUrl: cleanUrl,
+          isLocked: true
+        };
+        StorageService.saveSheetsConfig(updatedCfg);
+        setSheetsConfig(updatedCfg);
+        setAutoSyncToast({
+          show: true,
+          message: 'URL Google Apps Script Berhasil Diterapkan!',
+          details: 'Perangkat ini kini otomatis terhubung ke database Google Sheets sekolah tanpa mengetik ulang.'
+        });
+        setTimeout(() => setAutoSyncToast(null), 6000);
+
+        // Hapus query params dari address bar tanpa reload browser
+        const cleanPath = window.location.pathname + (window.location.hash || '');
+        window.history.replaceState({}, document.title, cleanPath);
+      }
+    } catch (err) {
+      console.warn('Gagal memproses parameter sinkronisasi URL:', err);
+    }
+  }, []);
+
   // Core auto-pull application helper
   const applyPulledSheetsData = (data: any, isSimulated = false) => {
     const updatedItems: string[] = [];
@@ -497,15 +528,16 @@ export function App() {
       message: updatedItems.length > 0 ? `Sinkron otomatis: ${updatedItems.join(', ')}` : 'Data Sheets termutakhir'
     });
 
-    if (updatedItems.length > 0 || isSimulated) {
+    // Sinkronisasi otomatis berjalan hening di latar; toast hanya untuk simulasi uji manual admin
+    if (isSimulated) {
       setAutoSyncToast({
         show: true,
-        message: isSimulated ? 'Simulasi Auto-Sync Berhasil Diterapkan' : 'Data Otomatis Diperbarui dari Google Sheets',
+        message: 'Simulasi Auto-Sync Berhasil Diterapkan',
         details: updatedItems.length > 0 ? updatedItems.join(' • ') : 'Data terbaru telah aktif di HP Anda'
       });
       setTimeout(() => {
         setAutoSyncToast(null);
-      }, 5000);
+      }, 4000);
     }
   };
 
@@ -527,14 +559,14 @@ export function App() {
       applyPulledSheetsData(res.data);
     } else {
       setAutoSyncStatus({
-        status: 'idle',
+        status: 'offline',
         lastSyncTime: sheetsConfig.lastPulledAt,
-        message: 'Menggunakan data lokal tersimpan'
+        message: res.error || 'Gagal sinkron dengan Google Sheets. Periksa koneksi internet.'
       });
     }
   };
 
-  // Run Auto-Sync on initial app mount (background silent fetch)
+  // Run Auto-Sync on app mount, tab focus, and periodic silent background checks
   useEffect(() => {
     if (sheetsConfig.autoSyncOnLoad === false) return;
 
@@ -543,34 +575,89 @@ export function App() {
     if (!validation.isValid) return;
 
     let isMounted = true;
-    setAutoSyncStatus(prev => ({ ...prev, status: 'checking' }));
+    let lastFetchTimestamp = 0;
 
-    fetchFromGoogleSheets(targetUrl, 7000)
-      .then(res => {
-        if (!isMounted) return;
-        if (res.success && res.data) {
-          applyPulledSheetsData(res.data);
-        } else {
+    const performSilentFetch = () => {
+      if (!isMounted) return;
+      if (!navigator.onLine) {
+        setAutoSyncStatus(prev => ({
+          ...prev,
+          status: 'offline',
+          message: 'Perangkat offline (tidak ada sinyal internet)'
+        }));
+        return;
+      }
+
+      const now = Date.now();
+      // Throttle: hindari pemanggilan beruntun jika jarak kurang dari 30 detik
+      if (now - lastFetchTimestamp < 30000) return;
+      lastFetchTimestamp = now;
+
+      setAutoSyncStatus(prev => ({ ...prev, status: 'checking' }));
+
+      fetchFromGoogleSheets(targetUrl, 7000)
+        .then(res => {
+          if (!isMounted) return;
+          if (res.success && res.data) {
+            applyPulledSheetsData(res.data);
+          } else {
+            setAutoSyncStatus({
+              status: 'offline',
+              lastSyncTime: sheetsConfig.lastPulledAt,
+              message: res.error || 'Google Sheets tidak merespons (periksa koneksi)'
+            });
+          }
+        })
+        .catch(() => {
+          if (!isMounted) return;
           setAutoSyncStatus({
-            status: 'idle',
+            status: 'offline',
             lastSyncTime: sheetsConfig.lastPulledAt,
-            message: 'Menggunakan data lokal tersimpan'
+            message: 'Koneksi terputus / gagal menjangkau Google Sheets'
           });
-        }
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setAutoSyncStatus({
-          status: 'idle',
-          lastSyncTime: sheetsConfig.lastPulledAt,
-          message: 'Menggunakan data lokal tersimpan'
         });
-      });
+    };
+
+    // 1. Jalankan hening saat aplikasi pertama kali dibuka (on load)
+    performSilentFetch();
+
+    // 2. Jalankan otomatis saat pengguna kembali membuka tab ini (tab focus / visibilitychange)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        performSilentFetch();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 3. Deteksi status jaringan internet perangkat (Offline / Online)
+    const handleNetworkOffline = () => {
+      setAutoSyncStatus(prev => ({
+        ...prev,
+        status: 'offline',
+        message: 'Perangkat offline (tidak ada koneksi internet)'
+      }));
+    };
+    const handleNetworkOnline = () => {
+      performSilentFetch();
+    };
+    window.addEventListener('offline', handleNetworkOffline);
+    window.addEventListener('online', handleNetworkOnline);
+
+    // 4. Polling hening berkala setiap 3 menit untuk mendeteksi perubahan dari Google Sheets
+    const intervalTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        performSilentFetch();
+      }
+    }, 180000); // 3 menit
 
     return () => {
       isMounted = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('offline', handleNetworkOffline);
+      window.removeEventListener('online', handleNetworkOnline);
+      clearInterval(intervalTimer);
     };
-  }, []);
+  }, [sheetsConfig.webAppUrl, sheetsConfig.autoSyncOnLoad]);
 
   // Login / Logout Handlers
   const handleLogin = (user: UserSession) => {
@@ -629,6 +716,7 @@ export function App() {
         sheetsConfig={sheetsConfig}
         hasSheetsMismatch={hasSheetsMismatch}
         autoSyncStatus={autoSyncStatus}
+        onTriggerAutoSync={triggerManualAutoSync}
       />
 
       {/* Main Layout Area */}
@@ -662,10 +750,15 @@ export function App() {
         <main className="flex-1 min-w-0">
           
           {/* PWA & Offline Status Banner */}
-          <PWAOfflineBanner onNavigateToSheets={() => setActiveTab('google-sheets')} />
+          <PWAOfflineBanner
+            onNavigateToSheets={session.role === 'admin' ? () => setActiveTab('google-sheets') : undefined}
+            schoolInfo={schoolInfo}
+            session={session}
+          />
 
-          {/* PUBLIC VIEWS */}
-          {activeTab === 'statistik' && (
+          <div key={activeTab} className="page-transition">
+            {/* PUBLIC VIEWS */}
+            {activeTab === 'statistik' && (
             <PublicStatistik
               schoolInfo={schoolInfo}
               students={students}
@@ -675,9 +768,10 @@ export function App() {
               attendance={attendance}
               grades={grades}
               achievements={achievements}
+              session={session}
               autoSyncStatus={autoSyncStatus}
-              onTriggerAutoSync={triggerManualAutoSync}
-              onNavigateToSheets={() => setActiveTab('google-sheets')}
+              onTriggerAutoSync={session.role === 'admin' ? triggerManualAutoSync : undefined}
+              onNavigateToSheets={session.role === 'admin' ? () => setActiveTab('google-sheets') : undefined}
             />
           )}
 
@@ -698,6 +792,7 @@ export function App() {
               galleryItems={galleryItems}
               session={session}
               onSaveGalleryItems={handleSaveGalleryItems}
+              schoolInfo={schoolInfo}
             />
           )}
 
@@ -710,8 +805,9 @@ export function App() {
               session={session}
               onSaveAchievements={handleSaveAchievements}
               autoSyncStatus={autoSyncStatus}
-              onTriggerAutoSync={triggerManualAutoSync}
-              onNavigateToSheets={() => setActiveTab('google-sheets')}
+              onTriggerAutoSync={session.role === 'admin' ? triggerManualAutoSync : undefined}
+              onNavigateToSheets={session.role === 'admin' ? () => setActiveTab('google-sheets') : undefined}
+              schoolInfo={schoolInfo}
             />
           )}
 
@@ -724,16 +820,12 @@ export function App() {
             />
           )}
 
-          {(activeTab === 'agenda' || activeTab === 'agenda-publik') && (
-            <PublicAgenda
-              agendas={agendas}
-            />
-          )}
-
-          {(activeTab === 'kalender' || activeTab === 'kalender-publik') && (
-            <PublicKalender
+          {(activeTab === 'agenda' || activeTab === 'agenda-publik' || activeTab === 'kalender' || activeTab === 'kalender-publik' || activeTab === 'agenda-kalender') && (
+            <PublicKalenderAgenda
               events={events}
+              agendas={agendas}
               schoolInfo={schoolInfo}
+              defaultView={activeTab === 'agenda' || activeTab === 'agenda-publik' ? 'agenda' : 'kalender'}
             />
           )}
 
@@ -744,6 +836,7 @@ export function App() {
               grades={grades}
               schoolInfo={schoolInfo}
               teachers={teachers}
+              session={session}
               onSelectStudentForRapor={handleSelectStudentForRapor}
             />
           )}
@@ -859,52 +952,61 @@ export function App() {
               teachers={teachers}
               initialSelectedStudent={selectedRaporStudent}
               onBack={() => setActiveTab('statistik')}
+              onSaveStudents={handleSaveStudents}
             />
           )}
 
-          {(activeTab === 'google-sheets' || activeTab === 'sheets') && (
-            <GoogleSheetsIntegration
-              session={session}
-              students={students}
-              teachers={teachers}
-              sarpras={sarpras}
-              attendance={attendance}
-              grades={grades}
-              achievements={achievements}
-              schoolInfo={schoolInfo}
-              schedules={schedules}
-              events={events}
-              ppdbRegistrations={ppdbRegistrations}
-              sheetsConfig={sheetsConfig}
-              onSaveSheetsConfig={handleSaveSheetsConfig}
-              onUrlDraftChange={setHasSheetsMismatch}
-              onImportStudents={handleSaveStudents}
-              onImportTeachers={handleSaveTeachers}
-              onImportSarpras={handleSaveSarpras}
-              onImportSchedules={handleSaveSchedules}
-              onImportEvents={handleSaveEvents}
-              onImportPpdb={handleSavePpdbRegistrations}
-              onImportSchoolInfo={handleSaveSchoolInfo}
-              onImportGrades={handleSaveGrades}
-              onImportAttendance={handleSaveAttendance}
-              onImportAchievements={handleSaveAchievements}
-              autoSyncStatus={autoSyncStatus}
-              onTriggerAutoSync={triggerManualAutoSync}
-            />
+          {(activeTab === 'google-sheets' || activeTab === 'sheets' || activeTab === 'master-backup' || activeTab === 'backup') && (
+            session.role === 'admin' ? (
+              <GoogleSheetsIntegration
+                session={session}
+                students={students}
+                teachers={teachers}
+                sarpras={sarpras}
+                attendance={attendance}
+                grades={grades}
+                achievements={achievements}
+                schoolInfo={schoolInfo}
+                schedules={schedules}
+                events={events}
+                ppdbRegistrations={ppdbRegistrations}
+                sheetsConfig={sheetsConfig}
+                onSaveSheetsConfig={handleSaveSheetsConfig}
+                onUrlDraftChange={setHasSheetsMismatch}
+                onImportStudents={handleSaveStudents}
+                onImportTeachers={handleSaveTeachers}
+                onImportSarpras={handleSaveSarpras}
+                onImportSchedules={handleSaveSchedules}
+                onImportEvents={handleSaveEvents}
+                onImportPpdb={handleSavePpdbRegistrations}
+                onImportSchoolInfo={handleSaveSchoolInfo}
+                onImportGrades={handleSaveGrades}
+                onImportAttendance={handleSaveAttendance}
+                onImportAchievements={handleSaveAchievements}
+                autoSyncStatus={autoSyncStatus}
+                onTriggerAutoSync={triggerManualAutoSync}
+                initialSubTab={activeTab === 'master-backup' || activeTab === 'backup' ? 'backup' : 'sheets'}
+                onRefreshAllData={handleRefreshAllData}
+              />
+            ) : (
+              <div className="glass backdrop-blur-xl bg-slate-900/80 border border-white/10 rounded-2xl p-8 max-w-md mx-auto text-center space-y-4 shadow-2xl">
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center justify-center mx-auto">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-white font-serif">Akses Khusus Administrator</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Halaman Integrasi Google Sheets &amp; Database Cadangan dikhususkan untuk Administrator SIM DAPODIK. Silakan masuk dengan akun Admin untuk mengelola data sinkronisasi.
+                </p>
+                <button
+                  onClick={() => setActiveTab('statistik')}
+                  className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md transition-all cursor-pointer"
+                >
+                  Kembali ke Beranda
+                </button>
+              </div>
+            )
           )}
-
-          {(activeTab === 'master-backup' || activeTab === 'backup') && (
-            <MasterDataBackupView
-              schoolInfo={schoolInfo}
-              students={students}
-              teachers={teachers}
-              schedules={schedules}
-              sarpras={sarpras}
-              sheetsConfig={sheetsConfig}
-              onRefreshAllData={handleRefreshAllData}
-              onNavigateToSheets={() => setActiveTab('google-sheets')}
-            />
-          )}
+          </div>
 
         </main>
 
@@ -956,11 +1058,11 @@ export function App() {
 
       {/* Footer */}
       <footer className="no-print mt-auto border-t border-white/10 glass backdrop-blur-xl bg-slate-900/60 py-4 text-center text-xs text-slate-400">
-        <p className="font-serif font-bold text-emerald-400">
-          DAPODIK SMP ISLAM AL QOMAR BANYUWANGI
+        <p className="font-serif font-bold text-emerald-400 uppercase">
+          {schoolInfo.nama || 'SMP PLUS DAARUL MUTTAQIEN'}
         </p>
         <p className="text-[11px] mt-0.5 text-slate-300">
-          Sistem Informasi Data Pokok Pendidikan & Asesmen Raport Kurikulum Merdeka Terintegrasi Google Sheets
+          Sistem Informasi Data Pokok Pendidikan &amp; Asesmen Rapor Kurikulum Merdeka Terintegrasi Google Sheets
         </p>
       </footer>
 

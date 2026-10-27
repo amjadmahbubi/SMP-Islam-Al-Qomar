@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GalleryItem, UserSession } from '../../types';
+import { GalleryItem, UserSession, SchoolInfo } from '../../types';
 import {
   Image as ImageIcon,
   Plus,
@@ -19,12 +19,14 @@ interface PublicGaleriProps {
   galleryItems: GalleryItem[];
   session: UserSession;
   onSaveGalleryItems: (items: GalleryItem[]) => void;
+  schoolInfo?: SchoolInfo;
 }
 
 export const PublicGaleri: React.FC<PublicGaleriProps> = ({
   galleryItems = [],
   session,
-  onSaveGalleryItems
+  onSaveGalleryItems,
+  schoolInfo
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -171,7 +173,7 @@ export const PublicGaleri: React.FC<PublicGaleriProps> = ({
             <span>Dokumentasi & Galeri Kegiatan Santri</span>
           </div>
           <h2 className="text-xl font-bold font-serif text-white">
-            Galeri Foto & Aktivitas SMP Islam Al Qomar
+            Galeri Foto &amp; Aktivitas {schoolInfo?.nama || 'SMP PLUS DAARUL MUTTAQIEN'}
           </h2>
           <p className="text-xs text-slate-300 mt-1">
             Kumpulan momen pembiasaan Al-Qur'an, praktikum sains, kegiatan ekskul, serta sarana prasarana sekolah

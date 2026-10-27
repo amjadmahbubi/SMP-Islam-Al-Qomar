@@ -44,10 +44,12 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
   schoolInfo,
   session
 }) => {
+  const [subTab, setSubTab] = useState<'aktif' | 'alumni'>('aktif');
   const [classesVersion, setClassesVersion] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [classFilter, setClassFilter] = useState('Semua');
-  const [statusFilter, setStatusFilter] = useState('Semua');
+  const [activeClassFilter, setActiveClassFilter] = useState('Semua');
+  const [activeStatusFilter, setActiveStatusFilter] = useState('Semua');
+  const [alumniYearFilter, setAlumniYearFilter] = useState('Semua');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
   const [isGraduationModalOpen, setIsGraduationModalOpen] = useState(false);
@@ -55,15 +57,29 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
   const [selectedStudentForSkl, setSelectedStudentForSkl] = useState<Student | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
 
-  const finalYearActiveCount = React.useMemo(() => {
-    return (students || []).filter(
-      s => (s.kelas === '9' || s.kelas.startsWith('9') || s.kelas.toUpperCase().includes('IX')) && s.status === 'Aktif'
-    ).length;
+  // Separate Active and Alumni datasets
+  const activeStudents = React.useMemo(() => {
+    return (students || []).filter(s => s.status !== 'Lulus');
   }, [students]);
 
-  const alumniCount = React.useMemo(() => {
-    return (students || []).filter(s => s.status === 'Lulus').length;
+  const alumniStudents = React.useMemo(() => {
+    return (students || []).filter(s => s.status === 'Lulus');
   }, [students]);
+
+  const finalYearActiveCount = React.useMemo(() => {
+    return activeStudents.filter(
+      s => (s.kelas === '9' || s.kelas.startsWith('9') || s.kelas.toUpperCase().includes('IX')) && s.status === 'Aktif'
+    ).length;
+  }, [activeStudents]);
+
+  // Extract distinct graduation years for alumni filter dropdown
+  const alumniYears = React.useMemo(() => {
+    const set = new Set<string>();
+    alumniStudents.forEach(s => {
+      if (s.tahunLulus) set.add(s.tahunLulus);
+    });
+    return Array.from(set).sort().reverse();
+  }, [alumniStudents]);
 
   const [isCustomClass, setIsCustomClass] = useState(false);
   const [customClassInput, setCustomClassInput] = useState('');
@@ -78,17 +94,14 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
   // Helper to ensure date has no day of week and no time (e.g. outputs "12 April 2011" or "2011-04-12")
   const sanitizeDateOnly = (val?: string): string => {
     if (!val) return '2011-01-01';
-    // Remove any ISO timestamp or space timestamp
     const clean = val.split('T')[0].split(' ')[0].trim();
     return clean || '2011-01-01';
   };
 
   const formatBirthDateClean = (dateStr?: string): string => {
     if (!dateStr) return '-';
-    // Strip any day names (e.g. "Senin, ", "Selasa, ") and times (e.g. " 00:00:00")
     const cleanDate = dateStr.split('T')[0].split(' ')[0].replace(/^(Senin|Selasa|Rabu|Kamis|Jum'?at|Sabtu|Minggu|Ahad)[,\s]+/gi, '').trim();
     
-    // Parse YYYY-MM-DD
     const parts = cleanDate.split('-');
     if (parts.length === 3 && parts[0].length === 4) {
       const year = parseInt(parts[0], 10);
@@ -124,18 +137,42 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
     status: 'Aktif'
   });
 
-  const filteredStudents = students.filter((s) => {
-    const matchSearch =
-      s.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.nisn.includes(searchTerm) ||
-      s.nis.includes(searchTerm) ||
-      s.namaOrangTua.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.namaAyah && s.namaAyah.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (s.namaIbu && s.namaIbu.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchClass = classFilter === 'Semua' || s.kelas === classFilter;
-    const matchStatus = statusFilter === 'Semua' || s.status === statusFilter;
-    return matchSearch && matchClass && matchStatus;
-  });
+  // Filter Active Students
+  const filteredActiveStudents = React.useMemo(() => {
+    return activeStudents.filter((s) => {
+      const term = searchTerm.toLowerCase();
+      const matchSearch =
+        !term ||
+        s.nama.toLowerCase().includes(term) ||
+        s.nisn.includes(term) ||
+        s.nis.includes(term) ||
+        (s.namaOrangTua && s.namaOrangTua.toLowerCase().includes(term)) ||
+        (s.namaAyah && s.namaAyah.toLowerCase().includes(term)) ||
+        (s.namaIbu && s.namaIbu.toLowerCase().includes(term)) ||
+        (s.alamat && s.alamat.toLowerCase().includes(term));
+      const matchClass = activeClassFilter === 'Semua' || s.kelas === activeClassFilter;
+      const matchStatus = activeStatusFilter === 'Semua' || s.status === activeStatusFilter;
+      return matchSearch && matchClass && matchStatus;
+    });
+  }, [activeStudents, searchTerm, activeClassFilter, activeStatusFilter]);
+
+  // Filter Alumni Students
+  const filteredAlumniStudents = React.useMemo(() => {
+    return alumniStudents.filter((s) => {
+      const term = searchTerm.toLowerCase();
+      const matchSearch =
+        !term ||
+        s.nama.toLowerCase().includes(term) ||
+        s.nisn.includes(term) ||
+        s.nis.includes(term) ||
+        (s.nomorIjazah && s.nomorIjazah.toLowerCase().includes(term)) ||
+        (s.nomorSkl && s.nomorSkl.toLowerCase().includes(term)) ||
+        (s.sekolahLanjutan && s.sekolahLanjutan.toLowerCase().includes(term)) ||
+        (s.namaOrangTua && s.namaOrangTua.toLowerCase().includes(term));
+      const matchYear = alumniYearFilter === 'Semua' || s.tahunLulus === alumniYearFilter;
+      return matchSearch && matchYear;
+    });
+  }, [alumniStudents, searchTerm, alumniYearFilter]);
 
   const handleOpenAdd = () => {
     setEditingStudent(null);
@@ -299,8 +336,8 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
     }
   };
 
-  const handleExportCSV = () => {
-    const csvData = (students || []).map(s => ({
+  const handleExportActiveCSV = () => {
+    const csvData = activeStudents.map(s => ({
       ID: s.id,
       NISN: s.nisn,
       NIS: s.nis,
@@ -316,272 +353,568 @@ export const DataSiswaView: React.FC<DataSiswaViewProps> = ({
       Orang_Tua_Wali: s.namaOrangTua,
       No_HP_Orang_Tua: s.noHpOrangTua,
       Alamat: s.alamat,
-      Status: s.status,
+      Status: s.status
+    }));
+    exportToCSV('Data_Santri_Aktif_SMP_Islam_Al_Qomar.csv', csvData);
+  };
+
+  const handleExportAlumniCSV = () => {
+    const csvData = alumniStudents.map(s => ({
+      ID: s.id,
+      NISN: s.nisn,
+      NIS: s.nis,
+      Nama: s.nama,
+      Gender: s.gender === 'L' ? 'Laki-Laki' : 'Perempuan',
       Tahun_Lulus: s.tahunLulus || '-',
       Tanggal_Lulus: s.tanggalLulus || '-',
       Nomor_Ijazah: s.nomorIjazah || '-',
-      Sekolah_Lanjutan: s.sekolahLanjutan || '-'
+      Nomor_SKL: s.nomorSkl || '-',
+      Sekolah_Lanjutan: s.sekolahLanjutan || '-',
+      Keterangan_Lulus: s.keteranganLulus || 'Lulus',
+      Kelas_Terakhir: s.kelas,
+      Tempat_Lahir: s.tempatLahir,
+      Tanggal_Lahir: s.tanggalLahir,
+      Orang_Tua_Wali: s.namaOrangTua,
+      No_HP_Orang_Tua: s.noHpOrangTua,
+      Alamat: s.alamat
     }));
-    exportToCSV('Data_Siswa_SMP_Islam_Al_Qomar.csv', csvData);
+    exportToCSV('Buku_Induk_Alumni_SMP_Islam_Al_Qomar.csv', csvData);
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
       {/* Title Header */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 mb-2">
             <Users className="w-3.5 h-3.5 text-emerald-700" />
-            <span>Master Data Peserta Didik</span>
+            <span>Master Data Peserta Didik &amp; Buku Induk</span>
           </div>
           <h2 className="text-xl font-bold font-serif text-slate-900">
-            Kelola Data Siswa & Santri SMP Islam Al Qomar
+            Data Santri &amp; Alumni SMP Islam Al Qomar
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Induk data NISN, NIS, rombel kelas, orang tua/wali, serta status keaktifan santri
+            Pemisahan rapi antara data santri aktif (Kelas 7, 8, 9) dan buku induk kelulusan alumni
           </p>
         </div>
 
+        {/* Global Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setIsGraduationModalOpen(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-emerald-500/40 transition-all shadow-sm"
-            title="Buka proses kelulusan santri kelas akhir (Kelas 9), terbitkan SKL, & kelola buku induk alumni"
-          >
-            <GraduationCap className="w-4 h-4 text-emerald-300" />
-            <span>Kelulusan Siswa</span>
-            {finalYearActiveCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-400 text-emerald-950 font-black text-[10px]">
-                {finalYearActiveCount} Kelas 9
+          {subTab === 'aktif' ? (
+            <>
+              <button
+                onClick={() => setIsGraduationModalOpen(true)}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-emerald-500/40 transition-all shadow-sm"
+                title="Buka proses kelulusan santri kelas akhir (Kelas 9), terbitkan SKL, & kelola buku induk alumni"
+              >
+                <GraduationCap className="w-4 h-4 text-emerald-300" />
+                <span>Kelulusan Siswa</span>
+                {finalYearActiveCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-emerald-400 text-emerald-950 font-black text-[10px]">
+                    {finalYearActiveCount} Kelas 9
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setIsClassModalOpen(true)}
+                className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-emerald-500/30 transition-colors shadow-sm"
+                title="Kelola, tambah, ganti nama, atau hapus kelas"
+              >
+                <Layers className="w-4 h-4 text-emerald-400" />
+                <span>Kelola Rombel / Kelas</span>
+              </button>
+
+              <button
+                onClick={handleExportActiveCSV}
+                className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 transition-colors"
+                title="Unduh seluruh data santri aktif dalam format CSV"
+              >
+                <Download className="w-4 h-4 text-emerald-700" />
+                <span>Ekspor CSV Santri Aktif</span>
+              </button>
+
+              <button
+                onClick={handleOpenAdd}
+                className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tambah Siswa Baru</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setIsGraduationModalOpen(true)}
+                className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-emerald-500/30 transition-colors shadow-sm"
+                title="Buka proses kelulusan baru untuk meluluskan santri kelas 9"
+              >
+                <GraduationCap className="w-4 h-4 text-emerald-400" />
+                <span>Proses Kelulusan Baru</span>
+              </button>
+
+              <button
+                onClick={handleExportAlumniCSV}
+                className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 transition-colors"
+                title="Unduh buku induk alumni dalam format CSV"
+              >
+                <Download className="w-4 h-4 text-amber-700" />
+                <span>Ekspor CSV Buku Alumni</span>
+              </button>
+
+              <button
+                onClick={handleOpenAddAlumni}
+                className="flex items-center gap-1.5 bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl border border-amber-500/40 transition-colors shadow-sm"
+                title="Tambah data santri yang sudah lulus (alumni) secara langsung / manual"
+              >
+                <Plus className="w-4 h-4 text-amber-200" />
+                <span>+ Tambah Alumni Manual</span>
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Sub-Tabs Switcher */}
+      <div className="bg-slate-200/80 p-1.5 rounded-2xl flex flex-col sm:flex-row gap-1.5 shadow-inner">
+        <button
+          type="button"
+          onClick={() => {
+            setSubTab('aktif');
+            setSearchTerm('');
+          }}
+          className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 ${
+            subTab === 'aktif'
+              ? 'bg-emerald-800 text-white shadow-md'
+              : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <Users className={`w-4 h-4 ${subTab === 'aktif' ? 'text-emerald-200' : 'text-slate-500'}`} />
+          <span>Santri Aktif (Kelas 7, 8, 9)</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
+            subTab === 'aktif' ? 'bg-emerald-700 text-emerald-100' : 'bg-slate-300/80 text-slate-800'
+          }`}>
+            {activeStudents.length} Santri
+          </span>
+          {finalYearActiveCount > 0 && (
+            <span className={`hidden md:inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold ${
+              subTab === 'aktif' ? 'bg-amber-400 text-amber-950' : 'bg-amber-100 text-amber-800'
+            }`}>
+              {finalYearActiveCount} Kelas 9 Siap Lulus
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSubTab('alumni');
+            setSearchTerm('');
+          }}
+          className={`flex-1 flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 ${
+            subTab === 'alumni'
+              ? 'bg-gradient-to-r from-amber-700 to-amber-800 text-white shadow-md'
+              : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+          }`}
+        >
+          <GraduationCap className={`w-4 h-4 ${subTab === 'alumni' ? 'text-amber-200' : 'text-slate-500'}`} />
+          <span>Buku Induk Alumni (Lulusan)</span>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-black ${
+            subTab === 'alumni' ? 'bg-amber-600 text-amber-100' : 'bg-slate-300/80 text-slate-800'
+          }`}>
+            {alumniStudents.length} Alumni
+          </span>
+        </button>
+      </div>
+
+      {/* TAB 1: SANTRI AKTIF */}
+      {subTab === 'aktif' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          {/* Filter & Search Bar for Active Students */}
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <div className="relative w-full md:w-80">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari NISN, nama santri aktif, wali, alamat..."
+                className="w-full px-3 py-2 pl-9 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-500"
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-700 font-bold">Rombel / Kelas:</span>
+                <select
+                  value={activeClassFilter}
+                  onChange={(e) => setActiveClassFilter(e.target.value)}
+                  className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="Semua" className="bg-white text-slate-900">Semua Kelas ({activeStudents.length})</option>
+                  {classes.map(c => {
+                    const countInClass = activeStudents.filter(s => s.kelas === c).length;
+                    return (
+                      <option key={c} value={c} className="bg-white text-slate-900">
+                        {formatClassLabel(c)} ({countInClass} Santri) {c === '9' || c.startsWith('9') ? '⭐ Tingkat Akhir' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-700 font-bold">Status:</span>
+                <select
+                  value={activeStatusFilter}
+                  onChange={(e) => setActiveStatusFilter(e.target.value)}
+                  className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="Semua" className="bg-white text-slate-900">Semua Status</option>
+                  <option value="Aktif" className="bg-white text-slate-900">Aktif ({activeStudents.filter(s => s.status === 'Aktif').length})</option>
+                  <option value="Pindah" className="bg-white text-slate-900">Pindah / Mutasi ({activeStudents.filter(s => s.status === 'Pindah').length})</option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Active Students Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
+                    <th className="p-3.5">Nama &amp; NISN</th>
+                    <th className="p-3.5">Rombel / Kelas</th>
+                    <th className="p-3.5">L/P</th>
+                    <th className="p-3.5">Tempat &amp; Tgl Lahir</th>
+                    <th className="p-3.5">Orang Tua / Wali</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-center">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredActiveStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-500">
+                        <Users className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                        <div className="font-bold text-sm text-slate-700">Tidak ada data santri aktif yang sesuai</div>
+                        <p className="text-xs text-slate-400 mt-1">Coba sesuaikan kata kunci pencarian atau filter rombel kelas.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredActiveStudents.map((student) => {
+                      const isGrade9 = student.kelas === '9' || student.kelas.startsWith('9') || student.kelas.toUpperCase().includes('IX');
+                      return (
+                        <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="p-3.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 font-serif text-sm">{student.nama}</span>
+                              {isGrade9 && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300" title="Santri Tingkat Akhir (Kelas 9) Siap Lulus">
+                                  Tingkat Akhir
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] font-mono text-slate-500 mt-0.5">
+                              NISN: {student.nisn} | NIS: {student.nis}
+                            </div>
+                          </td>
+                          <td className="p-3.5">
+                            <span className="bg-emerald-100 text-emerald-900 font-extrabold text-xs px-2.5 py-1 rounded-lg border border-emerald-200">
+                              Kelas {student.kelas}
+                            </span>
+                          </td>
+                          <td className="p-3.5 font-bold text-slate-700">
+                            {student.gender === 'L' ? (
+                              <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-bold">L</span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 font-bold">P</span>
+                            )}
+                          </td>
+                          <td className="p-3.5 text-slate-700">
+                            <div className="font-semibold text-slate-900">{student.tempatLahir}</div>
+                            <div className="text-[11px] text-slate-500 font-medium">
+                              {formatBirthDateClean(student.tanggalLahir)}
+                            </div>
+                          </td>
+                          <td className="p-3.5 text-slate-700">
+                            <div className="font-semibold">{student.namaOrangTua}</div>
+                            <div className="text-[11px] text-slate-500 font-mono">{student.noHpOrangTua}</div>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {student.statusAyah === 'Meninggal' && student.statusIbu === 'Meninggal' ? (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                  ✨ Yatim Piatu
+                                </span>
+                              ) : (
+                                <>
+                                  {student.statusAyah === 'Meninggal' && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                                      🕊️ Alm. Ayah
+                                    </span>
+                                  )}
+                                  {student.statusIbu === 'Meninggal' && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                                      🕊️ Almh. Ibu
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3.5">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                              student.status === 'Aktif'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                : 'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}>
+                              {student.status}
+                            </span>
+                          </td>
+                          <td className="p-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => handleOpenEdit(student)}
+                                className="p-1.5 text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-colors"
+                                title="Edit Data Siswa"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(student.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                title="Hapus Siswa"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: BUKU INDUK ALUMNI (LULUSAN) */}
+      {subTab === 'alumni' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          
+          {/* Alumni Information Card */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-amber-600 text-white rounded-xl shadow-xs mt-0.5">
+                <BookOpen className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold font-serif text-sm sm:text-base text-amber-950">
+                  Buku Induk Alumni &amp; Dokumen Kelulusan
+                </h3>
+                <p className="text-xs text-amber-900/80 mt-0.5 max-w-2xl">
+                  Mendata alumni kelulusan santri SMP Islam Al Qomar. Anda dapat mencetak Surat Keterangan Lulus (SKL) resmi, mengarsipkan nomor ijazah, memantau sekolah lanjutan/pondok, atau membatalkan kelulusan santri jika terjadi kekeliruan.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="px-3 py-1.5 rounded-xl bg-amber-100/80 border border-amber-300 text-amber-950 font-black text-xs">
+                Total Alumni: {alumniStudents.length} Santri
               </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setIsClassModalOpen(true)}
-            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-emerald-300 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-emerald-500/30 transition-colors shadow-sm"
-            title="Kelola, tambah, ganti nama, atau hapus kelas"
-          >
-            <Layers className="w-4 h-4 text-emerald-400" />
-            <span>Kelola Rombel / Kelas</span>
-          </button>
-
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-300 transition-colors"
-          >
-            <Download className="w-4 h-4 text-emerald-700" />
-            <span>Ekspor CSV</span>
-          </button>
-
-          <button
-            onClick={handleOpenAddAlumni}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-amber-700 to-amber-800 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl border border-amber-500/40 transition-colors shadow-sm"
-            title="Tambah data santri yang sudah lulus (alumni) secara langsung / manual"
-          >
-            <GraduationCap className="w-4 h-4 text-amber-200" />
-            <span>+ Tambah Alumni Manual</span>
-          </button>
-
-          <button
-            onClick={handleOpenAdd}
-            className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Siswa</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-        
-        <div className="relative w-full md:w-80">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Cari NISN, nama siswa, wali, no ijazah..."
-            className="w-full px-3 py-2 pl-9 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-500"
-          />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-700 font-bold">Kelas:</span>
-            <select
-              value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
-              className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="Semua" className="bg-white text-slate-900">Semua Kelas</option>
-              {classes.map(c => (
-                <option key={c} value={c} className="bg-white text-slate-900">
-                  {formatClassLabel(c)} {c === '9' || c.startsWith('9') ? '⭐ (Tingkat Akhir)' : ''}
-                </option>
-              ))}
-            </select>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-700 font-bold">Status:</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="Semua" className="bg-white text-slate-900">Semua Status ({students.length})</option>
-              <option value="Aktif" className="bg-white text-slate-900">Aktif ({students.filter(s => s.status === 'Aktif').length})</option>
-              <option value="Lulus" className="bg-white text-slate-900">🎓 Lulus / Alumni ({alumniCount})</option>
-              <option value="Pindah" className="bg-white text-slate-900">Pindah ({students.filter(s => s.status === 'Pindah').length})</option>
-            </select>
+          {/* Filter & Search Bar for Alumni */}
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <div className="relative w-full md:w-96">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari nama alumni, NISN, no ijazah, no SKL, sekolah lanjutan..."
+                className="w-full px-3 py-2 pl-9 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 placeholder:text-slate-500"
+              />
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-700 font-bold">Tahun Lulus / Angkatan:</span>
+                <select
+                  value={alumniYearFilter}
+                  onChange={(e) => setAlumniYearFilter(e.target.value)}
+                  className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="Semua" className="bg-white text-slate-900">Semua Angkatan ({alumniStudents.length})</option>
+                  {alumniYears.map(yr => {
+                    const countInYear = alumniStudents.filter(s => s.tahunLulus === yr).length;
+                    return (
+                      <option key={yr} value={yr} className="bg-white text-slate-900">
+                        Tahun {yr} ({countInYear} Alumni)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Alumni Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-amber-50/60 border-b border-amber-200 text-amber-900 font-bold uppercase tracking-wider">
+                    <th className="p-3.5">Nama Alumni &amp; NISN</th>
+                    <th className="p-3.5">Tahun Kelulusan</th>
+                    <th className="p-3.5">Dokumen (Ijazah / SKL)</th>
+                    <th className="p-3.5">Sekolah Lanjutan / Ponpes</th>
+                    <th className="p-3.5">Orang Tua / Wali</th>
+                    <th className="p-3.5 text-center">Aksi Alumni</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredAlumniStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-500">
+                        <GraduationCap className="w-10 h-10 text-amber-300 mx-auto mb-2" />
+                        <div className="font-bold text-sm text-slate-700">Belum ada data alumni yang cocok</div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Anda dapat meluluskan santri kelas 9 melalui tombol "Proses Kelulusan Baru" atau "+ Tambah Alumni Manual".
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAlumniStudents.map((alumnus) => (
+                      <tr key={alumnus.id} className="hover:bg-amber-50/30 transition-colors">
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 font-serif text-sm">{alumnus.nama}</span>
+                            <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                              alumnus.gender === 'L' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                            }`}>
+                              {alumnus.gender === 'L' ? 'L' : 'P'}
+                            </span>
+                          </div>
+                          <div className="text-[11px] font-mono text-slate-500 mt-0.5">
+                            NISN: {alumnus.nisn} | NIS: {alumnus.nis}
+                          </div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            TTL: {alumnus.tempatLahir}, {formatBirthDateClean(alumnus.tanggalLahir)}
+                          </div>
+                        </td>
+
+                        <td className="p-3.5">
+                          <div className="flex flex-col gap-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs w-max">
+                              <GraduationCap className="w-3.5 h-3.5 text-amber-700" />
+                              <span>TA {alumnus.tahunLulus || 'Lulus'}</span>
+                            </span>
+                            {alumnus.tanggalLulus && (
+                              <span className="text-[10px] text-slate-500 font-medium">
+                                Tanggal: {alumnus.tanggalLulus}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400">
+                              Rombel Akhir: Kelas {alumnus.kelas}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 text-slate-700">
+                          <div className="space-y-1">
+                            <div>
+                              <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">No. Seri Ijazah:</span>
+                              <span className="font-mono text-xs font-bold text-emerald-900 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-block">
+                                {alumnus.nomorIjazah || '-'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">No. Surat SKL:</span>
+                              <span className="font-mono text-[11px] text-slate-700 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 inline-block">
+                                {alumnus.nomorSkl || '-'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 text-slate-700 max-w-[200px]">
+                          {alumnus.sekolahLanjutan ? (
+                            <div className="font-semibold text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                              🏫 {alumnus.sekolahLanjutan}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px]">- Belum dicatat -</span>
+                          )}
+                          {alumnus.keteranganLulus && (
+                            <p className="text-[10px] text-slate-500 mt-1 line-clamp-2" title={alumnus.keteranganLulus}>
+                              {alumnus.keteranganLulus}
+                            </p>
+                          )}
+                        </td>
+
+                        <td className="p-3.5 text-slate-700">
+                          <div className="font-semibold">{alumnus.namaOrangTua}</div>
+                          <div className="text-[11px] text-slate-500 font-mono">{alumnus.noHpOrangTua}</div>
+                          {alumnus.alamat && (
+                            <div className="text-[10px] text-slate-400 truncate max-w-[150px]" title={alumnus.alamat}>
+                              📍 {alumnus.alamat}
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="p-3.5 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => {
+                                setSelectedStudentForSkl(alumnus);
+                                setIsSklModalOpen(true);
+                              }}
+                              className="p-1.5 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 rounded-lg transition-colors border border-emerald-300"
+                              title="Cetak Surat Keterangan Lulus (SKL) Resmi"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleOpenEdit(alumnus)}
+                              className="p-1.5 text-slate-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors border border-slate-200"
+                              title="Edit Data Alumni / Ijazah"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleRevertStudent(alumnus)}
+                              className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-100 rounded-lg transition-colors border border-amber-300"
+                              title="Batalkan Kelulusan (Kembalikan ke Santri Aktif)"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(alumnus.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Hapus Data Alumni"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-
-      </div>
-
-      {/* Student Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
-                <th className="p-3.5">Nama & NISN</th>
-                <th className="p-3.5">Rombel / Kelas</th>
-                <th className="p-3.5">L/P</th>
-                <th className="p-3.5">Tempat & Tgl Lahir</th>
-                <th className="p-3.5">Orang Tua / Wali</th>
-                <th className="p-3.5">Status</th>
-                <th className="p-3.5 text-center">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredStudents.map((student) => (
-                <tr key={student.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="p-3.5">
-                    <div className="font-bold text-slate-900 font-serif text-sm">{student.nama}</div>
-                    <div className="text-[11px] font-mono text-slate-500">
-                      NISN: {student.nisn} | NIS: {student.nis}
-                    </div>
-                  </td>
-                  <td className="p-3.5">
-                    <span className="bg-emerald-100 text-emerald-900 font-extrabold text-xs px-2.5 py-1 rounded-lg border border-emerald-200">
-                      Kelas {student.kelas}
-                    </span>
-                  </td>
-                  <td className="p-3.5 font-bold text-slate-700">
-                    {student.gender}
-                  </td>
-                  <td className="p-3.5 text-slate-700">
-                    <div className="font-semibold text-slate-900">{student.tempatLahir}</div>
-                    <div className="text-[11px] text-slate-500 font-medium">
-                      {formatBirthDateClean(student.tanggalLahir)}
-                    </div>
-                  </td>
-                  <td className="p-3.5 text-slate-700">
-                    <div className="font-semibold">{student.namaOrangTua}</div>
-                    <div className="text-[11px] text-slate-500 font-mono">{student.noHpOrangTua}</div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {student.statusAyah === 'Meninggal' && student.statusIbu === 'Meninggal' ? (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                          ✨ Yatim Piatu
-                        </span>
-                      ) : (
-                        <>
-                          {student.statusAyah === 'Meninggal' && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
-                              🕊️ Alm. Ayah
-                            </span>
-                          )}
-                          {student.statusIbu === 'Meninggal' && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
-                              🕊️ Almh. Ibu
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-3.5">
-                    {student.status === 'Lulus' ? (
-                      <div className="flex flex-col items-start gap-1">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
-                          <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Lulus (Alumni)</span>
-                        </span>
-                        {student.tahunLulus && (
-                          <span className="text-[10px] text-slate-500 font-mono">
-                            TA {student.tahunLulus}
-                          </span>
-                        )}
-                        {student.nomorIjazah && (
-                          <span className="text-[10px] text-emerald-800 font-mono font-semibold">
-                            Ijazah: {student.nomorIjazah}
-                          </span>
-                        )}
-                        {student.sekolahLanjutan && (
-                          <span className="text-[10px] text-slate-600 truncate max-w-[130px]" title={student.sekolahLanjutan}>
-                            ➡️ {student.sekolahLanjutan}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                        student.status === 'Aktif'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                          : 'bg-slate-100 text-slate-600 border-slate-200'
-                      }`}>
-                        {student.status}
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-3.5 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      {student.status === 'Lulus' && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setSelectedStudentForSkl(student);
-                              setIsSklModalOpen(true);
-                            }}
-                            className="p-1.5 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded-lg transition-colors"
-                            title="Cetak Surat Keterangan Lulus (SKL) Resmi"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleRevertStudent(student)}
-                            className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Batalkan Kelulusan (Kembalikan Santri ke Aktif)"
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={() => handleOpenEdit(student)}
-                        className="p-1.5 text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-colors"
-                        title="Edit Data Siswa"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(student.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        title="Hapus Siswa"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
 
       {/* Modal Add / Edit */}
       {isModalOpen && (

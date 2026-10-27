@@ -24,7 +24,8 @@ import {
   Database,
   LogIn,
   LogOut,
-  Lock
+  Lock,
+  Globe
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -46,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenLoginModal,
   onLogout
 }) => {
+  const [showPublicPortal, setShowPublicPortal] = React.useState(false);
   const isGuru = session.role === 'guru' || session.role === 'admin';
   const isAdmin = session.role === 'admin';
 
@@ -94,10 +96,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'galeri', label: 'Galeri Sekolah', icon: ImageIcon },
     { id: 'prestasi', label: 'Prestasi Murid', icon: Trophy },
     { id: 'jadwal', label: 'Jadwal Pelajaran', icon: Clock },
-    { id: 'agenda', label: 'Agenda Kegiatan', icon: Calendar },
-    { id: 'kalender', label: 'Kalender Akademik', icon: CalendarDays },
-    { id: 'portal-rapor', label: 'Cek Nilai & Rapor', icon: Search },
-    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet }
+    { id: 'kalender', label: 'Kalender & Agenda', icon: CalendarDays },
+    { id: 'portal-rapor', label: 'Cek Nilai & Rapor', icon: Search }
   ];
 
   const guruNav = [
@@ -105,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'absensi-siswa', label: 'Absensi Siswa (WA)', icon: CheckSquare },
     { id: 'input-nilai', label: 'Input Nilai Asesmen', icon: BookOpen },
     { id: 'laporan-rapor', label: 'Laporan Rapor Digital', icon: Award },
-    { id: 'google-sheets', label: 'Tarik Data Google Sheets', icon: FileSpreadsheet }
+    { id: 'prestasi', label: 'Catatan Prestasi Siswa', icon: Trophy }
   ];
 
   const adminNav = [
@@ -115,10 +115,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'data-sarpras', label: 'Data Sarpras Sekolah', icon: Package },
     { id: 'ppdb', label: 'Kelola PPDB / Pendaftaran Baru', icon: UserPlus },
     { id: 'galeri', label: 'Kelola Galeri Foto Sekolah', icon: ImageIcon },
+    { id: 'prestasi', label: 'Kelola Prestasi Siswa', icon: Trophy },
     { id: 'kelola-jadwal', label: 'Kelola Jadwal Kelas', icon: Clock },
     { id: 'kelola-kalender', label: 'Kelola Kalender & Agenda', icon: CalendarDays },
-    { id: 'google-sheets', label: 'Integrasi Google Sheets', icon: FileSpreadsheet },
-    { id: 'master-backup', label: 'Cadangan & Pemulihan Sistem', icon: Database },
+    { id: 'google-sheets', label: 'Integrasi Database & Sheets', icon: Database },
     { id: 'wa-gateway', label: 'WhatsApp Gateway & Log', icon: MessageSquare }
   ];
 
@@ -174,22 +174,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* SECTION 1: PUBLIC VIEWS */}
-      <div>
-        <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 px-3">
-          Tampilan Publik & Portal
-        </div>
-        <nav className="space-y-1">
-          {publicNav
-            .filter((item) => {
-              if (session.role === 'admin' || session.role === 'guru') {
-                return item.id === 'prestasi';
-              }
-              return true;
-            })
-            .map((item) => {
+      {/* SECTION 1: PUBLIC VIEWS (Clean Portal for Public, Optional Preview for PTK) */}
+      {session.role === 'public' ? (
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 px-3">
+            Tampilan Publik & Portal
+          </div>
+          <nav className="space-y-1">
+            {publicNav.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id;
+              const isActive =
+                activeTab === item.id ||
+                (item.id === 'kalender' && (activeTab === 'agenda' || activeTab === 'agenda-kalender' || activeTab === 'kalender-publik'));
               return (
                 <button
                   key={item.id}
@@ -205,20 +201,60 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               );
             })}
-            {session.role === 'public' && (
-              <button
-                onClick={() => {
-                  if (onCloseMobile) onCloseMobile();
-                  if (onOpenLoginModal) onOpenLoginModal();
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/40 shadow-sm transition-all cursor-pointer mt-1"
-              >
-                <LogIn className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span className="truncate">Login Guru & Admin</span>
-              </button>
-            )}
+            <button
+              onClick={() => {
+                if (onCloseMobile) onCloseMobile();
+                if (onOpenLoginModal) onOpenLoginModal();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/40 shadow-sm transition-all cursor-pointer mt-1"
+            >
+              <LogIn className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span className="truncate">Login Guru & Admin</span>
+            </button>
           </nav>
         </div>
+      ) : (
+        /* Collapsible Public Portal Preview for PTK/Admin to test public views without cluttering active workspace */
+        <div className="border-b border-white/10 pb-2">
+          <button
+            onClick={() => setShowPublicPortal(!showPublicPortal)}
+            className="w-full flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-emerald-300 px-3 py-1.5 rounded-xl hover:bg-white/5 transition-all"
+            title="Klik untuk membuka/menutup tautan pratinjau portal publik"
+          >
+            <span className="flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-slate-400" />
+              <span>Pratinjau Portal Publik</span>
+            </span>
+            <span className="text-[10px] text-slate-400 font-normal">
+              {showPublicPortal ? 'Tutup ▲' : 'Buka (7 Menu) ▼'}
+            </span>
+          </button>
+          {showPublicPortal && (
+            <nav className="space-y-1 mt-2 pl-2 border-l border-emerald-500/30 ml-2 animate-in fade-in duration-200">
+              {publicNav.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  activeTab === item.id ||
+                  (item.id === 'kalender' && (activeTab === 'agenda' || activeTab === 'agenda-kalender' || activeTab === 'kalender-publik'));
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelectTab(item.id)}
+                    className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      isActive
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-semibold'
+                        : 'text-slate-400 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-400'}`} />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          )}
+        </div>
+      )}
 
       {/* SECTION 2: GURU / AKADEMIK (Available to Guru & Admin) */}
       {isGuru && (
@@ -377,7 +413,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <nav className="space-y-1">
             {adminNav.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id || (activeTab === 'sheets' && item.id === 'google-sheets');
+              const isActive =
+                activeTab === item.id ||
+                ((activeTab === 'sheets' || activeTab === 'master-backup' || activeTab === 'backup') && item.id === 'google-sheets');
               return (
                 <button
                   key={item.id}

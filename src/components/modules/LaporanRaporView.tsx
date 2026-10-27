@@ -1,6 +1,29 @@
-import React, { useState } from 'react';
-import { Student, SubjectGradeRecord, AttendanceRecord, SchoolInfo, Teacher } from '../../types';
-import { Printer, ArrowLeft, FileText, Users, User, Download, Sparkles, CheckCircle2, Bookmark } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Student, SubjectGradeRecord, AttendanceRecord, SchoolInfo, Teacher, StudentDiniyahReport } from '../../types';
+import {
+  Printer,
+  ArrowLeft,
+  FileText,
+  Users,
+  User,
+  Download,
+  Sparkles,
+  CheckCircle2,
+  Bookmark,
+  Edit3,
+  PlusCircle,
+  Trophy,
+  BookOpen,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  ShieldCheck,
+  AlertCircle
+} from 'lucide-react';
+import { EditDiniyahEkskulModal, BatchApplyScope } from './EditDiniyahEkskulModal';
+import { StorageService } from '../../services/storage';
+import { DEFAULT_MAPEL_LIST, getMapelSortIndex } from '../../data/constants';
 
 interface LaporanRaporViewProps {
   students: Student[];
@@ -10,6 +33,7 @@ interface LaporanRaporViewProps {
   teachers: Teacher[];
   initialSelectedStudent?: Student | null;
   onBack?: () => void;
+  onSaveStudents?: (updated: Student[]) => void;
 }
 
 export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
@@ -19,7 +43,8 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
   schoolInfo,
   teachers,
   initialSelectedStudent,
-  onBack
+  onBack,
+  onSaveStudents
 }) => {
   // Extract unique classes
   const availableClasses = Array.from(new Set(students.map(s => s.kelas))).sort();
@@ -34,8 +59,150 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
     initialSelectedStudent ? initialSelectedStudent.id : (students.find(s => s.kelas === selectedKelas)?.id || students[0]?.id || '')
   );
 
+  // Modal State for editing Diniyah & Extracurricular achievements
+  const [isEditDiniyahOpen, setIsEditDiniyahOpen] = useState<boolean>(false);
+  const [editTargetStudentId, setEditTargetStudentId] = useState<string>('');
+  const [showGradeChecklist, setShowGradeChecklist] = useState<boolean>(false);
+
+  const handleOpenEditDiniyah = (studentId: string) => {
+    setEditTargetStudentId(studentId);
+    setIsEditDiniyahOpen(true);
+  };
+
+  const handleSaveStudentDiniyah = (
+    targetStudentId: string,
+    diniyahReport: StudentDiniyahReport,
+    applyToAllInClass: boolean = false,
+    batchScope?: BatchApplyScope
+  ) => {
+    let updated: Student[];
+    if (applyToAllInClass) {
+      const targetStudent = students.find(s => s.id === targetStudentId);
+      const targetClass = targetStudent ? targetStudent.kelas : selectedKelas;
+      const scope = batchScope || {
+        applyKokurikuler: true,
+        applyEkskul: true,
+        applyDiniyah: false,
+        applyCatatan: false
+      };
+
+      updated = students.map(s => {
+        if (s.id === targetStudentId) {
+          return {
+            ...s,
+            diniyahReport: { ...diniyahReport }
+          };
+        }
+        if (s.kelas === targetClass) {
+          const prevRep = s.diniyahReport;
+          return {
+            ...s,
+            diniyahReport: {
+              // Menjaga hafalan Al-Qur'an dan karakter riil masing-masing santri agar tidak tertimpa
+              tahfidz: (scope.applyDiniyah ? diniyahReport.tahfidz : prevRep?.tahfidz) || "Hafal Juz 30 (Lancar & Mutqin)",
+              adab: (scope.applyDiniyah ? diniyahReport.adab : prevRep?.adab) || "Istiqomah, Santun & Disiplin",
+              shalat: (scope.applyDiniyah ? diniyahReport.shalat : prevRep?.shalat) || "Rutin Shalat Dhuha & Dzuhur Berjamaah",
+              // Salin tema Projek P5 Kokurikuler & Ekstrakurikuler Wajib/Pilihan serentak sekelas
+              kokurikuler: scope.applyKokurikuler ? diniyahReport.kokurikuler : (prevRep?.kokurikuler || diniyahReport.kokurikuler),
+              ekskul: scope.applyEkskul ? [...diniyahReport.ekskul] : (prevRep?.ekskul || [...diniyahReport.ekskul]),
+              catatanWaliKelas: scope.applyCatatan ? diniyahReport.catatanWaliKelas : prevRep?.catatanWaliKelas,
+              tanggapanOrtu: prevRep?.tanggapanOrtu
+            }
+          };
+        }
+        return s;
+      });
+    } else {
+      updated = students.map(s => {
+        if (s.id === targetStudentId) {
+          return {
+            ...s,
+            diniyahReport: { ...diniyahReport }
+          };
+        }
+        return s;
+      });
+    }
+
+    if (onSaveStudents) {
+      onSaveStudents(updated);
+    } else {
+      StorageService.setStudents(updated);
+    }
+  };
+
   // Filter students by selected class
   const classStudents = students.filter(s => s.kelas === selectedKelas);
+
+  // Pre-flight check: Status kelengkapan nilai mapel per rombel kelas
+  const classGradeStatus = useMemo(() => {
+    if (classStudents.length === 0) return { completeList: [], missingList: [], percentage: 0, isAllComplete: true, totalMapels: 0 };
+
+    const totalStudents = classStudents.length;
+    const completeList: { mapel: string; guru: string; filledCount: number; totalCount: number }[] = [];
+    const missingList: { mapel: string; guru: string; filledCount: number; totalCount: number; status: 'kosong' | 'sebagian' }[] = [];
+
+    DEFAULT_MAPEL_LIST.forEach(mapelName => {
+      // Cari guru pengampu mapel ini
+      const teacher = teachers.find(t => 
+        t.mapelUtama === mapelName || t.mapelTambahan?.includes(mapelName)
+      );
+      const teacherName = teacher ? teacher.nama : 'Guru Pengampu';
+
+      // Cari rekor nilai untuk kelas & mapel ini
+      const gradeRecord = grades.find(g => g.kelas === selectedKelas && g.mapel === mapelName);
+
+      if (!gradeRecord || !gradeRecord.studentGrades || gradeRecord.studentGrades.length === 0) {
+        missingList.push({
+          mapel: mapelName,
+          guru: teacherName,
+          filledCount: 0,
+          totalCount: totalStudents,
+          status: 'kosong'
+        });
+      } else {
+        // Hitung berapa siswa di kelas ini yang sudah memiliki nilai akhir > 0
+        let filledCount = 0;
+        classStudents.forEach(st => {
+          const entry = gradeRecord.studentGrades.find(e => e.studentId === st.id);
+          if (entry) {
+            const avgF = Math.round((entry.nilaiFormatif1 + entry.nilaiFormatif2) / 2);
+            const akhir = Math.round((avgF * 0.4) + (entry.nilaiPTS * 0.3) + (entry.nilaiPAS * 0.3));
+            if (akhir > 0) filledCount++;
+          }
+        });
+
+        if (filledCount === totalStudents) {
+          completeList.push({
+            mapel: mapelName,
+            guru: gradeRecord.teacherName || teacherName,
+            filledCount,
+            totalCount: totalStudents
+          });
+        } else {
+          missingList.push({
+            mapel: mapelName,
+            guru: gradeRecord.teacherName || teacherName,
+            filledCount,
+            totalCount: totalStudents,
+            status: filledCount === 0 ? 'kosong' : 'sebagian'
+          });
+        }
+      }
+    });
+
+    const totalMapels = DEFAULT_MAPEL_LIST.length;
+    const percentage = totalMapels > 0 ? Math.round((completeList.length / totalMapels) * 100) : 100;
+    const isAllComplete = missingList.length === 0;
+
+    return {
+      completeList,
+      missingList,
+      percentage,
+      isAllComplete,
+      totalMapels
+    };
+  }, [classStudents, grades, selectedKelas, teachers]);
 
   // Current selected student object
   const currentStudent = students.find(s => s.id === selectedStudentId) || classStudents[0] || students[0];
@@ -108,6 +275,30 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
       }
     });
 
+    // Urutkan nilai mata pelajaran sesuai struktur resmi Kurikulum Merdeka (Fase D SMP):
+    // 1. Pendidikan Agama dan Budi Pekerti
+    // 2. Pendidikan Pancasila
+    // 3. Bahasa Indonesia
+    // 4. Matematika
+    // 5. Ilmu Pengetahuan Alam
+    // 6. Ilmu Pengetahuan Sosial
+    // 7. Bahasa Inggris
+    // 8. Pendidikan Jasmani, Olahraga, dan Kesehatan
+    // 9. Informatika
+    // 10. Seni dan Budaya
+    // 11. Prakarya
+    // 12. Bahasa Jawa (Mulok Daerah)
+    // 13. Bahasa Arab (Mulok Pesantren)
+    // dilanjutkan dengan mapel keagamaan/diniyah lainnya
+    list.sort((a, b) => {
+      const idxA = getMapelSortIndex(a.mapel);
+      const idxB = getMapelSortIndex(b.mapel);
+      if (idxA !== idxB) {
+        return idxA - idxB;
+      }
+      return a.mapel.localeCompare(b.mapel, 'id');
+    });
+
     return list;
   };
 
@@ -121,97 +312,139 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
       <div
         key={st.id}
         id={`rapor-student-${st.id}`}
-        className={`bg-white rounded-2xl p-8 border border-slate-300 shadow-md max-w-4xl mx-auto space-y-6 text-slate-900 font-sans ${
-          isBulkItem ? 'page-break mb-10' : ''
+        className={`bg-white rounded-2xl p-7 border border-slate-300 shadow-md max-w-4xl mx-auto space-y-4 text-slate-900 font-sans print:max-w-none print:w-full print:p-0 print:border-none print:shadow-none print:space-y-3.5 print:rounded-none ${
+          isBulkItem ? 'page-break mb-10 print:mb-0' : ''
         }`}
       >
-        {/* Islamic Kop Header */}
-        <div className="border-b-4 border-double border-emerald-900 pb-4 text-center relative">
-          <div className="flex items-center justify-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-emerald-900 text-amber-300 font-black text-2xl flex items-center justify-center border-2 border-amber-400 overflow-hidden shrink-0">
-              {schoolInfo.logoUrl ? (
-                <img src={schoolInfo.logoUrl} alt={schoolInfo.nama} className="w-full h-full object-cover" />
-              ) : (
-                "☪"
-              )}
+        {/* Official Kop Header */}
+        <div className={`text-center relative ${schoolInfo.kopSuratUrl ? 'pb-1 mb-1 print:pb-0.5 print:mb-1' : 'border-b-4 border-double border-emerald-900 pb-2 mb-2 print:pb-1.5 print:mb-1.5'}`}>
+          {schoolInfo.kopSuratUrl ? (
+            <div className="w-full flex justify-center mb-1">
+              <img 
+                src={schoolInfo.kopSuratUrl} 
+                alt="Kop Surat Resmi SMP Islam Al Qomar" 
+                className="w-full max-h-28 object-contain mx-auto print:max-h-24"
+              />
             </div>
-            <div>
-              <p className="text-xs font-bold text-amber-700 uppercase tracking-widest font-serif">
-                YAYASAN AL QOMAR BANYUWANGI
-              </p>
-              <h1 className="text-2xl font-black text-emerald-950 font-serif tracking-tight">
-                {schoolInfo.nama.toUpperCase()}
-              </h1>
-              <p className="text-xs text-slate-600 font-medium mt-0.5">
-                {schoolInfo.alamat} | Telp: {schoolInfo.telepon}
-              </p>
-              <p className="text-[11px] font-mono text-slate-500">
-                NPSN: {schoolInfo.npsn} | Akreditasi: {schoolInfo.akreditasi} | Email: {schoolInfo.email}
-              </p>
+          ) : (
+            <div className="flex items-center justify-center gap-3 print:gap-2.5">
+              <div className="w-12 h-12 rounded-full bg-white text-emerald-950 font-black text-xl flex items-center justify-center border-2 border-emerald-500 overflow-hidden shrink-0 p-1 print:w-11 print:h-11">
+                {schoolInfo.logoUrl ? (
+                  <img src={schoolInfo.logoUrl} alt={schoolInfo.nama} className="w-full h-full object-contain" />
+                ) : (
+                  "☪"
+                )}
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-amber-700 uppercase tracking-widest font-serif print:text-[10px]">
+                  YAYASAN AL QOMAR BANYUWANGI
+                </p>
+                <h1 className="text-lg font-black text-emerald-950 font-serif tracking-tight print:text-base">
+                  {schoolInfo.nama.toUpperCase()}
+                </h1>
+                <p className="text-[11px] text-slate-600 font-medium print:text-[10.5px]">
+                  {schoolInfo.alamat} | Telp: {schoolInfo.telepon}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Official Document Title Header */}
+        <div className="relative flex items-center justify-between my-1 print:my-1">
+          <div className="w-full text-center">
+            <h2 className="text-sm sm:text-base font-bold font-serif underline tracking-wide uppercase text-slate-900 print:text-sm">
+              LAPORAN HASIL BELAJAR (RAPOR)
+            </h2>
+          </div>
+
+          <div className="no-print absolute right-0 top-0 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleOpenEditDiniyah(st.id)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 bg-amber-400 hover:bg-amber-300 px-3 py-1.5 rounded-lg shadow-sm border border-amber-300 transition-colors cursor-pointer"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-slate-900" />
+              <span>Edit Capaian Rapor Siswa Ini</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Biodata Murid (2 Columns with aligned colons : matching diagram items ①-⑧) */}
+        <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-xs print:text-[11px] text-slate-900 font-medium py-1.5 border-y border-slate-300 print:border-slate-400 break-inside-avoid">
+          {/* Kolom Kiri: ① Nama Murid, ② NISN, ③ Sekolah, ④ Alamat */}
+          <div className="space-y-0.5">
+            <div className="flex">
+              <span className="w-28 print:w-24 font-bold text-slate-800 shrink-0">Nama Murid</span>
+              <span className="mr-2 font-bold">:</span>
+              <span className="font-bold font-serif text-slate-950 flex-1">{st.nama}</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 print:w-24 font-bold text-slate-800 shrink-0">NISN</span>
+              <span className="mr-2 font-bold">:</span>
+              <span className="font-mono flex-1">{st.nisn}</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 print:w-24 font-bold text-slate-800 shrink-0">Sekolah</span>
+              <span className="mr-2 font-bold">:</span>
+              <span className="flex-1">{schoolInfo.nama}</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 print:w-24 font-bold text-slate-800 shrink-0">Alamat</span>
+              <span className="mr-2 font-bold">:</span>
+              <span className="flex-1 text-[11px] print:text-[10px] leading-tight text-slate-700">{schoolInfo.alamat}</span>
+            </div>
+          </div>
+
+          {/* Kolom Kanan: ⑤ Kelas, ⑥ Fase, ⑦ Semester, ⑧ Tahun Ajaran */}
+          <div className="space-y-0.5">
+            <div className="flex">
+              <span className="w-28 print:w-24 font-bold text-slate-800 shrink-0">Kelas</span>
+              <span className="mr-2 font-bold">:</span>
+              <span className="font-bold flex-1">{st.kelas}</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 print:w-24 font-bold text-slate-800 shrink-0">Fase</span>
+              <span className="mr-2 font-bold">:</span>
+              <span className="font-bold flex-1">Fase D</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 print:w-24 font-bold text-slate-800 shrink-0">Semester</span>
+              <span className="mr-2 font-bold">:</span>
+              <span className="flex-1">{schoolInfo.semesterAktif === 'Ganjil' ? '1 (Ganjil)' : '2 (Genap)'}</span>
+            </div>
+            <div className="flex">
+              <span className="w-28 print:w-24 font-bold text-slate-800 shrink-0">Tahun Ajaran</span>
+              <span className="mr-2 font-bold">:</span>
+              <span className="flex-1">{schoolInfo.tahunAjaran}</span>
             </div>
           </div>
         </div>
 
-        {/* Report Card Title */}
-        <div className="text-center">
-          <h2 className="text-base font-bold font-serif underline tracking-wide uppercase text-slate-900">
-            LAPORAN HASIL BELAJAR PESERTA DIDIK (RAPOR)
-          </h2>
-          <p className="text-xs font-semibold text-slate-600 mt-0.5">
-            Tahun Ajaran {schoolInfo.tahunAjaran} - Semester {schoolInfo.semesterAktif}
-          </p>
-        </div>
-
-        {/* Student Biodata Box */}
-        <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div className="space-y-1">
-            <p><strong>Nama Peserta Didik:</strong> <span className="font-serif font-bold text-slate-900">{st.nama}</span></p>
-            <p><strong>NISN / NIS:</strong> <span className="font-mono">{st.nisn} / {st.nis}</span></p>
-            <p><strong>Kelas / Rombel:</strong> Kelas {st.kelas}</p>
-          </div>
-          <div className="space-y-1 text-right sm:text-left">
-            <p><strong>Nama Sekolah:</strong> {schoolInfo.nama}</p>
-            <p><strong>Wali Kelas:</strong> {wali?.nama || 'Ustadzah Siti Fatimah, S.Pd.'}</p>
-            <p><strong>Orang Tua / Wali:</strong> {st.namaOrangTua}</p>
-          </div>
-        </div>
-
-        {/* Academic Grades Table */}
-        <div className="space-y-2">
-          <h3 className="text-xs font-bold font-serif uppercase tracking-wider text-slate-800 border-b pb-1">
-            A. Capaian Asesmen Akademik &amp; Kurikulum Merdeka
-          </h3>
-
-          <table className="w-full text-left border-collapse border border-slate-300 text-xs">
+        {/* Tabel Intrakurikuler (Nilai Akhir & Capaian Kompetensi items ⑨-⑪) */}
+        <div className="space-y-1">
+          <table className="w-full text-left border-collapse border border-slate-500 text-xs print:text-[11px]">
             <thead>
-              <tr className="bg-emerald-950 text-white font-bold text-center">
-                <th className="border border-slate-400 p-2 w-8">No</th>
-                <th className="border border-slate-400 p-2 text-left">Mata Pelajaran</th>
-                <th className="border border-slate-400 p-2 w-14">Formatif</th>
-                <th className="border border-slate-400 p-2 w-12">PTS</th>
-                <th className="border border-slate-400 p-2 w-12">PAS</th>
-                <th className="border border-slate-400 p-2 w-16">Nilai Akhir</th>
-                <th className="border border-slate-400 p-2 w-12">Predikat</th>
-                <th className="border border-slate-400 p-2 text-left min-w-[180px]">Deskripsi Capaian Kompetensi</th>
+              <tr className="bg-slate-300 text-slate-900 font-bold text-center border-b border-slate-500 print:bg-slate-200">
+                <th className="border border-slate-500 p-2 print:p-1.5 w-10 text-center">No.</th>
+                <th className="border border-slate-500 p-2 print:p-1.5 text-center w-52 print:w-48">Mata Pelajaran</th>
+                <th className="border border-slate-500 p-2 print:p-1.5 w-20 text-center">Nilai Akhir</th>
+                <th className="border border-slate-500 p-2 print:p-1.5 text-center">Capaian Kompetensi</th>
               </tr>
             </thead>
             <tbody>
               {stGrades.length > 0 ? (
                 stGrades.map((g, idx) => (
-                  <tr key={idx} className="border border-slate-300">
-                    <td className="border border-slate-300 p-2 text-center font-bold">{idx + 1}</td>
-                    <td className="border border-slate-300 p-2 font-bold font-serif">{g.mapel}</td>
-                    <td className="border border-slate-300 p-2 text-center font-mono">{g.formatif}</td>
-                    <td className="border border-slate-300 p-2 text-center font-mono">{g.pts}</td>
-                    <td className="border border-slate-300 p-2 text-center font-mono">{g.pas}</td>
-                    <td className="border border-slate-300 p-2 text-center font-black text-emerald-900 bg-emerald-50">{g.akhir}</td>
-                    <td className="border border-slate-300 p-2 text-center font-bold">{g.predikat}</td>
-                    <td className="border border-slate-300 p-2 text-[11px] text-slate-700 leading-snug">{g.catatan}</td>
+                  <tr key={idx} className="border-b border-slate-400">
+                    <td className="border-r border-slate-400 p-2 print:p-1.5 text-center font-bold">{idx + 1}</td>
+                    <td className="border-r border-slate-400 p-2 print:p-1.5 font-bold font-serif text-slate-900">{g.mapel}</td>
+                    <td className="border-r border-slate-400 p-2 print:p-1.5 text-center font-black text-slate-900 bg-slate-50/50 print:bg-transparent">{g.akhir}</td>
+                    <td className="p-2 print:p-1.5 text-xs print:text-[11px] text-slate-800 leading-relaxed">{g.catatan}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="p-4 text-center text-slate-500 italic">
+                  <td colSpan={4} className="p-3 text-center text-slate-500 italic text-xs">
                     Belum ada data nilai mata pelajaran terisi untuk siswa ini.
                   </td>
                 </tr>
@@ -220,59 +453,220 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
           </table>
         </div>
 
-        {/* Islamic Character & Extracurricular */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div className="border border-slate-300 rounded-xl p-3 bg-slate-50 space-y-1.5">
-            <h4 className="font-bold font-serif text-slate-800 border-b border-slate-200 pb-1">
-              B. Capaian Character &amp; Diniyah Islamiyyah
-            </h4>
-            <p>• <strong>Tahfidz Al-Qur'an:</strong> Hafal Juz 30 (Lancar &amp; Mutqin)</p>
-            <p>• <strong>Adab &amp; Akhlaq:</strong> Istiqomah, Santun &amp; Disiplin</p>
-            <p>• <strong>Kedisiplinan Shalat:</strong> Rutin Shalat Dhuha &amp; Dzuhur Berjamaah</p>
+        {/* Kotak Kokurikuler ⑫ (P5 & Karakter Diniyah Islamiyyah Al Qomar) */}
+        <div className="border border-slate-500 rounded-sm overflow-hidden text-xs print:text-[11px] break-inside-avoid">
+          <div className="bg-slate-300 font-bold text-slate-900 px-3 py-1.5 print:py-1 border-b border-slate-500 flex items-center justify-between print:bg-slate-200">
+            <span>Kokurikuler</span>
+            <div className="no-print flex items-center gap-2">
+              <span className="text-[10px] text-slate-600 font-normal">P5 &amp; Karakter Diniyah</span>
+              <button
+                type="button"
+                onClick={() => handleOpenEditDiniyah(st.id)}
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 px-2 py-0.5 rounded shadow-xs border border-amber-500/50 transition-colors cursor-pointer"
+                title="Edit isian narasi Kokurikuler P5 siswa ini"
+              >
+                <Edit3 className="w-2.5 h-2.5" />
+                <span>Edit Kokurikuler</span>
+              </button>
+            </div>
           </div>
-
-          <div className="border border-slate-300 rounded-xl p-3 bg-slate-50 space-y-1.5">
-            <h4 className="font-bold font-serif text-slate-800 border-b border-slate-200 pb-1">
-              C. Kehadiran &amp; Rekapitulasi Presensi
-            </h4>
-            <p>• Hadir: <strong>{att.hadir} hari</strong></p>
-            <p>• Izin: <strong>{att.izin} hari</strong> | Sakit: <strong>{att.sakit} hari</strong></p>
-            <p>• Tanpa Keterangan (Alpa): <strong>{att.alpa} hari</strong></p>
+          <div className="p-2.5 print:p-2 text-slate-800 leading-relaxed bg-white">
+            {st.diniyahReport?.kokurikuler || (
+              <span>
+                Mengikuti Projek Penguatan Profil Pelajar Pancasila (P5) dengan baik serta aktif dalam pembiasaan Diniyah Islamiyyah: 
+                Tahfidz Al-Qur'an (<strong>{st.diniyahReport?.tahfidz || "Hafal Juz 30 Lancar & Mutqin"}</strong>), 
+                Adab &amp; Akhlaqul Karimah (<strong>{st.diniyahReport?.adab || "Istiqomah, Santun & Disiplin"}</strong>), 
+                dan Kedisiplinan Shalat (<strong>{st.diniyahReport?.shalat || "Rutin Shalat Dhuha & Dzuhur Berjamaah"}</strong>).
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Signatures */}
-        <div className="pt-6 grid grid-cols-3 gap-4 text-center text-xs text-slate-800">
-          <div>
-            <p>Orang Tua / Wali Santri</p>
-            <div className="h-16"></div>
-            <p className="font-bold border-b border-slate-400 inline-block px-4">
-              {st.namaOrangTua}
-            </p>
+        {/* Tabel Ekstrakurikuler ⑬-⑭ */}
+        <div className="border border-slate-500 rounded-sm overflow-hidden text-xs print:text-[11px] break-inside-avoid">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-300 text-slate-900 font-bold text-center border-b border-slate-500 print:bg-slate-200">
+                <th className="border-r border-slate-500 p-2 print:p-1.5 w-10 text-center">No.</th>
+                <th className="border-r border-slate-500 p-2 print:p-1.5 w-60 print:w-56 text-center">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span>Ekstrakurikuler</span>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenEditDiniyah(st.id)}
+                      className="no-print inline-flex items-center gap-0.5 text-[9px] font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 px-1.5 py-0.2 rounded shadow-xs border border-amber-500/50 transition-colors cursor-pointer"
+                      title="Edit daftar ekstrakurikuler siswa ini"
+                    >
+                      <Edit3 className="w-2.5 h-2.5" />
+                      <span>Edit</span>
+                    </button>
+                  </div>
+                </th>
+                <th className="p-2 print:p-1.5 text-center">Keterangan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(st.diniyahReport?.ekskul && st.diniyahReport.ekskul.length > 0) ? (
+                st.diniyahReport.ekskul.map((ek, ekIdx) => (
+                  <tr key={ekIdx} className="border-b border-slate-400 last:border-b-0">
+                    <td className="border-r border-slate-400 p-2 print:p-1.5 text-center font-bold">{ekIdx + 1}</td>
+                    <td className="border-r border-slate-400 p-2 print:p-1.5 font-bold font-serif text-slate-900">
+                      {ek.nama}
+                    </td>
+                    <td className="p-2 print:p-1.5 text-xs print:text-[11px] text-slate-800 leading-relaxed">{ek.keterangan}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr className="border-b border-slate-400 last:border-b-0">
+                  <td className="border-r border-slate-400 p-2 print:p-1.5 text-center font-bold">1</td>
+                  <td className="border-r border-slate-400 p-2 print:p-1.5 font-bold font-serif text-slate-900">
+                    Praja Muda Karana (Pramuka)
+                  </td>
+                  <td className="p-2 print:p-1.5 text-xs print:text-[11px] text-slate-800 leading-relaxed">
+                    Aktif, disiplin, dan terampil dalam kepramukaan serta pionering.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Grid Berdampingan: Ketidakhadiran ⑮ & Catatan Wali Kelas ⑯ */}
+        <div className="grid grid-cols-2 gap-4 print:gap-3 text-xs print:text-[11px] break-inside-avoid">
+          {/* Box Kiri: Ketidakhadiran ⑮ */}
+          <div className="border border-slate-500 rounded-sm overflow-hidden">
+            <div className="bg-slate-300 font-bold text-slate-900 px-3 py-1.5 print:py-1 border-b border-slate-500 text-center print:bg-slate-200">
+              Ketidakhadiran
+            </div>
+            <table className="w-full text-xs print:text-[11px]">
+              <tbody>
+                <tr className="border-b border-slate-400">
+                  <td className="p-2 print:p-1.5 border-r border-slate-400 w-1/2 font-medium">Sakit</td>
+                  <td className="p-2 print:p-1.5 text-center font-bold">{att.sakit} hari</td>
+                </tr>
+                <tr className="border-b border-slate-400">
+                  <td className="p-2 print:p-1.5 border-r border-slate-400 font-medium">Izin</td>
+                  <td className="p-2 print:p-1.5 text-center font-bold">{att.izin} hari</td>
+                </tr>
+                <tr>
+                  <td className="p-2 print:p-1.5 border-r border-slate-400 font-medium">Tanpa Keterangan</td>
+                  <td className="p-2 print:p-1.5 text-center font-bold">{att.alpa} hari</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div>
-            <p>Wali Kelas {st.kelas}</p>
-            <div className="h-16"></div>
-            <p className="font-bold border-b border-slate-400 inline-block px-4">
-              {wali?.nama || 'Ustadzah Siti Fatimah, S.Pd.'}
-            </p>
-            <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-              NIGY: {wali?.nigy || wali?.nip || 'NIGY.201503.200'}
-            </p>
+          {/* Box Kanan: Catatan Wali Kelas ⑯ */}
+          <div className="border border-slate-500 rounded-sm overflow-hidden flex flex-col">
+            <div className="bg-slate-300 font-bold text-slate-900 px-3 py-1.5 print:py-1 border-b border-slate-500 flex items-center justify-between print:justify-center print:bg-slate-200">
+              <span className="mx-auto print:mx-0">Catatan Wali Kelas</span>
+              <button
+                type="button"
+                onClick={() => handleOpenEditDiniyah(st.id)}
+                className="no-print inline-flex items-center gap-0.5 text-[9px] font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 px-1.5 py-0.2 rounded shadow-xs border border-amber-500/50 transition-colors cursor-pointer"
+                title="Edit Catatan Wali Kelas siswa ini"
+              >
+                <Edit3 className="w-2.5 h-2.5" />
+                <span>Edit</span>
+              </button>
+            </div>
+            <div className="p-2.5 print:p-2 text-slate-800 leading-relaxed flex-1 bg-white flex items-center text-xs print:text-[11px]">
+              <p className="italic">
+                "{st.diniyahReport?.catatanWaliKelas || "Ananda menunjukkan kesungguhan belajar yang baik, pertahankan kedisiplinan dan terus istiqomah dalam ibadah serta hafalan Al-Qur'an."}"
+              </p>
+            </div>
           </div>
+        </div>
 
-          <div>
-            <p>Banyuwangi, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-            <p>Kepala Sekolah,</p>
-            <div className="h-12"></div>
-            <p className="font-bold border-b border-slate-400 inline-block px-4">
-              {schoolInfo.kepalaSekolah}
-            </p>
-            <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-              NIGY: {schoolInfo.nigyKepalaSekolah || schoolInfo.nipKepalaSekolah}
-            </p>
+        {/* Kotak Tanggapan Orang Tua/ Wali Murid ⑰ */}
+        <div className="border border-slate-500 rounded-sm overflow-hidden text-xs print:text-[11px] break-inside-avoid">
+          <div className="bg-slate-300 font-bold text-slate-900 px-3 py-1.5 print:py-1 border-b border-slate-500 text-center print:bg-slate-200">
+            Tanggapan Orang Tua/ Wali Murid
           </div>
+          <div className="p-2.5 print:p-2 min-h-[3.5rem] print:min-h-[3rem] bg-white text-slate-700 text-xs print:text-[11px]">
+            {st.diniyahReport?.tanggapanOrtu ? (
+              <p className="italic">"{st.diniyahReport.tanggapanOrtu}"</p>
+            ) : (
+              <div className="h-full flex items-end">
+                <span className="text-[10px] text-slate-400 italic">
+                  * Ruang catatan/masukan dari orang tua murid setelah menerima rapor.
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Tiga Tanda Tangan Resmi (Tata Letak Sesuai Gambar: Kiri Orang Tua, Tengah Kepala Sekolah, Kanan Wali Kelas + Tanggal) */}
+        <div className="pt-3 print:pt-2.5 break-inside-avoid">
+          <table className="w-full text-center border-none border-collapse text-xs print:text-[11px] text-slate-900">
+            <tbody>
+              {/* Row 1: Header Jabatan & Titimangsa */}
+              <tr>
+                {/* Kiri: Orang Tua Murid */}
+                <td className="w-1/3 align-top pb-1">
+                  <p className="text-transparent select-none print:hidden">&nbsp;</p>
+                  <p className="font-bold">Orang Tua Murid</p>
+                </td>
+
+                {/* Tengah: Kepala Sekolah */}
+                <td className="w-1/3 align-top pb-1">
+                  <p className="text-transparent select-none print:hidden">&nbsp;</p>
+                  <p className="font-bold">Kepala Sekolah</p>
+                </td>
+
+                {/* Kanan: Tempat, Tanggal rapor & Wali Kelas */}
+                <td className="w-1/3 align-top pb-1">
+                  <p className="font-medium text-slate-700">
+                    Banyuwangi, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                  <p className="font-bold">Wali Kelas</p>
+                </td>
+              </tr>
+
+              {/* Row 2: Ruang Kosong Tanda Tangan Basah & Stempel Resmi */}
+              <tr>
+                <td className="h-16 print:h-14"></td>
+                <td className="h-16 print:h-14"></td>
+                <td className="h-16 print:h-14"></td>
+              </tr>
+
+              {/* Row 3: Nama Penandatangan, Garis Bawah Presisi, dan Identitas NIGY */}
+              <tr>
+                {/* Kolom Kiri: Orang Tua Murid */}
+                <td className="align-bottom px-2">
+                  <div className="font-bold text-slate-900 text-xs print:text-[11px] leading-tight min-h-[1.75rem] flex items-end justify-center pb-0.5">
+                    {st.namaOrangTua || '................................'}
+                  </div>
+                  <div className="w-44 sm:w-48 mx-auto border-b-2 border-slate-700"></div>
+                  <div className="text-[10px] print:text-[9.5px] text-transparent select-none pt-0.5 font-mono">
+                    &nbsp;
+                  </div>
+                </td>
+
+                {/* Kolom Tengah: Kepala Sekolah */}
+                <td className="align-bottom px-2">
+                  <div className="font-bold text-slate-900 text-xs print:text-[11px] leading-tight min-h-[1.75rem] flex items-end justify-center pb-0.5">
+                    {schoolInfo.kepalaSekolah}
+                  </div>
+                  <div className="w-44 sm:w-48 mx-auto border-b-2 border-slate-700"></div>
+                  <div className="text-[10px] print:text-[10px] text-slate-600 pt-0.5 font-mono">
+                    NIGY: {schoolInfo.nigyKepalaSekolah || schoolInfo.nipKepalaSekolah || '992 101 007'}
+                  </div>
+                </td>
+
+                {/* Kolom Kanan: Wali Kelas */}
+                <td className="align-bottom px-2">
+                  <div className="font-bold text-slate-900 text-xs print:text-[11px] leading-tight min-h-[1.75rem] flex items-end justify-center pb-0.5">
+                    {wali?.nama || 'Ustadzah Siti Fatimah, S.Pd.'}
+                  </div>
+                  <div className="w-44 sm:w-48 mx-auto border-b-2 border-slate-700"></div>
+                  <div className="text-[10px] print:text-[10px] text-slate-600 pt-0.5 font-mono">
+                    NIGY: {wali?.nigy || wali?.nip || '-'}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
       </div>
@@ -337,10 +731,20 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
               </button>
             </div>
 
+            {/* Edit Diniyah & Ekskul Button */}
+            <button
+              onClick={() => handleOpenEditDiniyah(currentStudent?.id || selectedStudentId)}
+              className="flex items-center gap-1.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-lg transition-all border border-amber-300 cursor-pointer"
+              title="Edit dan sesuaikan capaian Diniyah & Ekstrakurikuler santri"
+            >
+              <Sparkles className="w-4 h-4 text-slate-950" />
+              <span>Edit Diniyah &amp; Ekskul</span>
+            </button>
+
             {/* Print / Export PDF Button */}
             <button
               onClick={handlePrint}
-              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg transition-all border border-emerald-300/50"
+              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg transition-all border border-emerald-300/50 cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>
@@ -396,6 +800,119 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
 
         </div>
 
+        {/* Visual Indicator: Status Kesiapan Nilai Mapel Kelas (Wali Kelas Pre-Flight Checklist) */}
+        <div className={`p-4 rounded-xl border transition-all ${
+          classGradeStatus.isAllComplete
+            ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-200'
+            : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
+        }`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                classGradeStatus.isAllComplete
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-400/30'
+                  : 'bg-amber-500/20 text-amber-300 border-amber-400/30'
+              }`}>
+                {classGradeStatus.isAllComplete ? (
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 text-amber-300" />
+                )}
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="font-bold text-xs sm:text-sm text-white flex items-center gap-1.5">
+                    <span>Status Kesiapan Nilai Kelas {selectedKelas}:</span>
+                    {classGradeStatus.isAllComplete ? (
+                      <span className="text-emerald-400 font-extrabold flex items-center gap-1">
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        100% LENGKAP &amp; SIAP CETAK
+                      </span>
+                    ) : (
+                      <span className="text-amber-300 font-extrabold">
+                        {classGradeStatus.missingList.length} Mapel Belum Lengkap / Masih Kosong
+                      </span>
+                    )}
+                  </h4>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    classGradeStatus.isAllComplete
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                      : 'bg-amber-500/20 text-amber-300 border-amber-400/40'
+                  }`}>
+                    {classGradeStatus.completeList.length} / {classGradeStatus.totalMapels} Mapel Selesai
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  {classGradeStatus.isAllComplete
+                    ? `Seluruh nilai mata pelajaran untuk ${classStudents.length} santri Kelas ${selectedKelas} telah diinput lengkap oleh masing-masing guru pengampu.`
+                    : `Peringatan untuk Wali Kelas ${selectedKelas}: Beberapa mata pelajaran belum diisi penuh oleh guru pengampu. Sebaiknya periksa sebelum mencetak rapor fisik ke kertas A4.`}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowGradeChecklist(prev => !prev)}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-white/10 flex items-center gap-1.5 self-start sm:self-auto shrink-0 transition-colors cursor-pointer"
+            >
+              <span>{showGradeChecklist ? 'Tutup Rincian Mapel' : 'Periksa Rincian Mapel'}</span>
+              {showGradeChecklist ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          {/* Collapsible Subject Checklist Detail */}
+          {showGradeChecklist && (
+            <div className="mt-3 pt-3 border-t border-white/10 space-y-2.5 animate-in fade-in duration-200">
+              {classGradeStatus.missingList.length > 0 && (
+                <div>
+                  <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1 mb-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Mata Pelajaran yang Belum Lengkap / Masih Perlu Dikonfirmasi ke Guru Pengampu:
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {classGradeStatus.missingList.map((m, mIdx) => (
+                      <div
+                        key={mIdx}
+                        className="p-2 rounded-lg bg-amber-950/60 border border-amber-500/30 text-xs flex items-start justify-between gap-2"
+                      >
+                        <div>
+                          <strong className="text-white block font-medium">{m.mapel}</strong>
+                          <span className="text-[10px] text-amber-300/80 block">
+                            Guru: {m.guru}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-400/30 shrink-0">
+                          {m.status === 'kosong' ? 'Kosong 0%' : `${m.filledCount}/${m.totalCount} Terisi`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {classGradeStatus.completeList.length > 0 && (
+                <div>
+                  <span className="text-[11px] font-bold text-emerald-300 flex items-center gap-1 mb-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Mata Pelajaran yang Sudah 100% Terisi Lengkap:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {classGradeStatus.completeList.map((m, mIdx) => (
+                      <span
+                        key={mIdx}
+                        className="text-[10px] font-medium px-2 py-1 rounded-md bg-emerald-900/40 border border-emerald-500/30 text-emerald-200 flex items-center gap-1"
+                      >
+                        <Check className="w-3 h-3 text-emerald-400" />
+                        <span>{m.mapel}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Bulk View Quick Student Index Navigator */}
         {viewMode === 'bulk' && (
           <div className="p-3 bg-slate-950/60 rounded-xl border border-white/5 space-y-2">
@@ -447,6 +964,20 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* Edit Diniyah & Ekstrakurikuler Modal */}
+      {isEditDiniyahOpen && (
+        <EditDiniyahEkskulModal
+          isOpen={isEditDiniyahOpen}
+          onClose={() => setIsEditDiniyahOpen(false)}
+          students={students}
+          currentStudentId={editTargetStudentId || selectedStudentId}
+          onSelectStudentId={(id) => setEditTargetStudentId(id)}
+          onSaveStudentDiniyah={handleSaveStudentDiniyah}
+          grades={grades}
+          attendance={attendance}
+        />
       )}
 
     </div>

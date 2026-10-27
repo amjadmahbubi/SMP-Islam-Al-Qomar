@@ -16,7 +16,24 @@ export interface WAGatewayConfig {
   senderNumber: string;
   autoSendPPDB: boolean;
   autoSendAbsensiNonHadir: boolean;
+  customAttendanceTemplate?: string;
 }
+
+export const DEFAULT_ATTENDANCE_TEMPLATE = 
+`*LAPORAN KEHADIRAN SISWA - {nama_sekolah}*
+
+Assalamualaikum Wr. Wb. Yth. Orang Tua/Wali dari *{nama_santri}* (Kelas {kelas}),
+
+Memberitahukan catatan kehadiran putra/putri Anda pada:
+📅 Tanggal: *{tanggal}*
+📖 Mata Pelajaran: *{mapel}*
+👨‍🏫 Guru/Wali Kelas: *{nama_guru}*
+📊 Status Kehadiran: *{status_kehadiran}*
+{catatan}
+Semoga ananda senantiasa diberikan kesehatan dan keberkahan dalam menuntut ilmu.
+
+Wassalamualaikum Wr. Wb.
+_{nama_guru} - {nama_sekolah}_`;
 
 const STORAGE_KEY_WA_CONFIG = 'dapodik_wa_config';
 const STORAGE_KEY_WA_LOGS = 'dapodik_wa_logs';
@@ -26,10 +43,20 @@ export const DEFAULT_WA_CONFIG: WAGatewayConfig = {
   apiKey: '',
   senderNumber: '081234567890',
   autoSendPPDB: true,
-  autoSendAbsensiNonHadir: true
+  autoSendAbsensiNonHadir: true,
+  customAttendanceTemplate: DEFAULT_ATTENDANCE_TEMPLATE
 };
 
 export class WAService {
+  static parseTemplate(template: string, data: Record<string, string>): string {
+    let result = template;
+    for (const [key, val] of Object.entries(data)) {
+      const regex = new RegExp(`\\{${key}\\}`, 'gi');
+      result = result.replace(regex, val || '-');
+    }
+    return result;
+  }
+
   static getConfig(): WAGatewayConfig {
     const data = localStorage.getItem(STORAGE_KEY_WA_CONFIG);
     if (!data) return DEFAULT_WA_CONFIG;
@@ -137,6 +164,9 @@ export class WAService {
     guruName: string;
     schoolName: string;
   }): string {
+    const cfg = this.getConfig();
+    const template = cfg.customAttendanceTemplate || DEFAULT_ATTENDANCE_TEMPLATE;
+
     const statusMap = {
       H: 'HADIR',
       I: 'IZIN',
@@ -151,23 +181,20 @@ export class WAService {
       A: '⚠️'
     };
 
-    return (
-      `*LAPORAN KEHADIRAN SISWA - ${data.schoolName.toUpperCase()}*\n\n` +
-      `Assalamualaikum Wr. Wb. Yth. Orang Tua/Wali dari *${data.studentName}* (Kelas ${data.kelas}),\n\n` +
-      `Memberitahukan catatan kehadiran putra/putri Anda pada:\n` +
-      `📅 Tanggal: *${data.tanggal}*\n` +
-      `📖 Mata Pelajaran: *${data.mapel}*\n` +
-      `👨‍🏫 Guru Pengampu: *${data.guruName}*\n` +
-      ` Status Kehadiran: ${statusEmoji[data.status]} *${statusMap[data.status]}*\n` +
-      (data.catatan ? `📝 Catatan: _${data.catatan}_\n` : '') +
-      `\n` +
-      (data.status === 'A'
-        ? `⚠️ *Perhatian:* Mohon konfirmasi kepada Wali Kelas mengenai alasan ketidakhadiran putra/putri Anda.\n\n`
-        : '') +
-      `Semoga ananda senantiasa diberikan kesehatan dan keberkahan dalam menuntut ilmu.\n\n` +
-      `Wassalamualaikum Wr. Wb.\n` +
-      `_Wali Kelas ${data.kelas} ${data.schoolName}_`
-    );
+    const statusFormatted = `${statusEmoji[data.status]} ${statusMap[data.status]}`;
+    const catatanFormatted = data.catatan ? `📝 Catatan: _${data.catatan}_\n` : '';
+
+    return this.parseTemplate(template, {
+      nama_santri: data.studentName,
+      nama_siswa: data.studentName,
+      kelas: data.kelas,
+      tanggal: data.tanggal,
+      mapel: data.mapel,
+      status_kehadiran: statusFormatted,
+      nama_guru: data.guruName,
+      nama_sekolah: data.schoolName,
+      catatan: catatanFormatted
+    });
   }
 
   // Template 4: Class Attendance Summary Broadcast

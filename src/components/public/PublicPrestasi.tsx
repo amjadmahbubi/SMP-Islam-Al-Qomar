@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { StudentAchievement, Student, UserSession, Teacher, ScheduleItem } from '../../types';
+import { StudentAchievement, Student, UserSession, Teacher, ScheduleItem, SchoolInfo } from '../../types';
 import { getAllClasses } from '../../data/constants';
 import {
   Trophy,
@@ -33,6 +33,7 @@ interface PublicPrestasiProps {
   };
   onTriggerAutoSync?: () => Promise<void> | void;
   onNavigateToSheets?: () => void;
+  schoolInfo?: SchoolInfo;
 }
 
 export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
@@ -44,7 +45,8 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
   onSaveAchievements,
   autoSyncStatus,
   onTriggerAutoSync,
-  onNavigateToSheets
+  onNavigateToSheets,
+  schoolInfo
 }) => {
   const [isPulling, setIsPulling] = useState(false);
 
@@ -222,18 +224,29 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
         <div>
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-400/30 mb-2">
             <Trophy className="w-3.5 h-3.5 text-amber-400" />
-            <span>Direktori Prestasi Murid SMP Islam Al Qomar</span>
+            <span>Direktori Prestasi Siswa &amp; Santri {schoolInfo?.nama || 'SMP PLUS DAARUL MUTTAQIEN'}</span>
           </div>
           <h2 className="text-xl font-bold font-serif text-white">
-            Galeri Penghargaan & Prestasi Santri
+            Galeri Penghargaan &amp; Prestasi Santri
           </h2>
           <p className="text-xs text-slate-300 mt-1">
-            Rekam jejak kebanggaan prestasi akademik, tahfidz Al-Qur'an, sains, kebahasaan, dan olahraga
+            Rekam jejak kebanggaan prestasi akademik, tahfidz Al-Qur'an, sains, kebahasaan, seni, dan olahraga
           </p>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap self-start md:self-auto">
-          {onTriggerAutoSync && (
+          {session.role === 'admin' && onNavigateToSheets && (
+            <button
+              onClick={onNavigateToSheets}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/10 transition-all shadow-sm"
+              title="Kelola data prestasi langsung di Google Sheets"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Database Sheets</span>
+            </button>
+          )}
+
+          {session.role === 'admin' && onTriggerAutoSync && (
             <button
               onClick={handleQuickPull}
               disabled={isPulling || autoSyncStatus?.status === 'checking'}
@@ -312,19 +325,31 @@ export const PublicPrestasi: React.FC<PublicPrestasiProps> = ({
             Kategori Kejuaraan
           </label>
           <div className="flex flex-wrap gap-1.5">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedKategori(cat)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  selectedKategori === cat
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold shadow'
-                    : 'bg-slate-950/40 text-slate-300 hover:bg-white/10 border border-white/5'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+            {categories.map((cat) => {
+              const count = cat === 'Semua' ? achievements.length : achievements.filter((a) => a.kategori === cat).length;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedKategori(cat)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    selectedKategori === cat
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold shadow'
+                      : 'bg-slate-950/40 text-slate-300 hover:bg-white/10 border border-white/5'
+                  }`}
+                >
+                  <span>{cat}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
+                      selectedKategori === cat
+                        ? 'bg-emerald-500/30 text-emerald-200'
+                        : 'bg-white/10 text-slate-400'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 

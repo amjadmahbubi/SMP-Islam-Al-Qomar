@@ -1,23 +1,91 @@
 import { Student, ScheduleItem, Teacher, UserSession } from '../types';
 
-export const DEFAULT_MAPEL_LIST = [
-  'Pendidikan Agama Islam',
-  "Al-Qur'an Hadits",
-  'Bahasa Arab',
-  'Bahasa Jawa',
-  "Imla'",
-  'Tahfidz Al-Qur\'an',
-  'Pancasila / PPKn',
+/**
+ * Daftar Urutan Resmi 13 Mata Pelajaran Rapor Kurikulum Merdeka SMP Islam Al Qomar
+ * (Sesuai ketetapan acuan Kemendikbudristek BSKAP & Struktur Kurikulum SMP Fase D)
+ */
+export const OFFICIAL_MAPEL_ORDER = [
+  'Pendidikan Agama dan Budi Pekerti',
+  'Pendidikan Pancasila',
   'Bahasa Indonesia',
   'Matematika',
-  'IPA Terpadu',
-  'IPS Terpadu',
+  'Ilmu Pengetahuan Alam',
+  'Ilmu Pengetahuan Sosial',
   'Bahasa Inggris',
-  'Seni Budaya',
-  'PJOK',
-  'Informatika / TIK',
-  'Prakarya / Skill'
+  'Pendidikan Jasmani, Olahraga, dan Kesehatan',
+  'Informatika',
+  'Seni dan Budaya',
+  'Prakarya',
+  'Bahasa Jawa',
+  'Bahasa Arab'
+] as const;
+
+/**
+ * Pemetaan Guru Pengampu Resmi untuk 13 Mata Pelajaran SMP Islam Al Qomar
+ */
+export const OFFICIAL_MAPEL_TEACHERS: Record<string, { teacherName: string; teacherId: string }> = {
+  'Pendidikan Agama dan Budi Pekerti': { teacherName: 'Fikriyadi, S.Pd', teacherId: 'T003' },
+  'Pendidikan Pancasila': { teacherName: 'Ansorik, S.Sos', teacherId: 'T3337' },
+  'Bahasa Indonesia': { teacherName: 'Rizqiyah Wafiroh, S.Pd', teacherId: 'T005' },
+  'Matematika': { teacherName: 'Dela Wardani, S.Pd', teacherId: 'T002' },
+  'Ilmu Pengetahuan Alam': { teacherName: 'Diah Putriani, S.Pd', teacherId: 'T007' },
+  'Ilmu Pengetahuan Sosial': { teacherName: 'Muhammad Bintang Nuriansyah, S.Pi', teacherId: 'T2075' },
+  'Bahasa Inggris': { teacherName: 'Amjad Dzulfikar Mahbubie, S.Pd', teacherId: 'T006' },
+  'Pendidikan Jasmani, Olahraga, dan Kesehatan': { teacherName: 'Helmi Claresa, S.Pd', teacherId: 'T008' },
+  'Informatika': { teacherName: 'Amjad Dzulfikar Mahbubie, S.Pd', teacherId: 'T006' },
+  'Seni dan Budaya': { teacherName: 'Muhammad Mahfudz Al-Hafidz', teacherId: 'T4856' },
+  'Prakarya': { teacherName: 'Diah Khoirunnisa, S.Pd', teacherId: 'T004' },
+  'Bahasa Jawa': { teacherName: 'Muhammad Mahfudz Al-Hafidz', teacherId: 'T4856' },
+  'Bahasa Arab': { teacherName: 'Nanda Firdaus, S.Ag', teacherId: 'T3183' }
+};
+
+export const DEFAULT_MAPEL_LIST = [
+  ...OFFICIAL_MAPEL_ORDER,
+  "Al-Qur'an Hadits",
+  "Imla'",
+  "Tahfidz Al-Qur'an"
 ];
+
+/**
+ * Normalisasi variasi nama mapel (alias lama / singkatan) ke nama baku resmi
+ */
+export function normalizeMapelName(raw: string): string {
+  if (!raw) return '';
+  const norm = raw.trim().toLowerCase();
+  
+  if (norm.includes('agama') || norm === 'pai' || norm.includes('budi pekerti')) return 'Pendidikan Agama dan Budi Pekerti';
+  if (norm.includes('pancasila') || norm.includes('ppkn') || norm.includes('pkn')) return 'Pendidikan Pancasila';
+  if (norm.includes('indonesia') || norm === 'b.indo' || norm === 'b indonesia' || norm === 'bahasa indonesia') return 'Bahasa Indonesia';
+  if (norm.includes('matematika') || norm === 'mtk') return 'Matematika';
+  if (norm.includes('alam') || norm.includes('ipa') || norm === 'sains') return 'Ilmu Pengetahuan Alam';
+  if (norm.includes('sosial') || norm.includes('ips')) return 'Ilmu Pengetahuan Sosial';
+  if (norm.includes('inggris') || norm === 'english' || norm === 'b.inggris' || norm === 'b inggris') return 'Bahasa Inggris';
+  if (norm.includes('jasmani') || norm.includes('pjok') || norm.includes('olahraga')) return 'Pendidikan Jasmani, Olahraga, dan Kesehatan';
+  if (norm.includes('informatika') || norm.includes('tik') || norm.includes('komputer')) return 'Informatika';
+  if (norm.includes('seni') || norm.includes('budaya')) return 'Seni dan Budaya';
+  if (norm.includes('prakarya')) return 'Prakarya';
+  if (norm.includes('jawa')) return 'Bahasa Jawa';
+  if (norm.includes('arab')) return 'Bahasa Arab';
+  if (norm.includes('hadits') || norm.includes('hadist') || norm.includes("qur'an hadits")) return "Al-Qur'an Hadits";
+  if (norm.includes('imla')) return "Imla'";
+  if (norm.includes('tahfidz') || norm.includes('hafalan')) return "Tahfidz Al-Qur'an";
+  
+  return raw.trim();
+}
+
+/**
+ * Mendapatkan indeks urutan rapor resmi atau 999 jika di luar daftar pokok
+ */
+export function getMapelSortIndex(rawName: string): number {
+  const normalized = normalizeMapelName(rawName);
+  const idx = (DEFAULT_MAPEL_LIST as readonly string[]).indexOf(normalized);
+  if (idx !== -1) return idx;
+
+  const partialIdx = (DEFAULT_MAPEL_LIST as readonly string[]).findIndex(m => 
+    normalized.toLowerCase().includes(m.toLowerCase()) || m.toLowerCase().includes(normalized.toLowerCase())
+  );
+  return partialIdx !== -1 ? partialIdx : 999;
+}
 
 export const COMMON_SCHEDULE_ACTIVITIES = [
   'Upacara Bendera',
@@ -35,7 +103,7 @@ export const COMMON_SCHEDULE_ACTIVITIES = [
 
 export const DEFAULT_CLASSES = ['7', '8', '9'];
 
-export const DEFAULT_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx-SMP-Islam-Al-Qomar-Dapodik/exec';
+export const DEFAULT_SHEETS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxIVQVvPhAKfPA66gcw2m44tMGzi-ZaZtlRnpbpS5bZsRHqP5qWUZqaqwtaYNrRo6n1SQ/exec';
 
 const INVALID_CLASS_NAMES = ['-', '--', 'none', 'tidak ada', 'null', 'undefined', '7A', '7B', '8A', '8B', '9A', '9B'];
 

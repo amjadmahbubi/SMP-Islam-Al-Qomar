@@ -94,26 +94,40 @@ export const SuratKeteranganLulusModal: React.FC<SuratKeteranganLulusModalProps>
             className="bg-white p-8 sm:p-12 rounded-xl border border-slate-300 shadow-md max-w-2xl mx-auto print:shadow-none print:border-none print:max-w-none print:p-8 print:m-0 text-slate-900 font-serif leading-relaxed"
           >
             {/* Kop Surat Resmi */}
-            <div className="text-center pb-4 border-b-4 border-double border-slate-900 relative">
-              <div className="flex items-center justify-center gap-4 mb-1">
-                <div className="w-16 h-16 rounded-full bg-emerald-800 text-emerald-100 flex items-center justify-center font-bold text-2xl border-2 border-emerald-600 shadow-sm print:border-black">
-                  AQ
+            <div className={`text-center relative ${schoolInfo.kopSuratUrl ? 'pb-2 mb-2' : 'border-b-4 border-double border-slate-900 pb-4'}`}>
+              {schoolInfo.kopSuratUrl ? (
+                <div className="w-full flex justify-center mb-1">
+                  <img 
+                    src={schoolInfo.kopSuratUrl} 
+                    alt="Kop Surat Resmi SMP Islam Al Qomar" 
+                    className="w-full max-h-32 object-contain mx-auto print:max-h-36"
+                  />
                 </div>
-                <div>
-                  <h3 className="text-xs sm:text-sm font-bold tracking-widest uppercase text-slate-700 font-sans">
-                    YAYASAN PENDIDIKAN ISLAM AL QOMAR
-                  </h3>
-                  <h1 className="text-lg sm:text-2xl font-black uppercase text-emerald-950 font-serif tracking-wide print:text-black">
-                    {schoolInfo.nama || 'SMP ISLAM AL QOMAR'}
-                  </h1>
-                  <p className="text-[11px] text-slate-600 font-sans mt-0.5 font-medium">
-                    NPSN: {schoolInfo.npsn || '70001007'} | Akreditasi: {schoolInfo.akreditasi || 'B'}
-                  </p>
-                  <p className="text-[10px] text-slate-500 font-sans">
-                    {schoolInfo.alamat || 'Banyuwangi, Jawa Timur'} | Telp: {schoolInfo.telepon || '-'} | Email: {schoolInfo.email || '-'}
-                  </p>
+              ) : (
+                <div className="flex items-center justify-center gap-4 mb-1">
+                  <div className="w-16 h-16 rounded-full bg-emerald-800 text-emerald-100 flex items-center justify-center font-bold text-2xl border-2 border-emerald-600 shadow-sm print:border-black overflow-hidden shrink-0">
+                    {schoolInfo.logoUrl ? (
+                      <img src={schoolInfo.logoUrl} alt={schoolInfo.nama} className="w-full h-full object-cover" />
+                    ) : (
+                      "AQ"
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold tracking-widest uppercase text-slate-700 font-sans">
+                      YAYASAN PENDIDIKAN ISLAM AL QOMAR
+                    </h3>
+                    <h1 className="text-lg sm:text-2xl font-black uppercase text-emerald-950 font-serif tracking-wide print:text-black">
+                      {schoolInfo.nama || 'SMP ISLAM AL QOMAR'}
+                    </h1>
+                    <p className="text-[11px] text-slate-600 font-sans mt-0.5 font-medium">
+                      NPSN: {schoolInfo.npsn || '70001007'} | Akreditasi: {schoolInfo.akreditasi || 'B'}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-sans">
+                      {schoolInfo.alamat || 'Banyuwangi, Jawa Timur'} | Telp: {schoolInfo.telepon || '-'} | Email: {schoolInfo.email || '-'}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Judul & Nomor Surat */}

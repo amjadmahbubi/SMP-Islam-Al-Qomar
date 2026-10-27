@@ -492,17 +492,6 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
                 <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
                 <span>Penerimaan Peserta Didik Baru (PPDB) TA {currentTahunAjaran}</span>
               </div>
-
-              {(session.role === 'admin' || session.role === 'guru') && (
-                <button
-                  type="button"
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 hover:bg-amber-400/30 text-xs font-bold border border-amber-400/40 transition-colors shadow"
-                >
-                  <Settings className="w-3.5 h-3.5 text-amber-400" />
-                  <span>⚙️ Kelola Info PPDB</span>
-                </button>
-              )}
             </div>
 
             <h1 className="text-2xl md:text-3xl font-extrabold font-serif text-white tracking-tight">
@@ -1394,16 +1383,8 @@ export const PublicPpdb: React.FC<PublicPpdbProps> = ({
 
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-3.5 py-2 rounded-xl shadow flex items-center gap-1.5 border border-white/10"
-                >
-                  <Settings className="w-4 h-4 text-emerald-400" />
-                  <span>Pengaturan Info PPDB</span>
-                </button>
-
-                <button
                   onClick={handleExportPpdbCSV}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl shadow flex items-center gap-2 border border-emerald-300/50"
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl shadow flex items-center gap-2 border border-emerald-300/50 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   <span>Export CSV Lengkap</span>
