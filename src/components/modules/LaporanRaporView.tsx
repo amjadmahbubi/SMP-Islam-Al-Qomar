@@ -19,7 +19,12 @@ import {
   ChevronUp,
   Check,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  SlidersHorizontal,
+  RotateCcw,
+  X,
+  Info,
+  Settings
 } from 'lucide-react';
 import { EditDiniyahEkskulModal, BatchApplyScope } from './EditDiniyahEkskulModal';
 import { StorageService } from '../../services/storage';
@@ -70,6 +75,58 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
   const [editTargetStudentId, setEditTargetStudentId] = useState<string>('');
   const [showGradeChecklist, setShowGradeChecklist] = useState<boolean>(false);
   const [showAllOfficialMapels, setShowAllOfficialMapels] = useState<boolean>(true);
+
+  // Print Margin Configuration State (Standar Resmi Dokumen Rapor Kedinasan)
+  const [printMargins, setPrintMargins] = useState<{
+    preset: 'resmi' | 'seimbang' | 'kompak' | 'custom';
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  }>(() => {
+    try {
+      const saved = localStorage.getItem('alqomar_print_margins');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch {}
+    return {
+      preset: 'resmi',
+      top: 20,
+      right: 20,
+      bottom: 20,
+      left: 25
+    };
+  });
+  const [isMarginModalOpen, setIsMarginModalOpen] = useState<boolean>(false);
+
+  const applyMarginPreset = (preset: 'resmi' | 'seimbang' | 'kompak') => {
+    let nextMargins;
+    if (preset === 'resmi') {
+      nextMargins = { preset: 'resmi' as const, top: 20, right: 20, bottom: 20, left: 25 };
+    } else if (preset === 'seimbang') {
+      nextMargins = { preset: 'seimbang' as const, top: 20, right: 20, bottom: 20, left: 20 };
+    } else {
+      nextMargins = { preset: 'kompak' as const, top: 15, right: 15, bottom: 15, left: 15 };
+    }
+    setPrintMargins(nextMargins);
+    try {
+      localStorage.setItem('alqomar_print_margins', JSON.stringify(nextMargins));
+    } catch {}
+  };
+
+  const handleCustomMarginChange = (side: 'top' | 'right' | 'bottom' | 'left', val: number) => {
+    const clamped = Math.max(5, Math.min(45, val));
+    const nextMargins = {
+      ...printMargins,
+      preset: 'custom' as const,
+      [side]: clamped
+    };
+    setPrintMargins(nextMargins);
+    try {
+      localStorage.setItem('alqomar_print_margins', JSON.stringify(nextMargins));
+    } catch {}
+  };
 
   const handleOpenEditDiniyah = (studentId: string) => {
     setEditTargetStudentId(studentId);
@@ -409,23 +466,16 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
     const stGrades = getGradesForStudent(st.id);
 
     const officialKepsek = teachers.find(
-      t => t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().includes('kepala sekolah')
-    ) || {
-      nama: 'Muhamad Harir Afandi, S.HI',
-      nigy: '994 101 004'
-    };
-    const kepsekNama = (schoolInfo.kepalaSekolah && !schoolInfo.kepalaSekolah.toLowerCase().includes('helmi'))
-      ? schoolInfo.kepalaSekolah
-      : (officialKepsek.nama || 'Muhamad Harir Afandi, S.HI');
-    const kepsekNigy = (schoolInfo.nigyKepalaSekolah && schoolInfo.nigyKepalaSekolah !== '992 101 007' && !schoolInfo.kepalaSekolah?.toLowerCase().includes('helmi'))
-      ? schoolInfo.nigyKepalaSekolah
-      : (officialKepsek.nigy || '994 101 004');
+      t => t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().trim() === 'kepala sekolah'
+    );
+    const kepsekNama = officialKepsek?.nama || schoolInfo.kepalaSekolah || 'Kepala Sekolah';
+    const kepsekNigy = officialKepsek?.nigy || officialKepsek?.nip || schoolInfo.nigyKepalaSekolah || '-';
 
     return (
       <div
         key={st.id}
         id={`rapor-student-${st.id}`}
-        className={`bg-white rounded-2xl p-7 border border-slate-300 shadow-md max-w-4xl mx-auto space-y-4 text-slate-900 font-sans print:max-w-none print:w-full print:p-0 print:border-none print:shadow-none print:space-y-3.5 print:rounded-none print:overflow-hidden ${
+        className={`bg-white rounded-2xl p-7 border border-slate-300 shadow-md max-w-4xl mx-auto space-y-4 text-slate-900 font-sans print:max-w-none print:w-full print:p-0 print:border-none print:shadow-none print:space-y-3.5 print:rounded-none ${
           isBulkItem ? 'page-break mb-10 print:mb-0' : ''
         }`}
       >
@@ -789,6 +839,16 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
+      {/* Dynamic Print Margin Style Injection */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: ${printMargins.top}mm ${printMargins.right}mm ${printMargins.bottom}mm ${printMargins.left}mm !important;
+          }
+        }
+      ` }} />
+
       {/* Top Controls Bar (Hidden when Printing) */}
       <div className="no-print glass backdrop-blur-xl bg-slate-900/80 rounded-2xl p-6 border border-white/10 shadow-xl space-y-4">
         
@@ -843,6 +903,20 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
                 <span>Bulk 1 Kelas ({classStudents.length} Siswa)</span>
               </button>
             </div>
+
+            {/* Atur Batas Margin Kertas Button */}
+            <button
+              type="button"
+              onClick={() => setIsMarginModalOpen(true)}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs px-3.5 py-2.5 rounded-xl border border-white/10 transition-all cursor-pointer shadow-md hover:scale-[1.02]"
+              title="Sesuaikan batas tepi margin cetak rapor (Atas, Kiri, Kanan, Bawah)"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
+              <span>Batas Margin Kertas</span>
+              <span className="text-[10px] bg-slate-950 px-1.5 py-0.5 rounded text-emerald-300 font-mono border border-emerald-500/30">
+                {printMargins.left}/{printMargins.top}/{printMargins.right}/{printMargins.bottom}mm
+              </span>
+            </button>
 
             {/* Edit Diniyah & Ekskul Button */}
             <button
@@ -918,6 +992,17 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
               Tampilkan 13 Mapel Resmi (Standar Dokumen Rapor Lengkap)
             </span>
           </label>
+
+          {/* Quick Margin Indicator Badge */}
+          <button
+            type="button"
+            onClick={() => setIsMarginModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/60 hover:bg-slate-950 border border-emerald-500/30 text-emerald-300 text-[11px] font-semibold transition-all cursor-pointer"
+            title="Klik untuk melihat / mengubah batas margin cetak rapor"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Margin: <strong>Kiri {printMargins.left}mm</strong> (Ruang Jilid) • <strong>Atas {printMargins.top}mm</strong> • <strong>Kanan {printMargins.right}mm</strong> • <strong>Bawah {printMargins.bottom}mm</strong></span>
+          </button>
 
           {/* Wali Kelas Badge */}
           <div className="ml-auto text-[11px] text-amber-300 bg-amber-500/10 border border-amber-400/20 px-3 py-1 rounded-xl">
@@ -1104,6 +1189,295 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
           grades={grades}
           attendance={attendance}
         />
+      )}
+
+      {/* Print Margin Settings Modal */}
+      {isMarginModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[92vh] overflow-y-auto text-white shadow-2xl space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 flex items-center justify-center">
+                  <SlidersHorizontal className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold font-serif text-white">
+                    Pengaturan Batas Tepi Kertas Rapor (Margin Cetak A4)
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    Sesuaikan jarak margin kertas agar dokumen rapor rapi, proporsional, dan aman untuk map jilid.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMarginModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Official Standard Explanation Box */}
+            <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-3.5 text-xs text-emerald-200/95 leading-relaxed flex items-start gap-2.5">
+              <Info className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold text-emerald-300">
+                  Standar Resmi Dokumen Rapor &amp; Tata Naskah Dinas Pendidikan:
+                </p>
+                <p>
+                  • <strong>Margin Kiri (25 mm / 2,5 cm)</strong>: Memberikan ruang aman untuk lubang perforator binder, map rapor berkancing/jepit, atau jilid buku raport tanpa menutupi nomor urut dan tulisan.
+                </p>
+                <p>
+                  • <strong>Margin Atas, Kanan, &amp; Bawah (20 mm / 2,0 cm)</strong>: Memberikan jarak estetis pada kop surat, batas kanan tabel, serta ruang tanda tangan dan stempel resmi agar tidak menempel di tepi kertas.
+                </p>
+              </div>
+            </div>
+
+            {/* Preset Selection Cards */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Pilih Preset Standar Margin:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {/* Preset 1: Standar Kedinasan */}
+                <button
+                  type="button"
+                  onClick={() => applyMarginPreset('resmi')}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    printMargins.preset === 'resmi'
+                      ? 'bg-emerald-500/20 border-emerald-400 shadow-md ring-1 ring-emerald-400'
+                      : 'bg-slate-950/50 border-white/10 hover:border-white/20 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-xs text-white">Standar Kedinasan</span>
+                      {printMargins.preset === 'resmi' && <Check className="w-4 h-4 text-emerald-400" />}
+                    </div>
+                    <span className="inline-block text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-300 mb-2 border border-emerald-400/30">
+                      Rekomendasi Resmi
+                    </span>
+                    <p className="text-[11px] text-slate-300 leading-tight">
+                      Kiri: 25mm (Aman Jilid) • Atas: 20mm • Kanan: 20mm • Bawah: 20mm
+                    </p>
+                  </div>
+                </button>
+
+                {/* Preset 2: Proporsional Simetris */}
+                <button
+                  type="button"
+                  onClick={() => applyMarginPreset('seimbang')}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    printMargins.preset === 'seimbang'
+                      ? 'bg-emerald-500/20 border-emerald-400 shadow-md ring-1 ring-emerald-400'
+                      : 'bg-slate-950/50 border-white/10 hover:border-white/20 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-xs text-white">Proporsional (2 cm)</span>
+                      {printMargins.preset === 'seimbang' && <Check className="w-4 h-4 text-emerald-400" />}
+                    </div>
+                    <span className="inline-block text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 mb-2 border border-white/10">
+                      Simetris 4 Sisi
+                    </span>
+                    <p className="text-[11px] text-slate-300 leading-tight">
+                      Kiri: 20mm • Atas: 20mm • Kanan: 20mm • Bawah: 20mm
+                    </p>
+                  </div>
+                </button>
+
+                {/* Preset 3: Kompak */}
+                <button
+                  type="button"
+                  onClick={() => applyMarginPreset('kompak')}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    printMargins.preset === 'kompak'
+                      ? 'bg-emerald-500/20 border-emerald-400 shadow-md ring-1 ring-emerald-400'
+                      : 'bg-slate-950/50 border-white/10 hover:border-white/20 hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-bold text-xs text-white">Kompak (1.5 cm)</span>
+                      {printMargins.preset === 'kompak' && <Check className="w-4 h-4 text-emerald-400" />}
+                    </div>
+                    <span className="inline-block text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 mb-2 border border-white/10">
+                      Area Cetak Maksimal
+                    </span>
+                    <p className="text-[11px] text-slate-300 leading-tight">
+                      Kiri: 15mm • Atas: 15mm • Kanan: 15mm • Bawah: 15mm
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Margin Sliders & Inputs */}
+            <div className="bg-slate-950/60 p-4 rounded-xl border border-white/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-400" />
+                  Kustomisasi Ukuran Margin Manual (Milimeter / mm):
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  Nilai otomatis tersimpan saat diubah
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {/* Atas */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-slate-300 flex justify-between">
+                    <span>Atas (Top):</span>
+                    <span className="font-mono font-bold text-emerald-400">{printMargins.top} mm</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="40"
+                    step="1"
+                    value={printMargins.top}
+                    onChange={(e) => handleCustomMarginChange('top', parseInt(e.target.value) || 20)}
+                    className="w-full accent-emerald-500 cursor-pointer"
+                  />
+                  <input
+                    type="number"
+                    min="5"
+                    max="40"
+                    value={printMargins.top}
+                    onChange={(e) => handleCustomMarginChange('top', parseInt(e.target.value) || 20)}
+                    className="w-full bg-slate-900 border border-white/10 rounded px-2 py-1 text-xs text-center font-mono font-bold text-white"
+                  />
+                </div>
+
+                {/* Kiri (Ruang Jilid) */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-emerald-300 flex justify-between">
+                    <span>Kiri (Jilid):</span>
+                    <span className="font-mono font-bold text-emerald-400">{printMargins.left} mm</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="45"
+                    step="1"
+                    value={printMargins.left}
+                    onChange={(e) => handleCustomMarginChange('left', parseInt(e.target.value) || 25)}
+                    className="w-full accent-emerald-500 cursor-pointer"
+                  />
+                  <input
+                    type="number"
+                    min="5"
+                    max="45"
+                    value={printMargins.left}
+                    onChange={(e) => handleCustomMarginChange('left', parseInt(e.target.value) || 25)}
+                    className="w-full bg-slate-900 border border-emerald-400/40 rounded px-2 py-1 text-xs text-center font-mono font-bold text-emerald-300"
+                  />
+                </div>
+
+                {/* Kanan */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-slate-300 flex justify-between">
+                    <span>Kanan (Right):</span>
+                    <span className="font-mono font-bold text-emerald-400">{printMargins.right} mm</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="40"
+                    step="1"
+                    value={printMargins.right}
+                    onChange={(e) => handleCustomMarginChange('right', parseInt(e.target.value) || 20)}
+                    className="w-full accent-emerald-500 cursor-pointer"
+                  />
+                  <input
+                    type="number"
+                    min="5"
+                    max="40"
+                    value={printMargins.right}
+                    onChange={(e) => handleCustomMarginChange('right', parseInt(e.target.value) || 20)}
+                    className="w-full bg-slate-900 border border-white/10 rounded px-2 py-1 text-xs text-center font-mono font-bold text-white"
+                  />
+                </div>
+
+                {/* Bawah */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-medium text-slate-300 flex justify-between">
+                    <span>Bawah (Bottom):</span>
+                    <span className="font-mono font-bold text-emerald-400">{printMargins.bottom} mm</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="5"
+                    max="40"
+                    step="1"
+                    value={printMargins.bottom}
+                    onChange={(e) => handleCustomMarginChange('bottom', parseInt(e.target.value) || 20)}
+                    className="w-full accent-emerald-500 cursor-pointer"
+                  />
+                  <input
+                    type="number"
+                    min="5"
+                    max="40"
+                    value={printMargins.bottom}
+                    onChange={(e) => handleCustomMarginChange('bottom', parseInt(e.target.value) || 20)}
+                    className="w-full bg-slate-900 border border-white/10 rounded px-2 py-1 text-xs text-center font-mono font-bold text-white"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Browser Printing Best-Practice Alert */}
+            <div className="p-3 bg-amber-950/40 border border-amber-500/30 rounded-xl text-xs text-amber-200/90 space-y-1">
+              <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-amber-400" />
+                Petunjuk Penting saat Jendela Cetak Browser Muncul:
+              </span>
+              <p>
+                1. Pada pengaturan printer / PDF browser, pilih opsi <strong>Margin: Default</strong> (atau biarkan default) agar ukuran presisi yang dipilih di atas langsung diterapkan.
+              </p>
+              <p>
+                2. Centang opsi <strong>Background Graphics (Grafik Latar Belakang)</strong> agar kop resmi dan garis tabel tercetak tajam.
+              </p>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => applyMarginPreset('resmi')}
+                className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white transition-colors cursor-pointer"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset ke Standar Resmi (20-25-20-20 mm)</span>
+              </button>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsMarginModalOpen(false)}
+                  className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all cursor-pointer border border-white/10"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMarginModalOpen(false);
+                    setTimeout(() => handlePrint(), 250);
+                  }}
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition-all cursor-pointer shadow-lg hover:scale-[1.02]"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Terapkan &amp; Cetak Rapor</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

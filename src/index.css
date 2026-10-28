@@ -317,7 +317,7 @@ html.light, .light {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 12mm 14mm 12mm 14mm;
+    margin: 20mm 20mm 20mm 25mm; /* Standar Resmi Kedinasan: Atas 20mm, Kanan 20mm, Bawah 20mm, Kiri 25mm (Aman Map Rapor & Penjilidan) */
   }
 
   /* Sembunyikan seluruh UI chrome web, header, footer, navigasi, dan tombol */
@@ -353,16 +353,30 @@ html.light, .light {
     print-color-adjust: exact !important;
   }
 
+  table {
+    page-break-inside: auto !important;
+    border-collapse: collapse !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
   .page-break {
     page-break-after: always !important;
     break-after: page !important;
   }
 
-  .break-inside-avoid {
-    break-inside: avoid !important;
-    page-break-inside: avoid !important;
+  .page-break:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 
+  .break-inside-avoid,
   tr {
     break-inside: avoid !important;
     page-break-inside: avoid !important;

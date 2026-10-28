@@ -101,55 +101,28 @@ export function App() {
   const [sheetsConfig, setSheetsConfig] = useState<GoogleSheetsConfig>(() => StorageService.getSheetsConfig());
   const [hasSheetsMismatch, setHasSheetsMismatch] = useState<boolean>(false);
 
-  // Pastikan identitas Kepala Sekolah di Profil Sekolah selalu 100% selaras dengan Kepala Sekolah resmi
+  // Sinkronisasi dinamis: Pastikan Profil Sekolah selaras dengan Kepala Sekolah yang ditugaskan di Data Guru
   useEffect(() => {
-    let kepsek = teachers.find(
+    const kepsek = teachers.find(
       t => t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().trim() === 'kepala sekolah'
     );
-    // Jika kepsek tidak sengaja tertukar atau tertulis guru lain, pulihkan ke data resmi Kepala Sekolah
-    if (!kepsek || kepsek.nama?.toLowerCase().includes('helmi')) {
-      const officialKepsekData: Teacher = {
-        id: 'T001',
-        nuptk: '',
-        nigy: '994 101 004',
-        nip: '994 101 004',
-        nama: 'Muhamad Harir Afandi, S.HI',
-        gender: 'L',
-        mapelUtama: '-',
-        mapelTambahan: ['-'],
-        jabatan: 'Kepala Sekolah',
-        statusPegawai: 'GTY',
-        waliKelasDi: '-',
-        email: 'harier.bwi@gmail.com',
-        telepon: '82338609955'
-      };
-      kepsek = officialKepsekData;
-      const updatedTeachers = teachers.map(t => {
-        if (t.id === 'T001' || t.jabatan === 'Kepala Sekolah') {
-          return officialKepsekData;
-        }
-        return t;
-      });
-      setTeachers(updatedTeachers);
-      StorageService.setTeachers(updatedTeachers);
-    }
-
-    const expectedNigy = kepsek.nigy || kepsek.nip || '994 101 004';
-    if (
-      schoolInfo.kepalaSekolah !== kepsek.nama ||
-      schoolInfo.nigyKepalaSekolah !== expectedNigy ||
-      schoolInfo.nipKepalaSekolah !== expectedNigy ||
-      schoolInfo.kepalaSekolah?.toLowerCase().includes('helmi')
-    ) {
-      const synced: SchoolInfo = {
-        ...schoolInfo,
-        misi: Array.isArray(schoolInfo.misi) && schoolInfo.misi.length > 0 ? schoolInfo.misi : initialSchoolInfo.misi,
-        kepalaSekolah: kepsek.nama,
-        nigyKepalaSekolah: expectedNigy,
-        nipKepalaSekolah: expectedNigy
-      };
-      setSchoolInfo(synced);
-      StorageService.setSchoolInfo(synced);
+    if (kepsek) {
+      const expectedNigy = kepsek.nigy || kepsek.nip || schoolInfo.nigyKepalaSekolah;
+      if (
+        schoolInfo.kepalaSekolah !== kepsek.nama ||
+        (expectedNigy && schoolInfo.nigyKepalaSekolah !== expectedNigy) ||
+        (expectedNigy && schoolInfo.nipKepalaSekolah !== expectedNigy)
+      ) {
+        const synced: SchoolInfo = {
+          ...schoolInfo,
+          misi: Array.isArray(schoolInfo.misi) && schoolInfo.misi.length > 0 ? schoolInfo.misi : initialSchoolInfo.misi,
+          kepalaSekolah: kepsek.nama,
+          nigyKepalaSekolah: expectedNigy,
+          nipKepalaSekolah: expectedNigy
+        };
+        setSchoolInfo(synced);
+        StorageService.setSchoolInfo(synced);
+      }
     }
   }, [teachers]);
 
@@ -160,7 +133,7 @@ export function App() {
     const isTaChanged = oldTa !== info.tahunAjaran;
     const isSemChanged = oldSem !== info.semesterAktif;
 
-    // Tetapkan identitas Kepala Sekolah resmi dari Master Data Guru
+    // Ambil guru yang memegang jabatan Kepala Sekolah di Data Guru (jika ada)
     const officialKepsek = teachers.find(
       t => t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().trim() === 'kepala sekolah'
     );
@@ -170,9 +143,9 @@ export function App() {
       misi: Array.isArray(info.misi) && info.misi.length > 0
         ? info.misi
         : (Array.isArray(schoolInfo.misi) && schoolInfo.misi.length > 0 ? schoolInfo.misi : initialSchoolInfo.misi),
-      kepalaSekolah: officialKepsek ? officialKepsek.nama : (info.kepalaSekolah || schoolInfo.kepalaSekolah),
-      nigyKepalaSekolah: officialKepsek ? (officialKepsek.nigy || officialKepsek.nip || info.nigyKepalaSekolah) : (info.nigyKepalaSekolah || schoolInfo.nigyKepalaSekolah),
-      nipKepalaSekolah: officialKepsek ? (officialKepsek.nip || officialKepsek.nigy || info.nipKepalaSekolah) : (info.nipKepalaSekolah || schoolInfo.nipKepalaSekolah),
+      kepalaSekolah: info.kepalaSekolah || officialKepsek?.nama || schoolInfo.kepalaSekolah,
+      nigyKepalaSekolah: info.nigyKepalaSekolah || officialKepsek?.nigy || officialKepsek?.nip || schoolInfo.nigyKepalaSekolah,
+      nipKepalaSekolah: info.nipKepalaSekolah || info.nigyKepalaSekolah || officialKepsek?.nip || officialKepsek?.nigy || schoolInfo.nipKepalaSekolah,
     };
 
     const isKepsekChanged =
