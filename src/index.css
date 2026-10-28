@@ -319,30 +319,55 @@ html.light, .light {
     size: A4 portrait;
     margin: 12mm 14mm 12mm 14mm;
   }
-  .no-print {
+
+  /* Sembunyikan seluruh UI chrome web, header, footer, navigasi, dan tombol */
+  .no-print,
+  header,
+  aside,
+  nav,
+  footer,
+  [role="navigation"],
+  button,
+  .mesh-bg {
     display: none !important;
   }
+
+  /* Paksa latar belakang putih bersih tanpa padding atau bingkai gelap website */
+  html,
+  body,
+  #root,
+  #root > div,
+  main {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    min-height: auto !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .page-break {
     page-break-after: always !important;
     break-after: page !important;
   }
+
   .break-inside-avoid {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
+
   tr {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  .mesh-bg {
-    display: none !important;
-  }
+
   .glass, .glass-panel, .glass-card {
     background: #ffffff !important;
     border: none !important;

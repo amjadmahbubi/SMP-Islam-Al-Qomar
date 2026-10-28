@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-full glass backdrop-blur-xl border border-white/10 rounded-2xl shrink-0 p-4 space-y-6 shadow-2xl relative">
+    <aside className="no-print print:hidden w-full glass backdrop-blur-xl border border-white/10 rounded-2xl shrink-0 p-4 space-y-6 shadow-2xl relative">
       
       {/* Mobile Close Button Header */}
       {onCloseMobile && (

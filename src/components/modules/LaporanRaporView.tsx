@@ -23,7 +23,13 @@ import {
 } from 'lucide-react';
 import { EditDiniyahEkskulModal, BatchApplyScope } from './EditDiniyahEkskulModal';
 import { StorageService } from '../../services/storage';
-import { DEFAULT_MAPEL_LIST, getMapelSortIndex } from '../../data/constants';
+import {
+  DEFAULT_MAPEL_LIST,
+  getMapelSortIndex,
+  OFFICIAL_MAPEL_ORDER,
+  OFFICIAL_MAPEL_TEACHERS,
+  normalizeMapelName
+} from '../../data/constants';
 
 interface LaporanRaporViewProps {
   students: Student[];
@@ -63,6 +69,7 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
   const [isEditDiniyahOpen, setIsEditDiniyahOpen] = useState<boolean>(false);
   const [editTargetStudentId, setEditTargetStudentId] = useState<string>('');
   const [showGradeChecklist, setShowGradeChecklist] = useState<boolean>(false);
+  const [showAllOfficialMapels, setShowAllOfficialMapels] = useState<boolean>(true);
 
   const handleOpenEditDiniyah = (studentId: string) => {
     setEditTargetStudentId(studentId);
@@ -237,9 +244,30 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
     return { hadir, izin, sakit, alpa };
   };
 
+  // Helper generator deskripsi narasi capaian kompetensi otomatis (Kurikulum Merdeka)
+  const generateAutoKompetensi = (mapel: string, akhir: number, tpList?: string[]): string => {
+    const activeTps = (tpList || []).filter(t => t && t !== '0' && t !== '-' && t.trim() !== '');
+    const tpStr = activeTps.length > 0 
+      ? `materi ${activeTps.slice(0, 2).join(' serta ')}` 
+      : `tujuan pembelajaran pokok ${mapel}`;
+
+    if (akhir >= 85) {
+      return `Menunjukkan penguasaan yang sangat baik dalam memahami dan menerapkan ${tpStr}. Sangat disiplin dan tuntas dalam pengerjaan asesmen.`;
+    } else if (akhir >= 75) {
+      return `Menunjukkan penguasaan yang baik dalam mencapai ${tpStr}. Mampu menyelesaikan tugas pembelajaran dengan baik dan terarah.`;
+    } else if (akhir >= 60) {
+      return `Menunjukkan pemahaman yang cukup dalam menguasai ${tpStr}. Perlu meningkatkan latihan mandiri dan keaktifan bertanya di kelas.`;
+    } else if (akhir > 0) {
+      return `Perlu bimbingan dan pendampingan intensif dari guru serta orang tua dalam memahami ${tpStr}.`;
+    } else {
+      return `Penilaian asesmen sumatif lingkup materi sedang dalam proses penyelesaian oleh guru pengampu.`;
+    }
+  };
+
   // Helper to calculate student grades list
   const getGradesForStudent = (stId: string) => {
-    const list: {
+    // Kumpulkan seluruh data nilai yang sudah diinput guru untuk siswa ini
+    const existingEntriesMap: Record<string, {
       mapel: string;
       guru: string;
       formatif: number;
@@ -248,7 +276,8 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
       akhir: number;
       predikat: string;
       catatan: string;
-    }[] = [];
+      tpList?: string[];
+    }> = {};
 
     grades.forEach(g => {
       const entry = g.studentGrades.find(e => e.studentId === stId);
@@ -262,42 +291,113 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
         else if (akhir > 0) predikat = 'D';
         else predikat = '-';
 
-        list.push({
+        // Auto-generate catatan narasi kompetensi jika catatan kosong atau hanya tanda strip '-'
+        let catatan = (entry.catatanKompetensi || '').trim();
+        if (!catatan || catatan === '-' || catatan === '0') {
+          catatan = generateAutoKompetensi(g.mapel, akhir, g.tpList);
+        }
+
+        const normKey = normalizeMapelName(g.mapel);
+        existingEntriesMap[normKey] = {
           mapel: g.mapel,
-          guru: g.teacherName,
+          guru: g.teacherName || OFFICIAL_MAPEL_TEACHERS[normKey]?.teacherName || 'Guru Pengampu',
           formatif: avgF,
           pts: entry.nilaiPTS,
           pas: entry.nilaiPAS,
           akhir,
           predikat,
-          catatan: entry.catatanKompetensi
-        });
+          catatan,
+          tpList: g.tpList
+        };
       }
     });
 
-    // Urutkan nilai mata pelajaran sesuai struktur resmi Kurikulum Merdeka (Fase D SMP):
-    // 1. Pendidikan Agama dan Budi Pekerti
-    // 2. Pendidikan Pancasila
-    // 3. Bahasa Indonesia
-    // 4. Matematika
-    // 5. Ilmu Pengetahuan Alam
-    // 6. Ilmu Pengetahuan Sosial
-    // 7. Bahasa Inggris
-    // 8. Pendidikan Jasmani, Olahraga, dan Kesehatan
-    // 9. Informatika
-    // 10. Seni dan Budaya
-    // 11. Prakarya
-    // 12. Bahasa Jawa (Mulok Daerah)
-    // 13. Bahasa Arab (Mulok Pesantren)
-    // dilanjutkan dengan mapel keagamaan/diniyah lainnya
-    list.sort((a, b) => {
-      const idxA = getMapelSortIndex(a.mapel);
-      const idxB = getMapelSortIndex(b.mapel);
-      if (idxA !== idxB) {
-        return idxA - idxB;
-      }
-      return a.mapel.localeCompare(b.mapel, 'id');
-    });
+    const list: {
+      mapel: string;
+      guru: string;
+      formatif: number;
+      pts: number;
+      pas: number;
+      akhir: number | string;
+      predikat: string;
+      catatan: string;
+    }[] = [];
+
+    if (showAllOfficialMapels) {
+      // 1. Tampilkan 13 Mata Pelajaran Pokok Resmi Kurikulum Merdeka (Format Baku Buku Rapor)
+      OFFICIAL_MAPEL_ORDER.forEach(mapelName => {
+        const normKey = normalizeMapelName(mapelName);
+        const existing = existingEntriesMap[normKey];
+        if (existing) {
+          list.push({
+            mapel: mapelName,
+            guru: existing.guru,
+            formatif: existing.formatif,
+            pts: existing.pts,
+            pas: existing.pas,
+            akhir: existing.akhir,
+            predikat: existing.predikat,
+            catatan: existing.catatan
+          });
+        } else {
+          // Mapel resmi yang belum diinput oleh guru pengampu
+          const teacherObj = OFFICIAL_MAPEL_TEACHERS[normKey];
+          list.push({
+            mapel: mapelName,
+            guru: teacherObj?.teacherName || 'Guru Pengampu',
+            formatif: 0,
+            pts: 0,
+            pas: 0,
+            akhir: '-',
+            predikat: '-',
+            catatan: 'Belum diisi oleh guru pengampu (menunggu asesmen pembelajaran).'
+          });
+        }
+      });
+
+      // 2. Tambahkan mapel kekhasan / diniyah lain yang ada di database
+      Object.keys(existingEntriesMap).forEach(key => {
+        const isOfficial = (OFFICIAL_MAPEL_ORDER as readonly string[]).some(
+          m => normalizeMapelName(m) === key
+        );
+        if (!isOfficial) {
+          const entry = existingEntriesMap[key];
+          list.push({
+            mapel: entry.mapel,
+            guru: entry.guru,
+            formatif: entry.formatif,
+            pts: entry.pts,
+            pas: entry.pas,
+            akhir: entry.akhir,
+            predikat: entry.predikat,
+            catatan: entry.catatan
+          });
+        }
+      });
+    } else {
+      // Mode hanya mapel yang sudah memiliki nilai di sistem
+      Object.values(existingEntriesMap).forEach(entry => {
+        list.push({
+          mapel: entry.mapel,
+          guru: entry.guru,
+          formatif: entry.formatif,
+          pts: entry.pts,
+          pas: entry.pas,
+          akhir: entry.akhir,
+          predikat: entry.predikat,
+          catatan: entry.catatan
+        });
+      });
+
+      list.sort((a, b) => {
+        const idxA = getMapelSortIndex(a.mapel);
+        const idxB = getMapelSortIndex(b.mapel);
+        if (idxA !== idxB) {
+          return idxA - idxB;
+        }
+        return a.mapel.localeCompare(b.mapel, 'id');
+      });
+    }
 
     return list;
   };
@@ -308,11 +408,24 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
     const att = getAttendanceForStudent(st.id);
     const stGrades = getGradesForStudent(st.id);
 
+    const officialKepsek = teachers.find(
+      t => t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().includes('kepala sekolah')
+    ) || {
+      nama: 'Muhamad Harir Afandi, S.HI',
+      nigy: '994 101 004'
+    };
+    const kepsekNama = (schoolInfo.kepalaSekolah && !schoolInfo.kepalaSekolah.toLowerCase().includes('helmi'))
+      ? schoolInfo.kepalaSekolah
+      : (officialKepsek.nama || 'Muhamad Harir Afandi, S.HI');
+    const kepsekNigy = (schoolInfo.nigyKepalaSekolah && schoolInfo.nigyKepalaSekolah !== '992 101 007' && !schoolInfo.kepalaSekolah?.toLowerCase().includes('helmi'))
+      ? schoolInfo.nigyKepalaSekolah
+      : (officialKepsek.nigy || '994 101 004');
+
     return (
       <div
         key={st.id}
         id={`rapor-student-${st.id}`}
-        className={`bg-white rounded-2xl p-7 border border-slate-300 shadow-md max-w-4xl mx-auto space-y-4 text-slate-900 font-sans print:max-w-none print:w-full print:p-0 print:border-none print:shadow-none print:space-y-3.5 print:rounded-none ${
+        className={`bg-white rounded-2xl p-7 border border-slate-300 shadow-md max-w-4xl mx-auto space-y-4 text-slate-900 font-sans print:max-w-none print:w-full print:p-0 print:border-none print:shadow-none print:space-y-3.5 print:rounded-none print:overflow-hidden ${
           isBulkItem ? 'page-break mb-10 print:mb-0' : ''
         }`}
       >
@@ -646,11 +759,11 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
                 {/* Kolom Tengah: Kepala Sekolah */}
                 <td className="align-bottom px-2">
                   <div className="font-bold text-slate-900 text-xs print:text-[11px] leading-tight min-h-[1.75rem] flex items-end justify-center pb-0.5">
-                    {schoolInfo.kepalaSekolah}
+                    {kepsekNama}
                   </div>
                   <div className="w-44 sm:w-48 mx-auto border-b-2 border-slate-700"></div>
                   <div className="text-[10px] print:text-[10px] text-slate-600 pt-0.5 font-mono">
-                    NIGY: {schoolInfo.nigyKepalaSekolah || schoolInfo.nipKepalaSekolah || '992 101 007'}
+                    NIGY: {kepsekNigy}
                   </div>
                 </td>
 
@@ -792,6 +905,19 @@ export const LaporanRaporView: React.FC<LaporanRaporViewProps> = ({
               </select>
             </div>
           )}
+
+          {/* Toggle Tampilkan Seluruh 13 Mapel Standar */}
+          <label className="flex items-center gap-2 cursor-pointer bg-slate-950/60 hover:bg-slate-950 px-3 py-1.5 rounded-xl border border-white/10 transition-colors">
+            <input
+              type="checkbox"
+              checked={showAllOfficialMapels}
+              onChange={(e) => setShowAllOfficialMapels(e.target.checked)}
+              className="w-4 h-4 text-emerald-500 rounded focus:ring-emerald-400 focus:ring-offset-slate-900 cursor-pointer"
+            />
+            <span className="font-bold text-emerald-300 select-none">
+              Tampilkan 13 Mapel Resmi (Standar Dokumen Rapor Lengkap)
+            </span>
+          </label>
 
           {/* Wali Kelas Badge */}
           <div className="ml-auto text-[11px] text-amber-300 bg-amber-500/10 border border-amber-400/20 px-3 py-1 rounded-xl">

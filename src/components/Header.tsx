@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
       loggedTeacher.jabatan?.toLowerCase().includes('kepsek'))
   );
   return (
-    <header className="bg-slate-900/95 backdrop-blur-xl text-white shadow-xl sticky top-0 z-40 border-b border-white/10 transition-all w-full">
+    <header className="no-print print:hidden bg-slate-900/95 backdrop-blur-xl text-white shadow-xl sticky top-0 z-40 border-b border-white/10 transition-all w-full">
       <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20 gap-1.5 sm:gap-4">
           

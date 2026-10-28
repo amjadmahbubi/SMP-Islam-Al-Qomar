@@ -101,28 +101,55 @@ export function App() {
   const [sheetsConfig, setSheetsConfig] = useState<GoogleSheetsConfig>(() => StorageService.getSheetsConfig());
   const [hasSheetsMismatch, setHasSheetsMismatch] = useState<boolean>(false);
 
-  // Pastikan identitas Kepala Sekolah di Profil Sekolah selalu 100% selaras dengan guru berjabatan 'Kepala Sekolah'
+  // Pastikan identitas Kepala Sekolah di Profil Sekolah selalu 100% selaras dengan Kepala Sekolah resmi
   useEffect(() => {
-    const kepsek = teachers.find(
+    let kepsek = teachers.find(
       t => t.jabatan === 'Kepala Sekolah' || t.jabatan?.toLowerCase().trim() === 'kepala sekolah'
     );
-    if (kepsek) {
-      const expectedNigy = kepsek.nigy || kepsek.nip || schoolInfo.nigyKepalaSekolah;
-      if (
-        schoolInfo.kepalaSekolah !== kepsek.nama ||
-        schoolInfo.nigyKepalaSekolah !== expectedNigy ||
-        schoolInfo.nipKepalaSekolah !== expectedNigy
-      ) {
-        const synced: SchoolInfo = {
-          ...schoolInfo,
-          misi: Array.isArray(schoolInfo.misi) && schoolInfo.misi.length > 0 ? schoolInfo.misi : initialSchoolInfo.misi,
-          kepalaSekolah: kepsek.nama,
-          nigyKepalaSekolah: expectedNigy,
-          nipKepalaSekolah: expectedNigy
-        };
-        setSchoolInfo(synced);
-        StorageService.setSchoolInfo(synced);
-      }
+    // Jika kepsek tidak sengaja tertukar atau tertulis guru lain, pulihkan ke data resmi Kepala Sekolah
+    if (!kepsek || kepsek.nama?.toLowerCase().includes('helmi')) {
+      const officialKepsekData: Teacher = {
+        id: 'T001',
+        nuptk: '',
+        nigy: '994 101 004',
+        nip: '994 101 004',
+        nama: 'Muhamad Harir Afandi, S.HI',
+        gender: 'L',
+        mapelUtama: '-',
+        mapelTambahan: ['-'],
+        jabatan: 'Kepala Sekolah',
+        statusPegawai: 'GTY',
+        waliKelasDi: '-',
+        email: 'harier.bwi@gmail.com',
+        telepon: '82338609955'
+      };
+      kepsek = officialKepsekData;
+      const updatedTeachers = teachers.map(t => {
+        if (t.id === 'T001' || t.jabatan === 'Kepala Sekolah') {
+          return officialKepsekData;
+        }
+        return t;
+      });
+      setTeachers(updatedTeachers);
+      StorageService.setTeachers(updatedTeachers);
+    }
+
+    const expectedNigy = kepsek.nigy || kepsek.nip || '994 101 004';
+    if (
+      schoolInfo.kepalaSekolah !== kepsek.nama ||
+      schoolInfo.nigyKepalaSekolah !== expectedNigy ||
+      schoolInfo.nipKepalaSekolah !== expectedNigy ||
+      schoolInfo.kepalaSekolah?.toLowerCase().includes('helmi')
+    ) {
+      const synced: SchoolInfo = {
+        ...schoolInfo,
+        misi: Array.isArray(schoolInfo.misi) && schoolInfo.misi.length > 0 ? schoolInfo.misi : initialSchoolInfo.misi,
+        kepalaSekolah: kepsek.nama,
+        nigyKepalaSekolah: expectedNigy,
+        nipKepalaSekolah: expectedNigy
+      };
+      setSchoolInfo(synced);
+      StorageService.setSchoolInfo(synced);
     }
   }, [teachers]);
 
@@ -696,31 +723,33 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950/80 font-sans text-slate-100 flex flex-col relative overflow-x-clip">
+    <div className="min-h-screen bg-slate-950/80 font-sans text-slate-100 flex flex-col relative overflow-x-clip print:bg-white print:text-black print:min-h-0 print:p-0">
       {/* Frosted Glass Radial Gradient Background */}
-      <div className="mesh-bg" />
+      <div className="mesh-bg no-print" />
       
       {/* Top Navigation Bar */}
-      <Header
-        schoolInfo={schoolInfo}
-        session={session}
-        teachers={teachers}
-        onOpenLoginModal={() => setIsLoginOpen(true)}
-        onLogout={handleLogout}
-        activeTab={activeTab}
-        setActiveTab={handleSelectTab}
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        isSidebarOpen={isSidebarOpen}
-        theme={theme}
-        onToggleTheme={handleToggleTheme}
-        sheetsConfig={sheetsConfig}
-        hasSheetsMismatch={hasSheetsMismatch}
-        autoSyncStatus={autoSyncStatus}
-        onTriggerAutoSync={triggerManualAutoSync}
-      />
+      <div className="no-print">
+        <Header
+          schoolInfo={schoolInfo}
+          session={session}
+          teachers={teachers}
+          onOpenLoginModal={() => setIsLoginOpen(true)}
+          onLogout={handleLogout}
+          activeTab={activeTab}
+          setActiveTab={handleSelectTab}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isSidebarOpen={isSidebarOpen}
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
+          sheetsConfig={sheetsConfig}
+          hasSheetsMismatch={hasSheetsMismatch}
+          autoSyncStatus={autoSyncStatus}
+          onTriggerAutoSync={triggerManualAutoSync}
+        />
+      </div>
 
       {/* Main Layout Area */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col lg:flex-row gap-6 relative">
+      <div className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col lg:flex-row gap-6 relative print:p-0 print:m-0 print:max-w-none print:w-full print:block">
         
         {/* Sidebar Navigation */}
         {isSidebarOpen && (
@@ -728,11 +757,11 @@ export function App() {
             {/* Mobile Backdrop for drawer overlay */}
             <div 
               onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm lg:hidden transition-opacity"
+              className="no-print fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-sm lg:hidden transition-opacity"
             />
 
             {/* Sidebar Drawer Container */}
-            <div className="fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto w-72 lg:w-64 shrink-0 p-4 lg:p-0 bg-slate-950/95 lg:bg-transparent overflow-y-auto lg:overflow-visible transition-all duration-300">
+            <div className="no-print fixed lg:relative inset-y-0 left-0 z-50 lg:z-auto w-72 lg:w-64 shrink-0 p-4 lg:p-0 bg-slate-950/95 lg:bg-transparent overflow-y-auto lg:overflow-visible transition-all duration-300">
               <Sidebar
                 session={session}
                 teachers={teachers}
@@ -747,14 +776,16 @@ export function App() {
         )}
 
         {/* Main Content View Switcher */}
-        <main className="flex-1 min-w-0">
+        <main className="flex-1 min-w-0 print:p-0 print:m-0 print:w-full">
           
           {/* PWA & Offline Status Banner */}
-          <PWAOfflineBanner
-            onNavigateToSheets={session.role === 'admin' ? () => setActiveTab('google-sheets') : undefined}
-            schoolInfo={schoolInfo}
-            session={session}
-          />
+          <div className="no-print">
+            <PWAOfflineBanner
+              onNavigateToSheets={session.role === 'admin' ? () => setActiveTab('google-sheets') : undefined}
+              schoolInfo={schoolInfo}
+              session={session}
+            />
+          </div>
 
           <div key={activeTab} className="page-transition">
             {/* PUBLIC VIEWS */}
